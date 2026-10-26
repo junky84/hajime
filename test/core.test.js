@@ -127,6 +127,31 @@ test('Osaekomi 20 s = automatisch Ippon', () => {
   assert.strictEqual(s.fight.reason, 'Ippon');
 });
 
+test('Jugend: Osaekomi 20 s -> Ippon gezählt, automatisch Mate + Gong', () => {
+  const s = fresh('p-u11');
+  C.hajimeMate(s, 0);
+  C.startOsae(s, 'blue', 10000);
+  C.tick(s, 30000);
+  assert.strictEqual(s.fight.blue.ippon, 1);
+  assert.strictEqual(s.fight.status, 'paused');
+  assert.strictEqual(C.clockRunning(s.fight.clock), false);
+  assert.strictEqual(C.clockMs(s.fight.clock, 99999), 90000);
+  assert.strictEqual(s.fight.sound.kind, 'gong');
+  C.hajimeMate(s, 40000); // weiter mit Hajime
+  assert.strictEqual(s.fight.status, 'running');
+});
+
+test('Ohne Osaekomi-Automatik: nach 20 s Mate + Gong, keine Wertung', () => {
+  const s = fresh();
+  C.getRules(s).autoOsae = false;
+  C.hajimeMate(s, 0);
+  C.startOsae(s, 'white', 1000);
+  C.tick(s, 21000);
+  assert.strictEqual(s.fight.white.ippon, 0);
+  assert.strictEqual(s.fight.status, 'paused');
+  assert.strictEqual(s.fight.sound.kind, 'gong');
+});
+
 test('Osaekomi mit Waza-ari endet nach 10 s (awasete)', () => {
   const s = fresh();
   C.hajimeMate(s, 0);

@@ -463,8 +463,13 @@
           f.osae.lastAt = now;
           f.osae.side = null;
           f.osae.startedAt = null;
-          setSound(f, 'beep', now);
           checkEnd(state, now);
+        }
+        // Haltegriff voll ausgehalten, Kampf geht weiter (z. B. Jugend): automatisch Mate + Gong
+        if (f.status !== 'finished' && f.status !== 'timeup') {
+          pauseClock(f.clock, now);
+          f.status = 'paused';
+          setSound(f, 'gong', now);
         }
         changed = true;
       }
