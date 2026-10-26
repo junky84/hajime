@@ -985,5 +985,15 @@
 
   commit();
   requestAnimationFrame(frame);
-  window.__judo = { get state() { return state; } }; // für Fehlersuche
+  // für Fehlersuche und das Screenshot-Skript
+  window.__judo = {
+    get state() {
+      return state;
+    },
+    set state(v) {
+      state = v;
+      history = [];
+    },
+    commit,
+  };
 })();

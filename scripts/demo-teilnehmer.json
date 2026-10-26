@@ -1,0 +1,122 @@
+[
+ {
+  "name": "Lukas Brenner",
+  "club": "JC Mittelstadt",
+  "ageClass": "U11",
+  "category": "-28 kg"
+ },
+ {
+  "name": "Mia Kaltenbach",
+  "club": "TSV Lindenau",
+  "ageClass": "U11",
+  "category": "-28 kg"
+ },
+ {
+  "name": "Noah Fischbach",
+  "club": "SV Bergheim",
+  "ageClass": "U11",
+  "category": "-28 kg"
+ },
+ {
+  "name": "Emma Rothmund",
+  "club": "JC Mittelstadt",
+  "ageClass": "U11",
+  "category": "-28 kg"
+ },
+ {
+  "name": "Ben Achterberg",
+  "club": "Judoteam Talheim",
+  "ageClass": "U11",
+  "category": "-31 kg"
+ },
+ {
+  "name": "Lina Steinhoff",
+  "club": "TSV Lindenau",
+  "ageClass": "U11",
+  "category": "-31 kg"
+ },
+ {
+  "name": "Elias Wolters",
+  "club": "SV Bergheim",
+  "ageClass": "U11",
+  "category": "-31 kg"
+ },
+ {
+  "name": "Hannah Grimmel",
+  "club": "JC Kirchdorf",
+  "ageClass": "U11",
+  "category": "-31 kg"
+ },
+ {
+  "name": "Paul Hagedorn",
+  "club": "JC Mittelstadt",
+  "ageClass": "U13",
+  "category": "-34 kg"
+ },
+ {
+  "name": "Sophie Lenzinger",
+  "club": "Judoteam Talheim",
+  "ageClass": "U13",
+  "category": "-34 kg"
+ },
+ {
+  "name": "Felix Moosbrugger",
+  "club": "JC Kirchdorf",
+  "ageClass": "U13",
+  "category": "-34 kg"
+ },
+ {
+  "name": "Lea Dornbusch",
+  "club": "TSV Lindenau",
+  "ageClass": "U13",
+  "category": "-34 kg"
+ },
+ {
+  "name": "Jonas Eichhorn",
+  "club": "SV Bergheim",
+  "ageClass": "U13",
+  "category": "-40 kg"
+ },
+ {
+  "name": "Clara Veith",
+  "club": "JC Mittelstadt",
+  "ageClass": "U13",
+  "category": "-40 kg"
+ },
+ {
+  "name": "Leon Pfisterer",
+  "club": "JC Kirchdorf",
+  "ageClass": "U13",
+  "category": "-40 kg"
+ },
+ {
+  "name": "Marie Halbritter",
+  "club": "Judoteam Talheim",
+  "ageClass": "U13",
+  "category": "-40 kg"
+ },
+ {
+  "name": "Finn Ostermann",
+  "club": "TSV Lindenau",
+  "ageClass": "U13",
+  "category": "-40 kg"
+ },
+ {
+  "name": "Maximilian Schönberger-Waldhausen",
+  "club": "SV Bergheim",
+  "ageClass": "U15",
+  "category": "-46 kg"
+ },
+ {
+  "name": "Anton Kreuzer",
+  "club": "JC Kirchdorf",
+  "ageClass": "U15",
+  "category": "-46 kg"
+ },
+ {
+  "name": "Theo Lindqvist",
+  "club": "JC Mittelstadt",
+  "ageClass": "U15",
+  "category": "-46 kg"
+ }
+]

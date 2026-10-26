@@ -7,7 +7,25 @@ Anzeigetafel für Judo-Wettkämpfe – für Windows und macOS, **ohne Installati
 - Namen optional, manuell oder per **Excel-Import**
 - **Regelprofile** pro Altersklasse (Kampfzeit, Golden Score, „Ippon beendet den Kampf“ ja/nein, Yuko, Shido-Grenze, Osaekomi-Zeiten …)
 
-![Icon](build/icon.png)
+## Screenshots
+
+**Publikumsanzeige** (Vollbild auf Beamer/zweitem Bildschirm)
+
+| Kampf läuft mit Osaekomi | Kampfende mit Sieger |
+|---|---|
+| ![Anzeige während Osaekomi](docs/screenshots/anzeige-osaekomi.png) | ![Anzeige mit Sieger](docs/screenshots/anzeige-sieger.png) |
+| **Golden Score** | **Pausenbild mit den nächsten Kämpfen** |
+| ![Anzeige Golden Score](docs/screenshots/anzeige-golden-score.png) | ![Pausenbild](docs/screenshots/anzeige-pausenbild.png) |
+
+**Bedienfenster** (Laptop)
+
+![Bedienfenster während des Kampfes](docs/screenshots/bedienung-kampf.png)
+
+| Kampfliste & Teilnehmer (Excel-Import, Jeder gegen jeden) | Einstellungen & Regelprofile |
+|---|---|
+| ![Kampfliste](docs/screenshots/bedienung-kampfliste.png) | ![Einstellungen](docs/screenshots/bedienung-einstellungen.png) |
+
+Alle Namen in den Screenshots sind erfunden (aus der [Beispiel-Excel](beispiel/Beispiel-Teilnehmer-20.xlsx)).
 
 ## Download & Start
 
@@ -71,6 +89,8 @@ Im Reiter **Kampfliste** gibt es *Excel-Vorlage speichern*. Die Vorlage hat zwei
   Daraus erzeugt die App pro Gruppe „Jeder gegen jeden“.
 
 Die Spalten werden an den Überschriften erkannt, die Reihenfolge ist egal. CSV geht auch.
+
+Zum Ausprobieren: [`beispiel/Beispiel-Teilnehmer-20.xlsx`](beispiel/Beispiel-Teilnehmer-20.xlsx) – 20 erfundene Kämpfer in 5 Gruppen (U11–U15), ergibt mit „Alle Gruppen: Jeder gegen jeden“ 31 Kämpfe.
 Die **Altersklasse** wählt beim Laden eines Kampfes automatisch das passende Regelprofil (Name oder Alias, z. B. „U12, U13“).
 
 ## Regelprofile
@@ -85,6 +105,7 @@ Für U11/U13 ist „Ippon beendet den Kampf“ ab Werk ausgeschaltet; es zählt 
 npm install
 npm start        # App starten
 npm test         # Tests der Wettkampflogik und des Excel-Imports
+JUDO_SCREENSHOTS=docs/screenshots npx electron .   # README-Screenshots neu erzeugen
 ```
 
 Aufbau:

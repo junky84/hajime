@@ -240,6 +240,22 @@ app.whenReady().then(() => {
   screen.on('display-removed', changed);
   screen.on('display-metrics-changed', changed);
 
+  // README-Screenshots (nur Entwicklung, scripts/ ist nicht Teil der fertigen App)
+  if (process.env.JUDO_SCREENSHOTS) {
+    require('./scripts/screenshots')({
+      getControl: () => controlWin,
+      getBoard: () => boardWin,
+      quit: () => {
+        quitting = true;
+        app.quit();
+      },
+    }).catch((err) => {
+      console.error(err);
+      quitting = true;
+      app.quit();
+    });
+  }
+
   // Selbsttest für die Entwicklung: Screenshots beider Fenster, dann beenden
   if (process.env.JUDO_SELFTEST) {
     setTimeout(async () => {

@@ -690,3 +690,7 @@ dialog input {
     grid-template-columns: 1fr;
   }
 }
+#queueTable td:nth-child(2),
+#logTable td:nth-child(3) {
+  white-space: nowrap;
+}
