@@ -9,10 +9,63 @@ let boardWin = null;
 let lastView = null;
 let quitting = false;
 
-// Portable Windows-Version: Daten neben der .exe ablegen statt im Benutzerprofil
-if (process.env.PORTABLE_EXECUTABLE_DIR) {
-  app.setPath('userData', path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'Judo-Anzeigetafel-Daten'));
+const selftestDir = process.env.HAJIME_SELFTEST || '';
+function log(msg) {
+  if (!selftestDir) return;
+  try {
+    fs.appendFileSync(path.join(selftestDir, 'selftest.log'), `[${process.uptime().toFixed(2)} s] ${msg}\n`);
+  } catch (err) {
+    /* Protokoll ist nur Zusatz */
+  }
 }
+log(`Start ${process.platform} ${process.arch} Electron ${process.versions.electron} exe=${process.execPath}`);
+
+// Fehler nicht stillschweigend schlucken: anzeigen (und im Test protokollieren)
+process.on('uncaughtException', (err) => {
+  log('FEHLER: ' + (err && err.stack ? err.stack : err));
+  try {
+    dialog.showErrorBox('Hajime – Fehler', String(err && err.stack ? err.stack : err));
+  } catch (e) {
+    /* vor app.ready nicht möglich */
+  }
+});
+
+// Portable Windows-Version: Daten neben der .exe ablegen statt im Benutzerprofil –
+// nur wenn der Ordner beschreibbar ist (z. B. nicht direkt aus einem ZIP oder schreibgeschützten Stick).
+if (process.env.PORTABLE_EXECUTABLE_DIR) {
+  const dataDir = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'Hajime-Daten');
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.accessSync(dataDir, fs.constants.W_OK);
+    app.setPath('userData', dataDir);
+  } catch (err) {
+    log('Datenordner neben der .exe nicht beschreibbar, nutze Standard: ' + err.message);
+  }
+}
+log('userData=' + app.getPath('userData'));
+
+// Ausweichbetrieb ohne Grafikbeschleunigung (Grafiktreiber-Probleme, virtuelle Maschinen).
+// Wird automatisch aktiviert, wenn der Grafikprozess abstürzt; manuell mit Startparameter --no-gpu.
+const noGpuFlag = path.join(app.getPath('userData'), 'ohne-grafikbeschleunigung');
+const noGpu = process.argv.includes('--no-gpu') || fs.existsSync(noGpuFlag);
+if (noGpu) {
+  app.disableHardwareAcceleration();
+  log('Grafikbeschleunigung aus');
+}
+app.on('child-process-gone', (_e, d) => {
+  log(`Hilfsprozess beendet: ${d.type} ${d.reason} (${d.exitCode})`);
+  if (d.type === 'GPU' && !noGpu && !['clean-exit', 'killed'].includes(d.reason)) {
+    try {
+      fs.mkdirSync(path.dirname(noGpuFlag), { recursive: true });
+      fs.writeFileSync(noGpuFlag, 'Grafikprozess abgestürzt: ' + d.reason + '\n');
+    } catch (err) {
+      /* dann eben nur dieser Neustart */
+    }
+    quitting = true;
+    app.relaunch({ args: process.argv.slice(1).concat('--no-gpu') });
+    app.exit(0);
+  }
+});
 
 const webPrefs = {
   preload: path.join(__dirname, 'preload.js'),
@@ -94,6 +147,21 @@ function placeBoard(display) {
   } else apply();
 }
 
+// Fenster sicher anzeigen: auf 'ready-to-show' warten, aber nie länger als 3 s.
+// (Auf manchen Windows-Rechnern/VMs kommt 'ready-to-show' nie – dann bliebe alles unsichtbar.)
+function whenShowable(win, name, fn) {
+  let done = false;
+  const go = (why) => {
+    if (done || win.isDestroyed()) return;
+    done = true;
+    log(`${name} anzeigen (${why})`);
+    fn();
+  };
+  win.once('ready-to-show', () => go('ready-to-show'));
+  win.webContents.once('did-finish-load', () => setTimeout(() => go('geladen'), 500));
+  setTimeout(() => go('Zeitlimit'), 3000);
+}
+
 function createBoard(displayId) {
   if (boardWin && !boardWin.isDestroyed()) {
     placeBoard(targetDisplay(displayId));
@@ -104,7 +172,7 @@ function createBoard(displayId) {
     width: 1280,
     height: 720,
     show: false,
-    title: 'Judo-Anzeigetafel – Anzeige',
+    title: 'Hajime – Anzeige',
     backgroundColor: '#000000',
     autoHideMenuBar: true,
     fullscreenable: true,
@@ -112,10 +180,10 @@ function createBoard(displayId) {
   });
   boardWin.setMenuBarVisibility(false);
   boardWin.loadFile(path.join(__dirname, 'src', 'board.html'));
-  boardWin.once('ready-to-show', () => {
+  whenShowable(boardWin, 'Anzeige', () => {
     placeBoard(targetDisplay(displayId));
     boardWin.showInactive();
-    if (controlWin) controlWin.focus();
+    if (controlWin && !controlWin.isDestroyed()) controlWin.focus();
   });
   boardWin.on('enter-full-screen', sendBoardStatus);
   boardWin.on('leave-full-screen', sendBoardStatus);
@@ -132,13 +200,13 @@ function createControl() {
     height: Math.min(960, primary.height),
     minWidth: 1000,
     minHeight: 640,
-    title: 'Judo-Anzeigetafel – Bedienung',
+    title: 'Hajime – Bedienung',
     backgroundColor: '#0f1218',
     show: false,
     webPreferences: webPrefs,
   });
   controlWin.loadFile(path.join(__dirname, 'src', 'control.html'));
-  controlWin.once('ready-to-show', () => {
+  whenShowable(controlWin, 'Bedienung', () => {
     controlWin.show();
     createBoard();
   });
@@ -150,7 +218,7 @@ function createControl() {
       defaultId: 1,
       cancelId: 1,
       title: 'Beenden',
-      message: 'Judo-Anzeigetafel beenden?',
+      message: 'Hajime beenden?',
       detail: 'Der aktuelle Stand ist gespeichert und wird beim nächsten Start wiederhergestellt.',
     });
     if (choice !== 0) e.preventDefault();
@@ -171,7 +239,7 @@ function createControl() {
 function buildMenu() {
   const sendMenu = (cmd) => controlWin && controlWin.webContents.send('menu', cmd);
   const template = [
-    ...(isMac ? [{ role: 'appMenu', label: 'Judo-Anzeigetafel' }] : []),
+    ...(isMac ? [{ role: 'appMenu', label: 'Hajime' }] : []),
     {
       label: 'Bearbeiten',
       submenu: [
@@ -221,6 +289,12 @@ ipcMain.handle('save-file', async (_e, { name, bytes }) => {
 
 /* ---------- Start ---------- */
 
+app.on('web-contents-created', (_e, wc) => {
+  wc.on('render-process-gone', (_ev, d) => log(`Fensterprozess beendet: ${d.reason} (${d.exitCode})`));
+  wc.on('did-fail-load', (_ev, code, desc, url) => log(`Laden fehlgeschlagen: ${code} ${desc} ${url}`));
+  wc.on('did-finish-load', () => log('geladen: ' + wc.getURL().split('/').pop()));
+});
+
 app.whenReady().then(() => {
   buildMenu();
   createControl();
@@ -241,7 +315,7 @@ app.whenReady().then(() => {
   screen.on('display-metrics-changed', changed);
 
   // README-Screenshots (nur Entwicklung, scripts/ ist nicht Teil der fertigen App)
-  if (process.env.JUDO_SCREENSHOTS) {
+  if (process.env.HAJIME_SCREENSHOTS) {
     require('./scripts/screenshots')({
       getControl: () => controlWin,
       getBoard: () => boardWin,
@@ -257,18 +331,20 @@ app.whenReady().then(() => {
   }
 
   // Selbsttest für die Entwicklung: Screenshots beider Fenster, dann beenden
-  if (process.env.JUDO_SELFTEST) {
+  if (selftestDir) {
+    log('ready, Bildschirme: ' + screen.getAllDisplays().length);
     setTimeout(async () => {
-      const out = process.env.JUDO_SELFTEST;
       try {
-        if (controlWin) fs.writeFileSync(path.join(out, 'control.png'), (await controlWin.webContents.capturePage()).toPNG());
-        if (boardWin) fs.writeFileSync(path.join(out, 'board.png'), (await boardWin.webContents.capturePage()).toPNG());
+        if (controlWin) fs.writeFileSync(path.join(selftestDir, 'control.png'), (await controlWin.webContents.capturePage()).toPNG());
+        if (boardWin) fs.writeFileSync(path.join(selftestDir, 'board.png'), (await boardWin.webContents.capturePage()).toPNG());
+        const board = boardWin ? await boardWin.webContents.executeJavaScript('document.getElementById("wait").style.display') : 'kein Fenster';
+        log(`Screenshots geschrieben, Anzeige verbunden: ${board === 'none' ? 'ja' : 'NEIN'}`);
       } catch (err) {
-        console.error(err);
+        log('FEHLER beim Selbsttest: ' + err.stack);
       }
       quitting = true;
       app.quit();
-    }, Number(process.env.JUDO_SELFTEST_DELAY || 3500));
+    }, Number(process.env.HAJIME_SELFTEST_DELAY || 3500));
   }
 });
 

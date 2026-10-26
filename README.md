@@ -1,6 +1,6 @@
-# Judo-Anzeigetafel
+# Hajime
 
-Anzeigetafel für Judo-Wettkämpfe – für Windows und macOS, **ohne Installation**.
+**Judo-Anzeigetafel** für Wettkämpfe – für Windows und macOS, **ohne Installation**.
 
 - **Publikumsanzeige** im Vollbild auf dem zweiten Bildschirm/Beamer (erweiterter Desktop)
 - **Bedienfenster** auf dem Laptop mit Live-Vorschau der Anzeige
@@ -33,17 +33,17 @@ Die fertigen Dateien liegen unter **Releases** (bzw. als Artefakt jedes Builds u
 
 | System | Datei | Start |
 |---|---|---|
-| Windows | `Judo-Anzeigetafel-x.y.z-Windows-portable.exe` | Doppelklick. Keine Installation. |
-| Windows | `Judo-Anzeigetafel-x.y.z-Windows.zip` | Entpacken, `Judo-Anzeigetafel.exe` starten (startet schneller als die portable .exe). |
-| macOS (Apple Silicon + Intel) | `Judo-Anzeigetafel-x.y.z-Mac.zip` | Entpacken, `Judo-Anzeigetafel.app` starten. |
+| Windows | `Hajime-x.y.z-Windows-portable.exe` | Doppelklick. Keine Installation. |
+| Windows | `Hajime-x.y.z-Windows.zip` | Entpacken, `Hajime.exe` starten (startet schneller als die portable .exe). |
+| macOS (Apple Silicon + Intel) | `Hajime-x.y.z-Mac.zip` | Entpacken, `Hajime.app` starten. |
 
 **Hinweise beim ersten Start** (die App ist nicht kostenpflichtig signiert):
 
 - **Windows:** „Der Computer wurde durch Windows geschützt“ → *Weitere Informationen* → *Trotzdem ausführen*.
 - **macOS:** Meldung „kann nicht geöffnet werden“ → *Systemeinstellungen → Datenschutz & Sicherheit* → ganz unten *Dennoch öffnen*.
-  Alternativ im Terminal: `xattr -cr /Pfad/zu/Judo-Anzeigetafel.app`
+  Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
 
-Die portable Windows-Version speichert ihre Daten im Ordner `Judo-Anzeigetafel-Daten` neben der .exe – sie läuft also auch vom USB-Stick.
+Die portable Windows-Version speichert ihre Daten im Ordner `Hajime-Daten` neben der .exe – sie läuft also auch vom USB-Stick.
 
 **Notbetrieb ohne App:** Quellcode herunterladen und `src/control.html` in Chrome oder Edge öffnen. „Anzeige öffnen“ öffnet das Publikumsfenster (Pop-ups erlauben), dieses auf den Beamer ziehen und doppelklicken (Vollbild).
 
@@ -105,7 +105,7 @@ Für U11/U13 ist „Ippon beendet den Kampf“ ab Werk ausgeschaltet; es zählt 
 npm install
 npm start        # App starten
 npm test         # Tests der Wettkampflogik und des Excel-Imports
-JUDO_SCREENSHOTS=docs/screenshots npx electron .   # README-Screenshots neu erzeugen
+HAJIME_SCREENSHOTS=docs/screenshots npx electron .   # README-Screenshots neu erzeugen
 ```
 
 Aufbau:

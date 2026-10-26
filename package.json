@@ -1,8 +1,8 @@
 {
-  "name": "judo-anzeigetafel",
-  "productName": "Judo-Anzeigetafel",
-  "version": "1.0.0",
-  "description": "Anzeigetafel für Judo-Wettkämpfe mit Publikums- und Bedienfenster",
+  "name": "hajime",
+  "productName": "Hajime",
+  "version": "1.0.1",
+  "description": "Hajime – Judo-Anzeigetafel mit Publikums- und Bedienfenster",
   "main": "main.js",
   "author": "junky84",
   "license": "MIT",
@@ -18,8 +18,8 @@
     "electron-builder": "^26.18.0"
   },
   "build": {
-    "appId": "io.github.junky84.judo-anzeigetafel",
-    "productName": "Judo-Anzeigetafel",
+    "appId": "io.github.junky84.hajime",
+    "productName": "Hajime",
     "copyright": "junky84",
     "directories": {
       "output": "dist",
@@ -43,7 +43,7 @@
       "category": "public.app-category.sports",
       "identity": "-",
       "hardenedRuntime": false,
-      "artifactName": "Judo-Anzeigetafel-${version}-Mac.${ext}"
+      "artifactName": "Hajime-${version}-Mac.${ext}"
     },
     "win": {
       "target": [
@@ -60,10 +60,11 @@
           ]
         }
       ],
-      "artifactName": "Judo-Anzeigetafel-${version}-Windows.${ext}"
+      "artifactName": "Hajime-${version}-Windows.${ext}"
     },
     "portable": {
-      "artifactName": "Judo-Anzeigetafel-${version}-Windows-portable.exe"
+      "artifactName": "Hajime-${version}-Windows-portable.exe",
+      "splashImage": "build/splash.bmp"
     }
   }
 }

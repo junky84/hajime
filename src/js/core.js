@@ -1,5 +1,5 @@
 /*
- * Judo-Anzeigetafel – Wettkampflogik ohne DOM.
+ * Hajime – Wettkampflogik ohne DOM.
  * Wird vom Bedienfenster benutzt und ist in Node testbar (test/core.test.js).
  * Alle Zeiten sind Millisekunden auf Basis von Date.now(), damit Bedien- und
  * Anzeigefenster auf demselben Rechner exakt dieselbe Uhr sehen.

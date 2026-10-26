@@ -1,5 +1,5 @@
 // Erzeugt die README-Screenshots mit der echten App:
-//   JUDO_SCREENSHOTS=docs/screenshots npx electron .
+//   HAJIME_SCREENSHOTS=docs/screenshots npx electron .
 // Wird nur in diesem Modus von main.js geladen (nicht Teil der fertigen App).
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +7,7 @@ const path = require('path');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 module.exports = async function run({ getControl, getBoard, quit }) {
-  const out = path.resolve(process.env.JUDO_SCREENSHOTS);
+  const out = path.resolve(process.env.HAJIME_SCREENSHOTS);
   fs.mkdirSync(out, { recursive: true });
   while (!getControl() || !getBoard()) await wait(200);
   await wait(2500);

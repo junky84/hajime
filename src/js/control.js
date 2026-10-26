@@ -5,7 +5,7 @@
   const T = window.JudoTransport;
   const X = window.JudoExcel;
   const S = window.JudoSound;
-  const STORE = 'judo-anzeigetafel-v1';
+  const STORE = 'hajime-v1';
   const $ = (s, el) => (el || document).querySelector(s);
   const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -749,7 +749,7 @@
     }
   });
 
-  $('#btnTemplate').addEventListener('click', () => T.saveFile('Judo-Import-Vorlage.xlsx', new Uint8Array(X.templateBytes())));
+  $('#btnTemplate').addEventListener('click', () => T.saveFile('Hajime-Import-Vorlage.xlsx', new Uint8Array(X.templateBytes())));
   $('#btnClearQueue').addEventListener('click', () => {
     if (state.queue.length && confirm('Kampfliste komplett leeren?')) {
       state.queue = [];
@@ -786,7 +786,7 @@
   $('#btnExportLog').addEventListener('click', () => {
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    T.saveFile(`Judo-Protokoll-${stamp}.xlsx`, new Uint8Array(X.protocolBytes(state.log)));
+    T.saveFile(`Hajime-Protokoll-${stamp}.xlsx`, new Uint8Array(X.protocolBytes(state.log)));
   });
   $('#btnClearLog').addEventListener('click', () => {
     if (state.log.length && confirm('Protokoll wirklich leeren? Vorher als Excel speichern!')) {
@@ -859,7 +859,7 @@
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const bytes = new TextEncoder().encode(JSON.stringify(state, null, 1));
-    T.saveFile(`Judo-Sicherung-${stamp}.json`, bytes, 'application/json');
+    T.saveFile(`Hajime-Sicherung-${stamp}.json`, bytes, 'application/json');
   });
   $('#btnRestore').addEventListener('click', () => $('#fileRestore').click());
   $('#fileRestore').addEventListener('change', async (e) => {
