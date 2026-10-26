@@ -1,0 +1,69 @@
+{
+  "name": "judo-anzeigetafel",
+  "productName": "Judo-Anzeigetafel",
+  "version": "1.0.0",
+  "description": "Anzeigetafel für Judo-Wettkämpfe mit Publikums- und Bedienfenster",
+  "main": "main.js",
+  "author": "junky84",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/core.test.js && node test/excel.test.js",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:win": "electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "io.github.junky84.judo-anzeigetafel",
+    "productName": "Judo-Anzeigetafel",
+    "copyright": "junky84",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "src/**/*"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.sports",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "artifactName": "Judo-Anzeigetafel-${version}-Mac.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Judo-Anzeigetafel-${version}-Windows.${ext}"
+    },
+    "portable": {
+      "artifactName": "Judo-Anzeigetafel-${version}-Windows-portable.exe"
+    }
+  }
+}

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Judo-Anzeigetafel – Anzeige</title>
+    <link rel="stylesheet" href="css/board.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      #board {
+        position: absolute;
+        inset: 0;
+      }
+      body.hide-cursor,
+      body.hide-cursor * {
+        cursor: none !important;
+      }
+      #hint {
+        position: fixed;
+        left: 50%;
+        bottom: 3vh;
+        transform: translateX(-50%);
+        background: rgba(20, 24, 33, 0.92);
+        color: #fff;
+        font: 600 15px system-ui, sans-serif;
+        padding: 10px 18px;
+        border-radius: 10px;
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+      }
+      #hint.on {
+        opacity: 1;
+      }
+      #wait {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8892a6;
+        font: 600 22px system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="board"></div>
+    <div id="wait">Warte auf Bedienfenster …</div>
+    <div id="hint">Doppelklick: Vollbild an/aus</div>
+    <script src="js/core.js"></script>
+    <script src="js/sound.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/transport.js"></script>
+    <script src="js/boardpage.js"></script>
+  </body>
+</html>

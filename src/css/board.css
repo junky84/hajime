@@ -1,0 +1,448 @@
+/* Anzeigetafel – alle Größen relativ zum Container (cqh/cqw), damit
+   Vollbild und Vorschau identisch aussehen. */
+.jb {
+  --jb-bg: #07090d;
+  --jb-bar: #121722;
+  --jb-white: #f3f3ef;
+  --jb-white-ink: #0d0f14;
+  --jb-blue: #1243b8;
+  --jb-blue-ink: #ffffff;
+  --jb-blue-light: #6f9bff;
+  --jb-run: #2fe36f;
+  --jb-stop: #ff4a4a;
+  --jb-gold: #ffc400;
+  --jb-win: #17b856;
+  container-type: size;
+  position: relative;
+  overflow: hidden;
+  background: var(--jb-bg);
+  color: #fff;
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  user-select: none;
+}
+.jb-in {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Kopfzeile */
+.jb-top {
+  height: 9cqh;
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  padding: 0 2.5cqw;
+  background: var(--jb-bar);
+}
+.jb-logo {
+  height: 7cqh;
+  max-width: 18cqw;
+  object-fit: contain;
+}
+.jb-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 4.8cqh;
+}
+.jb-meta {
+  display: flex;
+  gap: 0.8cqw;
+  white-space: nowrap;
+}
+.jb-meta span {
+  font-size: 3.4cqh;
+  font-weight: 700;
+  padding: 0.5cqh 1.2cqw;
+  background: #232c3d;
+  border-radius: 0.9cqh;
+}
+
+/* Kämpferzeilen */
+.jb-rows {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6cqh;
+}
+.jb.swap .jb-rows {
+  flex-direction: column-reverse;
+}
+.jb-row {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto auto;
+  align-items: stretch;
+  padding-left: 3cqw;
+  transition: opacity 0.4s, filter 0.4s;
+}
+.jb-row[data-side='white'] {
+  background: var(--jb-white);
+  color: var(--jb-white-ink);
+}
+.jb-row[data-side='blue'] {
+  background: var(--jb-blue);
+  color: var(--jb-blue-ink);
+}
+.jb-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 2cqw;
+}
+.jb-name {
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.08;
+  font-size: 10.5cqh;
+}
+.jb-name.is-placeholder {
+  opacity: 0.35;
+}
+.jb-club {
+  font-weight: 600;
+  opacity: 0.72;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 4.5cqh;
+}
+.jb-club:empty {
+  display: none;
+}
+.jb-badge {
+  align-self: center;
+  font-size: 3.6cqh;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  background: var(--jb-win);
+  color: #fff;
+  padding: 0.8cqh 1.4cqw;
+  border-radius: 1cqh;
+  margin-right: 2cqw;
+}
+.jb-badge:empty {
+  display: none;
+}
+.jb-pen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16cqh;
+  padding: 0 1cqh;
+  gap: 0.8cqh;
+}
+.jb-pen .card {
+  display: block;
+  width: 4.6cqh;
+  height: 6.6cqh;
+  border-radius: 0.6cqh;
+  box-shadow: 0 0.3cqh 0.8cqh rgba(0, 0, 0, 0.35);
+}
+.jb-pen .card.yellow {
+  background: #ffd400;
+}
+.jb-pen .card.red {
+  background: #e10600;
+  width: 6cqh;
+  height: 8.6cqh;
+}
+.jb-sc {
+  width: 19cqh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-left: 0.35cqh solid rgba(127, 127, 127, 0.25);
+}
+.jb-v {
+  font-size: 21cqh;
+  font-weight: 800;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.jb-l {
+  font-size: 2.2cqh;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  opacity: 0.55;
+  margin-top: 0.6cqh;
+}
+.jb-sc.is-zero .jb-v {
+  opacity: 0.22;
+}
+.jb.no-yuko .jb-sc[data-k='yuko'] {
+  display: none;
+}
+.jb-row.is-winner {
+  box-shadow: inset 1.6cqw 0 0 var(--jb-win);
+}
+.jb-row.is-loser {
+  opacity: 0.5;
+  filter: saturate(0.6);
+}
+
+/* Einblendung bei Wertung */
+.jb-flash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17cqh;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  opacity: 0;
+}
+.jb-row[data-side='white'] .jb-flash {
+  background: rgba(243, 243, 239, 0.96);
+  color: var(--jb-white-ink);
+}
+.jb-row[data-side='blue'] .jb-flash {
+  background: rgba(18, 67, 184, 0.97);
+  color: #fff;
+}
+.jb-flash.on {
+  animation: jbflash 2.2s ease forwards;
+}
+@keyframes jbflash {
+  0% {
+    opacity: 0;
+    letter-spacing: 0.3em;
+  }
+  10% {
+    opacity: 1;
+    letter-spacing: 0.04em;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Fußbereich: Uhr + Osaekomi/Status */
+.jb-bottom {
+  height: 25cqh;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4cqw;
+  padding: 0 3cqw;
+}
+.jb-clock {
+  display: flex;
+  align-items: center;
+  gap: 1.6cqw;
+}
+.jb-time {
+  font-size: 21cqh;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.jb-clock.running .jb-time {
+  color: var(--jb-run);
+}
+.jb-clock.stopped .jb-time {
+  color: var(--jb-stop);
+}
+.jb-gs {
+  display: none;
+  font-size: 8cqh;
+  font-weight: 900;
+  color: #111;
+  background: var(--jb-gold);
+  padding: 0.6cqh 1.2cqw;
+  border-radius: 1.2cqh;
+}
+.jb.golden .jb-gs {
+  display: inline-block;
+}
+.jb.golden .jb-clock.running .jb-time {
+  color: var(--jb-gold);
+}
+.jb-mid {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.jb-status {
+  font-size: 6.4cqh;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.15;
+}
+.jb-status.hidden {
+  display: none;
+}
+.jb-status.gold {
+  color: var(--jb-gold);
+}
+.jb-status.mate {
+  color: var(--jb-stop);
+  letter-spacing: 0.25em;
+}
+.jb-status.win-white {
+  color: #fff;
+}
+.jb-status.win-blue {
+  color: var(--jb-blue-light);
+}
+.jb-osae {
+  display: none;
+  width: 100%;
+}
+.jb-osae.on {
+  display: block;
+}
+.jb-osae-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.jb-osae-lbl {
+  font-size: 5.4cqh;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+}
+.jb-osae-t {
+  font-size: 15cqh;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.jb-osae-bar {
+  position: relative;
+  height: 3.4cqh;
+  margin-top: 1cqh;
+  background: #232a36;
+  border-radius: 2cqh;
+  overflow: hidden;
+}
+.jb-osae-bar i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: #fff;
+}
+.jb-osae-bar b {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0.5cqh;
+  margin-left: -0.25cqh;
+  background: var(--jb-gold);
+}
+.jb-osae.side-blue .jb-osae-t,
+.jb-osae.side-blue .jb-osae-lbl {
+  color: var(--jb-blue-light);
+}
+.jb-osae.side-blue .jb-osae-bar i {
+  background: #3b74ff;
+}
+.jb-osae.last {
+  opacity: 0.5;
+}
+
+/* Nächster Kampf */
+.jb-next {
+  height: 5.5cqh;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0 3cqw;
+  background: var(--jb-bar);
+  color: #cfd6e4;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 3.3cqh;
+}
+.jb-next b {
+  color: #fff;
+}
+.jb-next small {
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+.jb-next .vs {
+  opacity: 0.6;
+}
+
+/* Pausenbild */
+.jb-idle {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqh;
+  background: radial-gradient(ellipse at 50% 30%, #1b2333 0%, #07090d 70%);
+  text-align: center;
+  padding: 4cqh 6cqw;
+}
+.jb.is-idle .jb-idle {
+  display: flex;
+}
+.jb-idle-logo {
+  max-height: 28cqh;
+  max-width: 50cqw;
+  object-fit: contain;
+}
+.jb-idle-title {
+  font-size: 9cqh;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.jb-idle-mat {
+  font-size: 4.5cqh;
+  color: var(--jb-gold);
+  font-weight: 700;
+}
+.jb-idle-list {
+  margin-top: 2cqh;
+  min-width: 60cqw;
+}
+.jb-idle-list h3 {
+  font-size: 3.6cqh;
+  margin: 0 0 1.2cqh;
+  color: #9aa6bd;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.jb-idle-list .it {
+  display: grid;
+  grid-template-columns: 16cqw 1fr auto 1fr;
+  gap: 1.5cqw;
+  align-items: center;
+  font-size: 3.8cqh;
+  padding: 0.9cqh 1.5cqw;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.jb-idle-list .cat {
+  color: #9aa6bd;
+  text-align: left;
+  font-size: 0.8em;
+}
+.jb-idle-list .w {
+  text-align: right;
+}
+.jb-idle-list .b {
+  text-align: left;
+  color: var(--jb-blue-light);
+}

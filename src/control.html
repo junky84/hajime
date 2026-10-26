@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Judo-Anzeigetafel – Bedienung</title>
+    <link rel="stylesheet" href="css/board.css" />
+    <link rel="stylesheet" href="css/control.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Judo-Anzeigetafel</div>
+      <nav class="tabs">
+        <button data-tab="fight" class="active">Kampf</button>
+        <button data-tab="list">Kampfliste <span class="pill" id="queueCount"></span></button>
+        <button data-tab="log">Protokoll <span class="pill" id="logCount"></span></button>
+        <button data-tab="settings">Einstellungen</button>
+      </nav>
+      <div class="boardctl">
+        <span class="board-state" id="boardState"></span>
+        <select id="displaySelect" title="Bildschirm für die Anzeige"></select>
+        <button id="btnBoardShow" class="btn">Anzeige öffnen</button>
+        <button id="btnBoardFs" class="btn">Vollbild</button>
+        <button id="btnIdle" class="btn toggle" title="Pausenbild mit Turniername und nächsten Kämpfen (Taste B)">Pausenbild</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- ============ KAMPF ============ -->
+      <section class="tab active" id="tab-fight">
+        <div class="fight-meta">
+          <label>Regelprofil <select id="profileSelect"></select></label>
+          <label>Kampf-Nr. <input id="fNo" class="w-s" /></label>
+          <label>Altersklasse <input id="fAge" class="w-m" list="dlAge" /></label>
+          <label>Gewichtsklasse <input id="fCat" class="w-m" list="dlCat" /></label>
+          <span class="rules-summary" id="rulesSummary"></span>
+        </div>
+
+        <div class="fight-grid">
+          <!-- Weiß -->
+          <div class="side" data-side="white">
+            <div class="side-head"><span>WEISS</span><span class="side-badge"></span></div>
+            <input class="in-name" placeholder="Name (optional)" list="dlNames" autocomplete="off" />
+            <input class="in-club" placeholder="Verein (optional)" list="dlClubs" autocomplete="off" />
+            <div class="srows">
+              <div class="srow" data-k="ippon"><span class="lbl">Ippon</span><span class="val">0</span><button class="act minus" title="Shift+Q">−</button><button class="act plus">+ <kbd>Q</kbd></button></div>
+              <div class="srow" data-k="wazaari"><span class="lbl">Waza-ari</span><span class="val">0</span><button class="act minus" title="Shift+W">−</button><button class="act plus">+ <kbd>W</kbd></button></div>
+              <div class="srow" data-k="yuko"><span class="lbl">Yuko</span><span class="val">0</span><button class="act minus" title="Shift+E">−</button><button class="act plus">+ <kbd>E</kbd></button></div>
+              <div class="srow shido" data-k="shido"><span class="lbl">Shido</span><span class="val">0</span><button class="act minus" title="Shift+R">−</button><button class="act plus">+ <kbd>R</kbd></button></div>
+            </div>
+            <button class="act hsk">Hansoku-make (direkt)</button>
+          </div>
+
+          <!-- Mitte -->
+          <div class="center">
+            <div class="preview-wrap"><div id="preview"></div></div>
+            <div class="clockrow">
+              <button class="act adj" data-adj="-1000" title="Pfeil runter">−1 s</button>
+              <div class="ctl-clock" id="ctlClock"><span class="gs">GS</span><span class="t">4:00</span></div>
+              <button class="act adj" data-adj="1000" title="Pfeil hoch">+1 s</button>
+              <button class="act adj small" id="btnSetClock" title="Zeit direkt setzen">Zeit…</button>
+            </div>
+            <button id="btnHajime" class="act big hajime">Hajime <kbd>Leertaste</kbd></button>
+            <div class="osaerow">
+              <button class="act osae w" data-osae="white">Osaekomi Weiß <kbd>A</kbd></button>
+              <button class="act toketa" id="btnToketa">Toketa <kbd>T</kbd></button>
+              <button class="act osae b" data-osae="blue">Osaekomi Blau <kbd>L</kbd></button>
+            </div>
+            <div class="ctl-status" id="ctlStatus"></div>
+            <div class="decision" id="decision">
+              <div class="dec-head">Entscheidung durch Kampfrichter</div>
+              <div class="dec-row">
+                <select id="decReason">
+                  <option>Hantei</option>
+                  <option>Kiken-gachi (Aufgabe)</option>
+                  <option>Fusen-gachi (nicht angetreten)</option>
+                  <option>Hansoku-make</option>
+                  <option>Disqualifikation</option>
+                  <option>Verletzung</option>
+                </select>
+                <button class="act dec w" data-win="white">Weiß gewinnt</button>
+                <button class="act dec b" data-win="blue">Blau gewinnt</button>
+                <button class="act dec d" data-win="draw">Unentschieden</button>
+                <button class="act dec x" data-win="">Aufheben</button>
+              </div>
+            </div>
+            <div class="navrow">
+              <button class="act" id="btnUndo">↶ Rückgängig <kbd>Strg/⌘+Z</kbd></button>
+              <button class="act" id="btnReset">Kampf neu</button>
+              <button class="act primary" id="btnNext">Nächster Kampf ▸ <kbd>N</kbd></button>
+            </div>
+          </div>
+
+          <!-- Blau -->
+          <div class="side" data-side="blue">
+            <div class="side-head"><span>BLAU</span><span class="side-badge"></span></div>
+            <input class="in-name" placeholder="Name (optional)" list="dlNames" autocomplete="off" />
+            <input class="in-club" placeholder="Verein (optional)" list="dlClubs" autocomplete="off" />
+            <div class="srows">
+              <div class="srow" data-k="ippon"><span class="lbl">Ippon</span><span class="val">0</span><button class="act minus" title="Shift+U">−</button><button class="act plus">+ <kbd>U</kbd></button></div>
+              <div class="srow" data-k="wazaari"><span class="lbl">Waza-ari</span><span class="val">0</span><button class="act minus" title="Shift+I">−</button><button class="act plus">+ <kbd>I</kbd></button></div>
+              <div class="srow" data-k="yuko"><span class="lbl">Yuko</span><span class="val">0</span><button class="act minus" title="Shift+O">−</button><button class="act plus">+ <kbd>O</kbd></button></div>
+              <div class="srow shido" data-k="shido"><span class="lbl">Shido</span><span class="val">0</span><button class="act minus" title="Shift+P">−</button><button class="act plus">+ <kbd>P</kbd></button></div>
+            </div>
+            <button class="act hsk">Hansoku-make (direkt)</button>
+          </div>
+        </div>
+
+        <details class="keys-help">
+          <summary>Tastenkürzel</summary>
+          <div class="keys-grid">
+            <div><kbd>Leertaste</kbd> Hajime / Mate (bei Gleichstand nach Zeitende: Golden Score starten)</div>
+            <div><kbd>A</kbd> / <kbd>L</kbd> Osaekomi Weiß / Blau &nbsp; <kbd>T</kbd> Toketa</div>
+            <div>Weiß: <kbd>Q</kbd> Ippon <kbd>W</kbd> Waza-ari <kbd>E</kbd> Yuko <kbd>R</kbd> Shido</div>
+            <div>Blau: <kbd>U</kbd> Ippon <kbd>I</kbd> Waza-ari <kbd>O</kbd> Yuko <kbd>P</kbd> Shido</div>
+            <div><kbd>Shift</kbd> + Wertungstaste = Wertung abziehen</div>
+            <div><kbd>↑</kbd> / <kbd>↓</kbd> Uhr ±1 s &nbsp; <kbd>Strg/⌘+Z</kbd> Rückgängig</div>
+            <div><kbd>N</kbd> Nächster Kampf &nbsp; <kbd>B</kbd> Pausenbild an/aus</div>
+            <div>Osaekomi-Taste erneut drücken = Toketa</div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============ KAMPFLISTE ============ -->
+      <section class="tab" id="tab-list">
+        <div class="toolbar">
+          <button class="btn primary" id="btnImport">Excel / CSV importieren …</button>
+          <label class="chk"><input type="checkbox" id="importReplace" checked /> vorhandene Listen ersetzen</label>
+          <input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.ods,.csv" hidden />
+          <button class="btn" id="btnTemplate">Excel-Vorlage speichern</button>
+          <span class="grow"></span>
+          <button class="btn danger" id="btnClearQueue">Kampfliste leeren</button>
+          <button class="btn danger" id="btnClearParts">Teilnehmer leeren</button>
+        </div>
+        <div class="import-msg" id="importMsg"></div>
+
+        <div class="list-grid">
+          <div class="card">
+            <h2>Kampfliste</h2>
+            <form class="addfight" id="addFight" autocomplete="off">
+              <input name="ageClass" placeholder="Altersklasse" list="dlAge" class="w-s" />
+              <input name="category" placeholder="Gewichtsklasse" list="dlCat" class="w-s" />
+              <input name="white" placeholder="Weiß" list="dlNames" />
+              <input name="blue" placeholder="Blau" list="dlNames" />
+              <button class="btn">Hinzufügen</button>
+            </form>
+            <div class="table-wrap">
+              <table class="tbl" id="queueTable">
+                <thead>
+                  <tr><th>Nr</th><th>Klasse</th><th>Weiß</th><th>Blau</th><th>Ergebnis</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <div class="empty" id="queueEmpty">Noch keine Kämpfe. Excel importieren, unten aus Teilnehmern erzeugen oder oben manuell hinzufügen.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Teilnehmer <span class="pill" id="partCount"></span></h2>
+            <p class="muted">Gruppiert nach Alters- und Gewichtsklasse. „Jeder gegen jeden“ hängt alle Paarungen der Gruppe an die Kampfliste an.</p>
+            <div id="partGroups"></div>
+            <div class="empty" id="partEmpty">Keine Teilnehmer geladen. Namen kommen aus dem Excel-Blatt „Teilnehmer“ (oder einer Liste mit Spalte „Name“).</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PROTOKOLL ============ -->
+      <section class="tab" id="tab-log">
+        <div class="toolbar">
+          <button class="btn primary" id="btnExportLog">Als Excel speichern …</button>
+          <span class="grow"></span>
+          <button class="btn danger" id="btnClearLog">Protokoll leeren</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="tbl" id="logTable">
+              <thead>
+                <tr><th>Nr</th><th>Zeit</th><th>Klasse</th><th>Weiß</th><th>Blau</th><th>Sieger</th><th>Entscheidung</th><th>Dauer</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="empty" id="logEmpty">Beendete Kämpfe erscheinen hier automatisch.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ EINSTELLUNGEN ============ -->
+      <section class="tab" id="tab-settings">
+        <div class="settings-grid">
+          <div class="card">
+            <h2>Anzeige</h2>
+            <div class="form">
+              <label>Turniername <input id="sTournament" placeholder="z. B. Bezirksmeisterschaft U13" /></label>
+              <label>Matte <input id="sMat" placeholder="Matte 1" /></label>
+              <div class="logo-row">
+                <span>Logo</span>
+                <img id="sLogoPreview" alt="" />
+                <button class="btn" id="btnLogo">Bild wählen …</button>
+                <button class="btn" id="btnLogoRemove">Entfernen</button>
+                <input type="file" id="fileLogo" accept="image/*" hidden />
+              </div>
+              <label class="chk"><input type="checkbox" id="sShowClub" /> Verein anzeigen</label>
+              <label class="chk"><input type="checkbox" id="sShowNext" /> nächsten Kampf unten einblenden</label>
+              <label class="chk"><input type="checkbox" id="sFlash" /> Wertungen groß einblenden</label>
+              <label class="chk"><input type="checkbox" id="sSwap" /> Blau oben anzeigen (Seiten tauschen)</label>
+            </div>
+            <h2>Ton</h2>
+            <div class="form">
+              <label class="chk"><input type="checkbox" id="sSound" /> Gong bei Zeitende / Kampfende</label>
+              <label>Ausgabe über
+                <select id="sSoundTarget">
+                  <option value="control">Bedienrechner</option>
+                  <option value="board">Anzeige-Fenster</option>
+                  <option value="both">beide</option>
+                </select>
+              </label>
+              <div><button class="btn" id="btnTestSound">Gong testen</button></div>
+            </div>
+            <h2>Daten</h2>
+            <div class="form">
+              <p class="muted">Alles wird automatisch gespeichert und nach einem Neustart wiederhergestellt.</p>
+              <div class="btnrow">
+                <button class="btn" id="btnBackup">Sicherung speichern …</button>
+                <button class="btn" id="btnRestore">Sicherung laden …</button>
+                <input type="file" id="fileRestore" accept=".json" hidden />
+                <button class="btn danger" id="btnFactory">Alles zurücksetzen</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Regelprofile</h2>
+            <p class="muted">Ein Profil pro Altersklasse. Beim Laden eines Kampfes wird das Profil anhand der Altersklasse (Name oder Alias) automatisch gewählt.</p>
+            <div class="prof-bar">
+              <select id="profEditSelect"></select>
+              <button class="btn" id="btnProfNew">Neu</button>
+              <button class="btn" id="btnProfDup">Duplizieren</button>
+              <button class="btn danger" id="btnProfDel">Löschen</button>
+              <button class="btn" id="btnProfReset">Standardprofile</button>
+            </div>
+            <div class="form prof-form" id="profForm">
+              <label>Name <input data-p="name" /></label>
+              <label>Aliase (für Excel-Altersklasse, mit Komma) <input data-p="aliases" placeholder="U12, U13" /></label>
+              <label>Kampfzeit (m:ss) <input data-p="duration" data-time class="w-s" /></label>
+              <label class="chk"><input type="checkbox" data-p="golden" /> Golden Score bei Gleichstand</label>
+              <label>Golden Score max. (m:ss, 0 = unbegrenzt, danach Hantei) <input data-p="goldenLimit" data-time class="w-s" /></label>
+              <label class="chk"><input type="checkbox" data-p="ipponEnds" /> Ippon beendet den Kampf</label>
+              <label class="chk"><input type="checkbox" data-p="awasete" /> 2 × Waza-ari = Ippon (Waza-ari-awasete-ippon)</label>
+              <label class="chk"><input type="checkbox" data-p="yuko" /> Yuko-Wertung verwenden</label>
+              <label>Shido bis Hansoku-make (0 = nie) <input data-p="shidoLimit" type="number" min="0" max="9" class="w-s" /></label>
+              <label class="chk"><input type="checkbox" data-p="shidoDecides" /> bei Gleichstand gewinnt, wer weniger Shido hat</label>
+              <label class="chk"><input type="checkbox" data-p="autoOsae" /> Osaekomi automatisch werten</label>
+              <div class="osae-fields">
+                <label>Yuko ab (s) <input data-p="osaeYuko" type="number" min="1" max="60" class="w-s" /></label>
+                <label>Waza-ari ab (s) <input data-p="osaeWazaari" type="number" min="1" max="60" class="w-s" /></label>
+                <label>Ippon ab (s) <input data-p="osaeIppon" type="number" min="1" max="60" class="w-s" /></label>
+              </div>
+              <p class="muted">Kampfzeiten sind Vorschläge – bitte mit der Ausschreibung abgleichen.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Zeit setzen -->
+    <dialog id="dlgClock">
+      <form method="dialog">
+        <h3>Uhr setzen</h3>
+        <input id="dlgClockVal" placeholder="m:ss" />
+        <div class="btnrow"><button value="cancel" class="btn">Abbrechen</button><button value="ok" class="btn primary">Setzen</button></div>
+      </form>
+    </dialog>
+
+    <datalist id="dlNames"></datalist>
+    <datalist id="dlClubs"></datalist>
+    <datalist id="dlAge"></datalist>
+    <datalist id="dlCat"></datalist>
+
+    <script src="vendor/xlsx.full.min.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/sound.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/transport.js"></script>
+    <script src="js/excel.js"></script>
+    <script src="js/control.js"></script>
+  </body>
+</html>
