@@ -1,10 +1,10 @@
 # Testet die Logik und baut die Versionen ohne Installation:
-#  - Windows: portable .exe + .zip (nur als Build-Ergebnis unter Actions, siehe unten)
 #  - macOS:   .app im .zip (Universal: Apple Silicon + Intel)
 #  - Web:     .zip mit HTML-Version für Chrome/Edge (keine Programmdatei)
 # Bei einem Tag "v1.2.3" werden Mac- und Webversion als GitHub-Release veröffentlicht.
-# Die Windows-.exe ist nicht signiert und löst Virenwarnungen aus (Defender) –
-# deshalb nicht im Release. Mit Code-Signatur einfach unten bei "files" ergänzen.
+# Windows wird nicht mehr gebaut: Die unsignierte .exe löst Virenwarnungen aus
+# (Defender). Wieder aufnehmen: Matrix-Eintrag mit os: windows-latest,
+# script: dist:win, name: Windows ergänzen und dist/*.exe hochladen.
 name: Build
 
 on:
@@ -37,9 +37,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            script: dist:win
-            name: Windows
           - os: macos-latest
             script: dist:mac
             name: Mac
@@ -70,9 +67,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: Hajime-${{ matrix.name }}
-          path: |
-            dist/*.zip
-            dist/*.exe
+          path: dist/*.zip
           if-no-files-found: error
 
   web:
