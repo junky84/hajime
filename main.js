@@ -333,8 +333,17 @@ app.whenReady().then(() => {
   // Selbsttest für die Entwicklung: Screenshots beider Fenster, dann beenden
   if (selftestDir) {
     log('ready, Bildschirme: ' + screen.getAllDisplays().length);
+    // Langsame Rechner (CI, portable .exe): bis zu 30 s auf die Verbindung warten
+    const connected = async () => {
+      try {
+        return boardWin && !boardWin.isDestroyed() && (await boardWin.webContents.executeJavaScript('document.getElementById("wait").style.display')) === 'none';
+      } catch (err) {
+        return false;
+      }
+    };
     setTimeout(async () => {
       try {
+        for (let i = 0; i < 60 && !(await connected()); i++) await new Promise((r) => setTimeout(r, 500));
         if (controlWin) fs.writeFileSync(path.join(selftestDir, 'control.png'), (await controlWin.webContents.capturePage()).toPNG());
         if (boardWin) fs.writeFileSync(path.join(selftestDir, 'board.png'), (await boardWin.webContents.capturePage()).toPNG());
         const board = boardWin ? await boardWin.webContents.executeJavaScript('document.getElementById("wait").style.display') : 'kein Fenster';
