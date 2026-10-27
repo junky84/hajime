@@ -520,18 +520,51 @@
     $('#btnBoardShow').addEventListener('click', () => T.bridge.showBoard({ displayId: Number(displaySelect.value) }));
     $('#btnBoardFs').addEventListener('click', () => T.bridge.toggleBoardFullscreen());
   } else {
+    // Browser: Bildschirmauswahl nur, wenn der Browser die Bildschirme verrät (Chrome/Edge)
     displaySelect.style.display = 'none';
     $('#btnBoardFs').style.display = 'none';
     T.setOnNeedView(publish);
-    $('#btnBoardShow').addEventListener('click', () => {
-      if (!T.openBoardBrowser()) alert('Das Anzeige-Fenster wurde vom Browser blockiert. Bitte Pop-ups für diese Seite erlauben.');
+    let screens = null;
+    let screensWatched = false;
+    async function refreshScreens(ask) {
+      const list = await T.browserScreens(ask);
+      if (!list) return null;
+      screens = list;
+      if (!screensWatched) {
+        screensWatched = true;
+        T.onScreensChanged(() => refreshScreens(false));
+      }
+      const prev = displaySelect.value;
+      displaySelect.innerHTML = list.map((d) => `<option value="${esc(d.id)}">${esc(d.label)}</option>`).join('');
+      const pick = list.find((d) => d.id === prev) || list.find((d) => !d.isControl) || list[0];
+      displaySelect.value = pick.id;
+      displaySelect.style.display = list.length > 1 ? '' : 'none';
+      return list;
+    }
+    // Nur bei mehreren Bildschirmen gezielt platzieren, sonst normales Fenster
+    const chosen = () => (screens && screens.length > 1 ? (screens.find((d) => d.id === displaySelect.value) || {}).screen : null);
+    refreshScreens(false);
+
+    $('#btnBoardShow').addEventListener('click', async () => {
+      const wasOpen = T.boardOpen();
+      if (!T.openBoardBrowser(chosen())) {
+        alert('Das Anzeige-Fenster wurde vom Browser blockiert. Bitte Pop-ups für diese Seite erlauben.');
+        return;
+      }
       setTimeout(publish, 300);
+      if (wasOpen) T.placeBoardBrowser(chosen());
+      // Beim ersten Mal fragt der Browser nach der Erlaubnis für die Bildschirme
+      if (!screens && (await refreshScreens(true)) && screens.length > 1) T.placeBoardBrowser(chosen());
+    });
+    displaySelect.addEventListener('change', () => {
+      if (T.boardOpen()) T.placeBoardBrowser(chosen());
     });
     setInterval(() => {
       const open = T.boardOpen();
       const el = $('#boardState');
       el.textContent = open ? '● Anzeige offen (Doppelklick = Vollbild)' : '○ Anzeige geschlossen';
       el.classList.toggle('on', open);
+      $('#btnBoardShow').textContent = open && screens && screens.length > 1 ? 'Anzeige hierhin' : 'Anzeige öffnen';
     }, 1000);
   }
 

@@ -39,6 +39,22 @@
       #hint.on {
         opacity: 1;
       }
+      #soundHint {
+        position: fixed;
+        left: 50%;
+        top: 3vh;
+        transform: translateX(-50%);
+        background: #b3261e;
+        color: #fff;
+        font: 700 18px system-ui, sans-serif;
+        padding: 10px 20px;
+        border-radius: 10px;
+        display: none;
+        cursor: pointer;
+      }
+      #soundHint.on {
+        display: block;
+      }
       #wait {
         position: fixed;
         inset: 0;
@@ -54,6 +70,7 @@
     <div id="board"></div>
     <div id="wait">Warte auf Bedienfenster …</div>
     <div id="hint">Doppelklick: Vollbild an/aus</div>
+    <div id="soundHint">Einmal hier klicken, damit Gong und Signal zu hören sind</div>
     <script src="js/core.js"></script>
     <script src="js/sound.js"></script>
     <script src="js/render.js"></script>

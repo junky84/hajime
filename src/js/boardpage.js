@@ -34,6 +34,18 @@
   document.addEventListener('mousemove', poke);
   poke();
 
-  // Browser: Audio darf erst nach einer Interaktion starten
-  document.addEventListener('click', () => window.JudoSound.unlock(), { once: true });
+  // Browser: Ton darf erst nach einem Klick ins Anzeigefenster starten
+  if (T.isElectron) {
+    document.addEventListener('click', () => window.JudoSound.unlock(), { once: true });
+  } else {
+    const soundHint = document.getElementById('soundHint');
+    const check = () => soundHint.classList.toggle('on', window.JudoSound.locked());
+    window.JudoSound.unlock();
+    setTimeout(check, 500);
+    setInterval(check, 2000);
+    document.addEventListener('click', () => {
+      window.JudoSound.unlock();
+      setTimeout(check, 200);
+    });
+  }
 })();

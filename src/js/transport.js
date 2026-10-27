@@ -62,10 +62,66 @@
     }
   }
 
-  function openBoardBrowser() {
-    const w = root.open('board.html', 'judoBoard', 'popup=yes,width=1280,height=720');
+  /*
+   * Bildschirme im Browser (Chrome/Edge: Window Management API).
+   * Ohne Erlaubnis oder in anderen Browsern: null – dann öffnet die Anzeige
+   * als normales Fenster und wird von Hand verschoben.
+   */
+  let screenDetails = null;
+  const screenId = (s) => `${s.left},${s.top}`;
+  async function browserScreens(ask) {
+    if (isElectron || typeof root.getScreenDetails !== 'function') return null;
+    if (!screenDetails) {
+      if (!ask) {
+        try {
+          const p = await navigator.permissions.query({ name: 'window-management' });
+          if (p.state !== 'granted') return null;
+        } catch (err) {
+          return null;
+        }
+      }
+      try {
+        screenDetails = await root.getScreenDetails();
+      } catch (err) {
+        return null;
+      }
+    }
+    const cur = screenDetails.currentScreen;
+    return screenDetails.screens.map((s, i) => {
+      const own = s === cur || screenId(s) === screenId(cur);
+      const name = (s.label || `Bildschirm ${i + 1}`) + ` (${s.width}×${s.height})`;
+      return { id: screenId(s), label: own ? `${name} – Bedienung` : name, isControl: own, screen: s };
+    });
+  }
+  function onScreensChanged(fn) {
+    if (screenDetails) screenDetails.addEventListener('screenschange', fn);
+  }
+
+  function geometry(s) {
+    return `left=${s.availLeft},top=${s.availTop},width=${s.availWidth},height=${s.availHeight}`;
+  }
+
+  // Muss direkt im Klick passieren (sonst blockiert der Browser das Pop-up)
+  function openBoardBrowser(screen) {
+    if (boardWin && !boardWin.closed) {
+      boardWin.focus();
+      return true;
+    }
+    const feat = screen ? `popup=yes,${geometry(screen)}` : 'popup=yes,width=1280,height=720';
+    const w = root.open('board.html', 'judoBoard', feat);
     if (w) boardWin = w;
     return !!w;
+  }
+
+  function placeBoardBrowser(screen) {
+    if (!screen || !boardWin || boardWin.closed) return;
+    try {
+      boardWin.moveTo(screen.availLeft, screen.availTop);
+      boardWin.resizeTo(screen.availWidth, screen.availHeight);
+      boardWin.focus();
+    } catch (err) {
+      /* Browser verbietet das Verschieben */
+    }
   }
 
   async function saveFile(name, bytes, mime) {
@@ -90,6 +146,9 @@
     toggleFullscreen,
     send,
     openBoardBrowser,
+    placeBoardBrowser,
+    browserScreens,
+    onScreensChanged,
     boardOpen: () => !!(boardWin && !boardWin.closed),
     setOnNeedView: (fn) => (onNeedView = fn),
     saveFile,

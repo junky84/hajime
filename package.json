@@ -1,7 +1,7 @@
 {
   "name": "hajime",
   "productName": "Hajime",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Hajime – Judo-Anzeigetafel mit Publikums- und Bedienfenster",
   "main": "main.js",
   "author": "junky84",
@@ -11,7 +11,8 @@
     "start": "electron .",
     "test": "node test/core.test.js && node test/excel.test.js",
     "dist:mac": "electron-builder --mac --publish never",
-    "dist:win": "electron-builder --win --publish never"
+    "dist:win": "electron-builder --win --publish never",
+    "build:web": "node scripts/build-web.js"
   },
   "devDependencies": {
     "electron": "^45.0.0",

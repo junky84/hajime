@@ -1,6 +1,6 @@
 # Hajime
 
-**Judo-Anzeigetafel** für Wettkämpfe – für Windows und macOS, **ohne Installation**.
+**Judo-Anzeigetafel** für Wettkämpfe – für Windows und macOS, **ohne Installation**. Zusätzlich als **Webversion** für Chrome/Edge (ganz ohne Programmdatei).
 
 - **Publikumsanzeige** im Vollbild auf dem zweiten Bildschirm/Beamer (erweiterter Desktop)
 - **Bedienfenster** auf dem Laptop mit Live-Vorschau der Anzeige
@@ -36,6 +36,7 @@ Die fertigen Dateien liegen unter **Releases** (bzw. als Artefakt jedes Builds u
 | Windows | `Hajime-x.y.z-Windows-portable.exe` | Doppelklick. Keine Installation. |
 | Windows | `Hajime-x.y.z-Windows.zip` | Entpacken, `Hajime.exe` starten (startet schneller als die portable .exe). |
 | macOS (Apple Silicon + Intel) | `Hajime-x.y.z-Mac.zip` | Entpacken, `Hajime.app` starten. |
+| Jedes System mit Chrome/Edge | `Hajime-x.y.z-Web.zip` | Entpacken, `Hajime starten.html` öffnen. Keine Programmdatei, läuft offline. |
 
 **Hinweise beim ersten Start** (die App ist nicht kostenpflichtig signiert):
 
@@ -45,7 +46,18 @@ Die fertigen Dateien liegen unter **Releases** (bzw. als Artefakt jedes Builds u
 
 Die portable Windows-Version speichert ihre Daten im Ordner `Hajime-Daten` neben der .exe – sie läuft also auch vom USB-Stick.
 
-**Notbetrieb ohne App:** Quellcode herunterladen und `src/control.html` in Chrome oder Edge öffnen. „Anzeige öffnen“ öffnet das Publikumsfenster (Pop-ups erlauben), dieses auf den Beamer ziehen und doppelklicken (Vollbild).
+### Webversion (ohne .exe)
+
+Für Rechner, auf denen keine fremden Programme laufen dürfen oder der Virenscanner unsignierte Programme blockiert. Die Webversion ist dieselbe App, läuft aber im Browser – es wird nichts ausgeführt außer der Webseite.
+
+1. `Hajime-x.y.z-Web.zip` entpacken und `Hajime starten.html` in **Chrome oder Edge** öffnen (Internet ist nicht nötig).
+2. *Anzeige öffnen* klicken und Pop-ups erlauben, falls der Browser fragt.
+3. Beim ersten Mal fragt der Browser, ob die Seite **Fenster auf allen Bildschirmen verwalten** darf. Mit *Zulassen* erscheint oben eine Bildschirmauswahl und die Anzeige landet automatisch auf dem Beamer. Ohne Erlaubnis das Fenster von Hand hinüberziehen.
+4. Im Anzeigefenster **einmal klicken** (Browser geben den Ton erst nach einem Klick frei – bis dahin steht dort ein roter Hinweis) und **doppelklicken** für Vollbild.
+
+Daten (Einstellungen, Kampfliste, Protokoll) speichert der Browser. Für einen anderen Rechner unter *Einstellungen* eine Sicherung speichern und dort laden.
+
+Der Ordner kann auch auf jeden Webserver gelegt werden. Dann lässt sich Hajime in Chrome/Edge über das Installieren-Symbol in der Adressleiste wie eine App anlegen und läuft nach dem ersten Aufruf auch offline. Getestet ist die Webversion mit Chromium (Chrome/Edge). Firefox und Safari sollten grundsätzlich laufen, können die Anzeige aber nicht selbst auf den zweiten Bildschirm schieben.
 
 ## Bedienung
 
@@ -105,6 +117,7 @@ Für U11/U13 ist „Ippon beendet den Kampf“ ab Werk ausgeschaltet; es zählt 
 npm install
 npm start        # App starten
 npm test         # Tests der Wettkampflogik und des Excel-Imports
+npm run build:web   # Webversion nach dist/Hajime-Web bauen
 HAJIME_SCREENSHOTS=docs/screenshots npx electron .   # README-Screenshots neu erzeugen
 ```
 
@@ -115,6 +128,8 @@ Aufbau:
 - `src/js/render.js` + `src/css/board.css` – Anzeigetafel (auch als Vorschau im Bedienfenster)
 - `src/js/control.js` – Bedienfenster
 - `src/js/excel.js` – Import/Export (SheetJS liegt lokal in `src/vendor/`, funktioniert offline)
+- `src/js/transport.js` – Verbindung der Fenster: Electron-IPC oder im Browser Pop-up + `postMessage`
+- `scripts/build-web.js` – Webversion (Startseite, Web-App-Manifest, Offline-Speicher)
 
 ### Neue Version veröffentlichen
 
@@ -123,7 +138,7 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-GitHub Actions baut dann Windows- und Mac-Version und hängt sie an ein neues Release.
+GitHub Actions baut dann Windows-, Mac- und Webversion und hängt sie an ein neues Release.
 
 ## Hinweis
 

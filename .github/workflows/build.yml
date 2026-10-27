@@ -1,6 +1,7 @@
 # Testet die Logik und baut die Versionen ohne Installation:
 #  - Windows: portable .exe + .zip
 #  - macOS:   .app im .zip (Universal: Apple Silicon + Intel)
+#  - Web:     .zip mit HTML-Version für Chrome/Edge (keine Programmdatei)
 # Bei einem Tag "v1.2.3" werden die Dateien als GitHub-Release veröffentlicht.
 name: Build
 
@@ -72,9 +73,31 @@ jobs:
             dist/*.exe
           if-no-files-found: error
 
+  web:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Version aus Tag übernehmen
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+      - run: npm run build:web
+      - name: Zip packen
+        run: |
+          V=$(node -p "require('./package.json').version")
+          cd dist && zip -r -q "Hajime-$V-Web.zip" Hajime-Web
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Hajime-Web
+          path: dist/*.zip
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, web]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8

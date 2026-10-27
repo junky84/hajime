@@ -46,5 +46,8 @@
     tone(c, 880, t + 0.35, 0.25, 0.3, 'square');
   }
 
-  root.JudoSound = { gong, beep, unlock: ac, play: (kind) => (kind === 'beep' ? beep() : gong()) };
+  // Browser: Ton ist gesperrt, bis jemand ins Fenster geklickt hat
+  const locked = () => !ctx || ctx.state !== 'running';
+
+  root.JudoSound = { gong, beep, unlock: ac, locked, play: (kind) => (kind === 'beep' ? beep() : gong()) };
 })(typeof self !== 'undefined' ? self : this);
