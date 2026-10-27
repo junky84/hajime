@@ -146,3 +146,5 @@ Diese App wurde mit Unterstützung von KI (Claude, Anthropic) entwickelt.
 ## Lizenz
 
 MIT – siehe [LICENSE](LICENSE).
+
+Die Schrift VT323 im Fenster *Über Hajime* steht unter der SIL Open Font License 1.1 – siehe [src/fonts/VT323-OFL.txt](src/fonts/VT323-OFL.txt).

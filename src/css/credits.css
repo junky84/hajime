@@ -1,0 +1,94 @@
+/* Über Hajime: Credits im Stil eines BIOS-Selbsttests der 1990er */
+@font-face {
+  font-family: 'VT323';
+  src: url('../fonts/VT323-latin.woff2') format('woff2');
+  font-display: block;
+}
+
+dialog.bios-dlg {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  color: #a8a8a8;
+  width: min(880px, 94vw);
+  max-width: none;
+  max-height: 94vh;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  outline: none;
+}
+dialog.bios-dlg::backdrop {
+  background: rgba(0, 0, 0, 0.85);
+}
+.bios {
+  font: 22px/1.2 'VT323', ui-monospace, Menlo, Consolas, monospace;
+  padding: 22px 26px 18px;
+  min-height: min(540px, 94vh);
+  display: flex;
+  flex-direction: column;
+  cursor: default;
+  user-select: none;
+}
+.bios-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex: 1;
+}
+.bios-mark {
+  flex: none;
+  color: #5a8cff;
+}
+.bios-mark svg {
+  width: 48px;
+  height: 52px;
+  display: block;
+}
+.bios-pre {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  flex: 1;
+  min-width: 0;
+}
+.bios .w {
+  color: #fff;
+}
+.bios .y {
+  color: #f5d76e;
+}
+.bios-ally {
+  flex: none;
+  width: 108px;
+  border: 2px solid #2f6fd5;
+  padding: 10px 6px 6px;
+  text-align: center;
+  line-height: 1;
+}
+.bios-ally svg {
+  width: 72px;
+  height: 78px;
+  display: block;
+  margin: 0 auto;
+  color: #7ab8ff;
+}
+.bios-ally b {
+  display: block;
+  font-weight: normal;
+  font-size: 26px;
+  margin-top: 6px;
+  color: #79d36a;
+}
+.bios-foot {
+  margin-top: 18px;
+  min-height: 2.4em;
+}
+.bios-foot a {
+  color: #fff;
+}
+.about-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}

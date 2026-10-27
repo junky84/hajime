@@ -347,7 +347,7 @@
         const a = document.activeElement;
         if (a && /INPUT|TEXTAREA/.test(a.tagName)) document.execCommand('undo');
         else undo();
-      }
+      } else if (cmd === 'about' && window.HajimeCredits) window.HajimeCredits.open();
     });
   }
 

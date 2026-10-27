@@ -238,8 +238,26 @@ function createControl() {
 
 function buildMenu() {
   const sendMenu = (cmd) => controlWin && controlWin.webContents.send('menu', cmd);
+  const about = { label: 'Über Hajime', click: () => sendMenu('about') };
   const template = [
-    ...(isMac ? [{ role: 'appMenu', label: 'Hajime' }] : []),
+    ...(isMac
+      ? [
+          {
+            label: 'Hajime',
+            submenu: [
+              about,
+              { type: 'separator' },
+              { role: 'services', label: 'Dienste' },
+              { type: 'separator' },
+              { role: 'hide', label: 'Hajime ausblenden' },
+              { role: 'hideOthers', label: 'Andere ausblenden' },
+              { role: 'unhide', label: 'Alle einblenden' },
+              { type: 'separator' },
+              { role: 'quit', label: 'Hajime beenden' },
+            ],
+          },
+        ]
+      : []),
     {
       label: 'Bearbeiten',
       submenu: [
@@ -260,7 +278,7 @@ function buildMenu() {
         { role: 'toggleDevTools', label: 'Entwicklerwerkzeuge' },
       ],
     },
-    ...(isMac ? [{ role: 'windowMenu', label: 'Fenster' }] : []),
+    ...(isMac ? [{ role: 'windowMenu', label: 'Fenster' }] : [{ label: 'Hilfe', submenu: [about] }]),
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -275,6 +293,7 @@ ipcMain.on('board-ready', (e) => {
   if (lastView) e.sender.send('view', lastView);
 });
 ipcMain.handle('displays', () => displayList());
+ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('board-show', (_e, opts) => createBoard(opts && opts.displayId));
 ipcMain.handle('board-fullscreen-toggle', () => setBoardFullscreen(!boardIsFullscreen()));
 ipcMain.handle('board-fullscreen', (_e, flag) => setBoardFullscreen(!!flag));

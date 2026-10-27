@@ -57,6 +57,9 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
 `
 );
 
+// Versionsnummer für „Über Hajime“ (die Electron-App fragt sie beim Hauptprozess ab)
+write('js/version.js', `window.HAJIME_VERSION = ${JSON.stringify(pkg.version)};\n`);
+
 // Alle Dateien der App vorab in den Offline-Speicher legen
 function list(dir, base) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -99,7 +102,7 @@ function patch(file, head, body) {
   fs.writeFileSync(p, html);
 }
 const icon = '    <link rel="icon" href="icon-192.png" />';
-patch('control.html', `${icon}\n    <link rel="manifest" href="manifest.webmanifest" />\n    <meta name="theme-color" content="#0f1218" />`, '    <script src="js/webapp.js"></script>');
+patch('control.html', `${icon}\n    <link rel="manifest" href="manifest.webmanifest" />\n    <meta name="theme-color" content="#0f1218" />`, '    <script src="js/version.js"></script>\n    <script src="js/webapp.js"></script>');
 patch('board.html', icon);
 
 // Startseiten im Hauptordner

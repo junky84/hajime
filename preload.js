@@ -17,4 +17,6 @@ contextBridge.exposeInMainWorld('judoBridge', {
   onMenu: (cb) => ipcRenderer.on('menu', (_e, cmd) => cb(cmd)),
   // Datei speichern (Excel-Vorlage, Protokoll, Sicherung)
   saveFile: (name, bytes) => ipcRenderer.invoke('save-file', { name, bytes }),
+  // Versionsnummer für „Über Hajime“
+  appVersion: () => ipcRenderer.invoke('app-version'),
 });
