@@ -1,8 +1,10 @@
 # Testet die Logik und baut die Versionen ohne Installation:
-#  - Windows: portable .exe + .zip
+#  - Windows: portable .exe + .zip (nur als Build-Ergebnis unter Actions, siehe unten)
 #  - macOS:   .app im .zip (Universal: Apple Silicon + Intel)
 #  - Web:     .zip mit HTML-Version für Chrome/Edge (keine Programmdatei)
-# Bei einem Tag "v1.2.3" werden die Dateien als GitHub-Release veröffentlicht.
+# Bei einem Tag "v1.2.3" werden Mac- und Webversion als GitHub-Release veröffentlicht.
+# Die Windows-.exe ist nicht signiert und löst Virenwarnungen aus (Defender) –
+# deshalb nicht im Release. Mit Code-Signatur einfach unten bei "files" ergänzen.
 name: Build
 
 on:
@@ -106,5 +108,8 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v3
         with:
-          files: artifacts/*
+          files: |
+            artifacts/*-Mac.zip
+            artifacts/*-Web.zip
+          fail_on_unmatched_files: true
           generate_release_notes: true

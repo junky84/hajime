@@ -1,6 +1,6 @@
 # Hajime
 
-**Judo-Anzeigetafel** für Wettkämpfe – für Windows und macOS, **ohne Installation**. Zusätzlich als **Webversion** für Chrome/Edge (ganz ohne Programmdatei).
+**Judo-Anzeigetafel** für Wettkämpfe – **ohne Installation**: als App für macOS und als **Webversion** für Chrome/Edge (Windows, Linux, Mac – ganz ohne Programmdatei).
 
 - **Publikumsanzeige** im Vollbild auf dem zweiten Bildschirm/Beamer (erweiterter Desktop)
 - **Bedienfenster** auf dem Laptop mit Live-Vorschau der Anzeige
@@ -29,22 +29,25 @@ Alle Namen in den Screenshots sind erfunden (aus der [Beispiel-Excel](beispiel/B
 
 ## Download & Start
 
-Die fertigen Dateien liegen unter **Releases** (bzw. als Artefakt jedes Builds unter **Actions**).
+Die fertigen Dateien liegen unter **Releases**.
 
 | System | Datei | Start |
 |---|---|---|
-| Windows | `Hajime-x.y.z-Windows-portable.exe` | Doppelklick. Keine Installation. |
-| Windows | `Hajime-x.y.z-Windows.zip` | Entpacken, `Hajime.exe` starten (startet schneller als die portable .exe). |
-| macOS (Apple Silicon + Intel) | `Hajime-x.y.z-Mac.zip` | Entpacken, `Hajime.app` starten. |
-| Jedes System mit Chrome/Edge | `Hajime-x.y.z-Web.zip` | Entpacken, `Hajime starten.html` öffnen. Keine Programmdatei, läuft offline. |
+| **Windows** (und jedes andere System mit Chrome/Edge) | `Hajime-x.y.z-Web.zip` | Entpacken, `Hajime starten.html` öffnen. Keine Programmdatei, läuft offline – siehe [Webversion](#webversion-ohne-exe). |
+| **macOS** (Apple Silicon + Intel) | `Hajime-x.y.z-Mac.zip` | Entpacken, `Hajime.app` starten. |
 
-**Hinweise beim ersten Start** (die App ist nicht kostenpflichtig signiert):
+**macOS, erster Start** (die App ist nicht kostenpflichtig signiert): Meldung „kann nicht geöffnet werden“ → *Systemeinstellungen → Datenschutz & Sicherheit* → ganz unten *Dennoch öffnen*.
+Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
 
-- **Windows:** „Der Computer wurde durch Windows geschützt“ → *Weitere Informationen* → *Trotzdem ausführen*.
-- **macOS:** Meldung „kann nicht geöffnet werden“ → *Systemeinstellungen → Datenschutz & Sicherheit* → ganz unten *Dennoch öffnen*.
-  Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
+<details>
+<summary><b>Windows-Programm (.exe) – experimentell</b></summary>
 
-Die portable Windows-Version speichert ihre Daten im Ordner `Hajime-Daten` neben der .exe – sie läuft also auch vom USB-Stick.
+Jeder Build erzeugt auch eine Windows-Version (`Hajime-x.y.z-Windows-portable.exe` und `Hajime-x.y.z-Windows.zip`). Sie wird automatisch auf einem Windows-Rechner gestartet und geprüft, liegt aber **nicht im Release**, sondern nur als Build-Ergebnis unter **Actions** → letzter erfolgreicher Lauf → *Artifacts* → `Hajime-Windows`.
+
+Grund: Die .exe ist nicht signiert. Windows Defender stuft solche neuen, unbekannten Programme teils als Bedrohung ein (z. B. „Trojan:Win32/Cinjo.O!cl“, ein Fehlalarm der Cloud-Erkennung). Auf Firmen- oder Schulrechnern landet das bei der IT. Die Webversion hat dieses Problem nicht.
+
+Die portable Version speichert ihre Daten im Ordner `Hajime-Daten` neben der .exe.
+</details>
 
 ### Webversion (ohne .exe)
 
@@ -138,7 +141,7 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-GitHub Actions baut dann Windows-, Mac- und Webversion und hängt sie an ein neues Release.
+GitHub Actions baut dann Windows-, Mac- und Webversion, startet sie zur Probe und hängt Mac- und Webversion an ein neues Release (Windows nur unter Actions, siehe oben).
 
 ## Hinweis
 
