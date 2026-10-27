@@ -6,6 +6,9 @@
 - **Bedienfenster** auf dem Laptop mit Live-Vorschau der Anzeige
 - Namen optional, manuell oder per **Excel-Import**
 - **Regelprofile** pro Altersklasse (Kampfzeit, Golden Score, „Ippon beendet den Kampf“ ja/nein, Yuko, Shido-Grenze, Osaekomi-Zeiten …)
+- **Nächster Kampf** gut lesbar unten auf der Anzeige, in drei Größen
+- **Ereignisprotokoll** jedes Kampfes und Ergebnis-Export nach Excel
+- **Aushang** der Kampfreihenfolge pro Matte zum Ausdrucken (A4/A3)
 
 ## Screenshots
 
@@ -134,17 +137,23 @@ Aufbau:
 - `src/js/render.js` + `src/css/board.css` – Anzeigetafel (auch als Vorschau im Bedienfenster)
 - `src/js/control.js` – Bedienfenster
 - `src/js/excel.js` – Import/Export (SheetJS liegt lokal in `src/vendor/`, funktioniert offline)
+- `src/js/notice.js` – Aushang (Kampfreihenfolge pro Matte als Druckseite)
+- `src/js/credits.js` + `src/css/credits.css` – Fenster *Über Hajime*
 - `src/js/transport.js` – Verbindung der Fenster: Electron-IPC oder im Browser Pop-up + `postMessage`
 - `scripts/build-web.js` – Webversion (Startseite, Web-App-Manifest, Offline-Speicher)
 
 ### Neue Version veröffentlichen
 
 ```bash
-git tag v1.2.0
-git push origin v1.2.0
+git tag v1.3.0
+git push origin v1.3.0
 ```
 
 GitHub Actions baut dann die Mac- und die Webversion, startet die App zur Probe und hängt beides an ein neues Release.
+
+## Geplante Funktionen
+
+Ideen und Wünsche stehen unter [Issues](https://github.com/junky84/hajime/issues), die Zuordnung zu den nächsten Versionen unter [Meilensteine](https://github.com/junky84/hajime/milestones).
 
 ## Hinweis
 
