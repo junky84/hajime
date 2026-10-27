@@ -188,6 +188,18 @@
     const rows = log.map((l) => [l.no, l.time, l.mat, l.ageClass, l.category, l.white.name, l.white.club, l.whiteScore, l.blue.name, l.blue.club, l.blueScore, l.winnerName, l.reason, l.duration]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheetFrom([head].concat(rows), [5, 9, 10, 12, 14, 24, 22, 16, 24, 22, 16, 24, 26, 10]), 'Protokoll');
+    // Ereignisprotokoll: jede Aktion mit Uhrzeit und Kampfzeit
+    const two = (n) => String(n).padStart(2, '0');
+    const clock = (ts) => {
+      const d = new Date(ts);
+      return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
+    };
+    const evHead = ['Nr', 'Altersklasse', 'Gewichtsklasse', 'Weiß', 'Blau', 'Uhrzeit', 'Kampfzeit', 'Ereignis'];
+    const evRows = [];
+    log.forEach((l) =>
+      (l.events || []).forEach((e) => evRows.push([l.no, l.ageClass, l.category, l.white.name, l.blue.name, clock(e.at), e.clock, e.text]))
+    );
+    if (evRows.length) XLSX.utils.book_append_sheet(wb, sheetFrom([evHead].concat(evRows), [5, 12, 14, 24, 24, 10, 11, 60]), 'Ereignisse');
     return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   }
 

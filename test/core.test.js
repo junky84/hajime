@@ -219,4 +219,41 @@ test('Zeitanzeige', () => {
   assert.strictEqual(C.formatClock(61999, 'golden'), '1:01');
 });
 
+test('Ereignisprotokoll: Aktionen mit Kampfzeit', () => {
+  const s = fresh('p-u11');
+  C.hajimeMate(s, 0);
+  C.addScore(s, 'blue', 'shido', 1, 26000);
+  C.addScore(s, 'blue', 'shido', -1, 30000);
+  C.addScore(s, 'white', 'wazaari', 1, 47000);
+  C.hajimeMate(s, 53000);
+  C.hajimeMate(s, 60000);
+  C.startOsae(s, 'blue', 74000);
+  C.tick(s, 84100); // 10 s: noch kein Ende (U11: Ippon beendet nicht)
+  C.tick(s, 94100); // 20 s: Haltegriff voll → Ippon, Mate
+  const texts = s.fight.events.map((e) => e.text);
+  assert.deepStrictEqual(texts, [
+    'Hajime',
+    'Shido Blau',
+    'Korrektur: Shido Blau zurückgenommen',
+    'Waza-ari Weiß',
+    'Mate',
+    'Hajime',
+    'Osaekomi Blau',
+    'Osaekomi 20 s → Ippon Blau (automatisch)',
+    'Mate (Haltegriff ausgehalten)',
+  ]);
+  assert.strictEqual(s.fight.events[0].clock, '2:00');
+  assert.strictEqual(s.fight.events[1].clock, '1:34');
+  assert.ok(s.fight.events.every((e) => typeof e.at === 'number'));
+});
+
+test('Ereignisprotokoll: Uhr-Korrekturen werden zusammengefasst', () => {
+  const s = fresh();
+  C.adjustClock(s, -1000, 1000);
+  C.adjustClock(s, -1000, 1500);
+  C.adjustClock(s, -1000, 2000);
+  assert.strictEqual(s.fight.events.length, 1);
+  assert.strictEqual(s.fight.events[0].text, 'Uhr gestellt auf 3:57');
+});
+
 console.log(`\n${passed} Tests bestanden`);

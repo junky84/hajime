@@ -90,7 +90,22 @@
         fitText(rows[s].querySelector('.jb-club'), 0.045, 0.022);
       });
       fitText($('.jb-title'), 0.048, 0.022);
-      fitText($('.jb-next'), 0.033, 0.018);
+      const size = (view && view.settings.nextSize) || 'large';
+      if (size === 'small') fitText($('.jb-next'), 0.033, 0.018);
+      else {
+        const head = $('.jb-nx-head');
+        if (head) fitText(head, size === 'xlarge' ? 0.034 : 0.028, 0.016);
+        if (size === 'large') {
+          const names = $('.jb-nx-names');
+          if (names) fitText(names, 0.06, 0.022);
+        } else {
+          // beide Kämpfer gleich groß: der längere Name bestimmt die Schrift
+          const ps = Array.from(container.querySelectorAll('.jb-nx-p'));
+          ps.forEach((p) => fitText(p, 0.072, 0.026));
+          const min = Math.min(...ps.map((p) => parseFloat(p.style.fontSize) || Infinity));
+          if (isFinite(min)) ps.forEach((p) => (p.style.fontSize = min + 'px'));
+        }
+      }
     }
 
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => fitAll()) : null;
@@ -164,10 +179,24 @@
 
       const next = (view.next || [])[0];
       const nextEl = $('.jb-next');
+      const nextSize = s.nextSize || 'large';
+      container.classList.toggle('next-large', !!(s.showNext && next) && nextSize === 'large');
+      container.classList.toggle('next-xlarge', !!(s.showNext && next) && nextSize === 'xlarge');
       if (s.showNext && next) {
-        const fmt = (p) => esc(p.name || '?') + (s.showClub && p.club ? ` <small>(${esc(p.club)})</small>` : '');
         const cat = [next.ageClass, next.category].filter(Boolean).join(' ');
-        nextEl.innerHTML = `<b>Nächster Kampf${cat ? ' · ' + esc(cat) : ''}:</b> ${fmt(next.white)} <span class="vs">–</span> ${fmt(next.blue)}`;
+        let html;
+        if (nextSize === 'small') {
+          const fmt = (p) => esc(p.name || '?') + (s.showClub && p.club ? ` <small>(${esc(p.club)})</small>` : '');
+          html = `<b>Nächster Kampf${cat ? ' · ' + esc(cat) : ''}:</b> ${fmt(next.white)} <span class="vs">–</span> ${fmt(next.blue)}`;
+        } else {
+          // zweizeilig: Signalzeile oben, Namen groß mit Farbmarke Weiß/Blau
+          const person = (p, side) =>
+            `<div class="jb-nx-p ${side}"><i></i><b>${esc(p.name || '?')}</b>${s.showClub && p.club ? `<small>${esc(p.club)}</small>` : ''}</div>`;
+          html =
+            `<div class="jb-nx-head">Nächster Kampf${cat ? ' · ' + esc(cat) : ''} · bitte bereitmachen</div>` +
+            `<div class="jb-nx-names">${person(next.white, 'w')}${nextSize === 'large' ? '<span class="vs">–</span>' : ''}${person(next.blue, 'b')}</div>`;
+        }
+        if (nextEl.innerHTML !== html) nextEl.innerHTML = html;
         nextEl.style.display = '';
       } else {
         nextEl.innerHTML = '';

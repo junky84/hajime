@@ -294,6 +294,29 @@ ipcMain.on('board-ready', (e) => {
 });
 ipcMain.handle('displays', () => displayList());
 ipcMain.handle('app-version', () => app.getVersion());
+// Aushang: HTML in einem unsichtbaren Fenster als PDF ausgeben, speichern und öffnen
+ipcMain.handle('save-pdf', async (_e, { name, html, size }) => {
+  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } });
+  try {
+    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const pdf = await win.webContents.printToPDF({
+      landscape: true,
+      pageSize: size === 'A3' ? 'A3' : 'A4',
+      printBackground: true,
+      preferCSSPageSize: true,
+    });
+    const res = await dialog.showSaveDialog(controlWin, {
+      defaultPath: path.join(app.getPath('documents'), name),
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    if (res.canceled || !res.filePath) return false;
+    fs.writeFileSync(res.filePath, pdf);
+    shell.openPath(res.filePath);
+    return true;
+  } finally {
+    win.destroy();
+  }
+});
 ipcMain.handle('board-show', (_e, opts) => createBoard(opts && opts.displayId));
 ipcMain.handle('board-fullscreen-toggle', () => setBoardFullscreen(!boardIsFullscreen()));
 ipcMain.handle('board-fullscreen', (_e, flag) => setBoardFullscreen(!!flag));

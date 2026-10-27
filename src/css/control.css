@@ -694,3 +694,32 @@ dialog input {
 #logTable td:nth-child(3) {
   white-space: nowrap;
 }
+
+/* Ereignisprotokoll im Protokoll-Reiter */
+.tbl tr.ev-row > td {
+  background: var(--panel-2);
+  padding: 8px 12px 12px;
+}
+.tbl.ev {
+  font-size: 13px;
+}
+.tbl.ev th,
+.tbl.ev td {
+  padding: 4px 10px;
+}
+.tbl.ev td:nth-child(-n + 2) {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.ev-toggle {
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.tool-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--line);
+  margin: 0 4px;
+}

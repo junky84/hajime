@@ -69,6 +69,7 @@
       flash: null,
       sound: null,
       seq: 0,
+      events: [], // Ereignisprotokoll: { at, clock, text }
     };
   }
 
@@ -83,6 +84,7 @@
         logo: null,
         showClub: true,
         showNext: true,
+        nextSize: 'large', // small | large | xlarge
         flashScores: true,
         soundOn: true,
         soundTarget: 'control', // control | board | both
@@ -143,6 +145,26 @@
     f.flash = { id: f.seq, side, text, at: now };
   }
 
+  /* ---------- Ereignisprotokoll ---------- */
+
+  const KIND_LABEL = { ippon: 'Ippon', wazaari: 'Waza-ari', yuko: 'Yuko', shido: 'Shido', hsk: 'Hansoku-make' };
+
+  function clockLabel(f, now) {
+    const c = f.clock;
+    return (c.mode === 'golden' ? 'GS ' : '') + formatClock(clockMs(c, now), c.mode);
+  }
+
+  // kind: Art des Eintrags; 'clock' fasst schnell aufeinanderfolgende Uhr-Korrekturen zusammen
+  function logEvent(f, now, text, kind) {
+    if (!Array.isArray(f.events)) f.events = [];
+    const ev = { at: now, clock: clockLabel(f, now), text };
+    if (kind) ev.kind = kind;
+    const last = f.events[f.events.length - 1];
+    if (kind === 'clock' && last && last.kind === 'clock' && now - last.at < 4000) f.events[f.events.length - 1] = ev;
+    else f.events.push(ev);
+    if (f.events.length > 400) f.events.splice(0, f.events.length - 400);
+  }
+
   /* ---------- Bewertung ---------- */
 
   const isHansoku = (c, r) => !!c.hsk || (r.shidoLimit > 0 && c.shido >= r.shidoLimit);
@@ -174,6 +196,7 @@
     f.finishedAt = now;
     f.clock.zeroSignalled = true;
     setSound(f, 'gong', now);
+    logEvent(f, now, side === 'draw' ? 'Kampfende · Unentschieden' : `Kampfende · Sieger ${SIDE_LABEL[side]} (${reason})`);
   }
 
   function timeUp(state, now) {
@@ -183,6 +206,7 @@
     const c = compare(f, r);
     if (c) return finish(f, c.side, c.reason, now);
     f.status = 'timeup';
+    logEvent(f, now, 'Zeit abgelaufen · Gleichstand');
     if (!f.clock.zeroSignalled) {
       f.clock.zeroSignalled = true;
       setSound(f, 'gong', now);
@@ -235,24 +259,28 @@
       if (f.status === 'running') {
         pauseClock(f.clock, now);
         f.status = 'paused';
+        logEvent(f, now, 'Mate');
       }
       return true;
     }
     if (clockRunning(f.clock)) {
       pauseClock(f.clock, now);
       f.status = 'paused';
+      logEvent(f, now, 'Mate');
       return true;
     }
     if (f.status === 'timeup') {
       if (f.clock.mode === 'regular' && r.golden) {
         f.clock = { mode: 'golden', baseMs: 0, startedAt: now, zeroSignalled: true };
         f.status = 'running';
+        logEvent(f, now, 'Golden Score · Hajime');
         return true;
       }
       return false; // Kampfrichterentscheid nötig
     }
     if (f.clock.mode === 'regular' && f.clock.baseMs <= 0) return false;
     if (goldenLimitReached(f, r, now)) return false;
+    logEvent(f, now, 'Hajime');
     startClock(f.clock, now);
     f.status = 'running';
     f.started = true;
@@ -279,6 +307,7 @@
       if (f.status === 'finished') return true;
     }
     if (f.clock.mode === 'regular' && clockMs(f.clock, now) <= 0) return false;
+    logEvent(f, now, 'Osaekomi ' + SIDE_LABEL[side]);
     f.osae.side = side;
     f.osae.baseMs = 0;
     f.osae.startedAt = now;
@@ -301,9 +330,9 @@
     o.side = null;
     o.startedAt = null;
     o.baseMs = 0;
+    const sec = Math.floor(ms / 1000 + 1e-6);
+    let k = null;
     if (r.autoOsae) {
-      const sec = Math.floor(ms / 1000 + 1e-6);
-      let k = null;
       if (sec >= r.osaeIppon) k = 'ippon';
       else if (sec >= r.osaeWazaari) k = 'wazaari';
       else if (r.yuko && sec >= r.osaeYuko) k = 'yuko';
@@ -312,6 +341,7 @@
         setFlash(f, side, SCORE_LABEL[k], now);
       }
     }
+    logEvent(f, now, k ? `Osaekomi ${sec} s → ${KIND_LABEL[k]} ${SIDE_LABEL[side]} (automatisch)` : `Toketa ${SIDE_LABEL[side]} nach ${sec} s`);
     checkEnd(state, now);
     return true;
   }
@@ -331,6 +361,9 @@
     if (delta > 0) {
       const text = kind === 'shido' && isHansoku(c, r) ? SCORE_LABEL.hsk : SCORE_LABEL[kind];
       setFlash(f, side, text, now);
+      logEvent(f, now, `${KIND_LABEL[kind]} ${SIDE_LABEL[side]}` + (kind === 'shido' && isHansoku(c, r) ? ' → Hansoku-make' : ''));
+    } else {
+      logEvent(f, now, `Korrektur: ${KIND_LABEL[kind]} ${SIDE_LABEL[side]} zurückgenommen`);
     }
     reevaluate(state, now);
     return true;
@@ -342,6 +375,7 @@
     if (side == null) {
       if (!f.manual) return false;
       f.manual = false;
+      logEvent(f, now, 'Entscheidung aufgehoben');
       reevaluate(state, now);
       return true;
     }
@@ -366,6 +400,7 @@
     const running = clockRunning(c);
     c.baseMs = Math.max(0, Math.round(ms));
     c.startedAt = running ? now : null;
+    logEvent(f, now, 'Uhr gestellt auf ' + clockLabel(f, now), 'clock');
     if (c.mode === 'regular' && !f.started) f.regularMs = Math.max(f.regularMs, c.baseMs);
     if (c.mode === 'regular' && c.baseMs > 0) c.zeroSignalled = false;
     if (f.status === 'timeup' && (c.mode === 'regular' ? c.baseMs > 0 : !goldenLimitReached(f, getRules(state), now))) {
@@ -441,6 +476,7 @@
         if (f.status === 'running') f.status = 'paused';
       }
     }
+    if (!Array.isArray(f.events)) f.events = [];
     f.flash = null;
     f.sound = null;
     return s;
@@ -470,6 +506,7 @@
           pauseClock(f.clock, now);
           f.status = 'paused';
           setSound(f, 'gong', now);
+          logEvent(f, now, 'Mate (Haltegriff ausgehalten)');
         }
         changed = true;
       }
@@ -492,6 +529,7 @@
         c.baseMs = r.goldenLimit * 1000;
         c.startedAt = null;
         if (!f.osae.side) f.status = 'timeup';
+        logEvent(f, now, 'Golden Score: Höchstdauer erreicht');
         setSound(f, 'gong', now);
         changed = true;
       }
@@ -562,6 +600,8 @@
     getRules,
     clockMs,
     clockRunning,
+    clockLabel,
+    logEvent,
     osaeMs,
     osaeLimitSec,
     fightTimeMs,

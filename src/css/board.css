@@ -382,6 +382,90 @@
   opacity: 0.6;
 }
 
+/* Nächster Kampf groß (zweizeilig) und sehr groß (jeder Kämpfer in einer Zeile) */
+.jb.next-large .jb-next,
+.jb.next-xlarge .jb-next {
+  height: 15cqh;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.6cqh;
+  border-top: 0.45cqh solid var(--jb-gold);
+  white-space: normal;
+}
+.jb.next-xlarge .jb-next {
+  height: 24cqh;
+}
+.jb.next-xlarge .jb-bottom {
+  height: 21cqh;
+}
+.jb.next-xlarge .jb-time {
+  font-size: 18cqh;
+}
+.jb-nx-head {
+  color: var(--jb-gold);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 2.8cqh;
+}
+.jb-nx-names {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 6cqh;
+}
+.jb.next-xlarge .jb-nx-names {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+.jb-nx-p {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.12;
+}
+.jb.next-large .jb-nx-p {
+  flex: none;
+}
+.jb.next-xlarge .jb-nx-p {
+  font-size: 7.2cqh;
+}
+.jb-nx-p b {
+  color: #fff;
+  font-weight: 800;
+}
+.jb-nx-p small {
+  color: #aab3c5;
+  font-weight: 600;
+  font-size: 0.5em;
+}
+.jb-nx-p i {
+  flex: none;
+  width: 0.45em;
+  height: 0.45em;
+  border-radius: 0.08em;
+  align-self: center;
+}
+.jb-nx-p.w i {
+  background: var(--jb-white);
+}
+.jb-nx-p.b i {
+  background: #3b6dff;
+}
+.jb-nx-names .vs {
+  color: #6c768a;
+  font-weight: 700;
+}
+
 /* Pausenbild */
 .jb-idle {
   position: absolute;

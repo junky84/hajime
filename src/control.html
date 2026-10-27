@@ -130,6 +130,10 @@
           <label class="chk"><input type="checkbox" id="importReplace" checked /> vorhandene Listen ersetzen</label>
           <input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.ods,.csv" hidden />
           <button class="btn" id="btnTemplate">Excel-Vorlage speichern</button>
+          <span class="tool-sep"></span>
+          <button class="btn" id="btnNotice" title="Kampfreihenfolge pro Matte zum Aushängen, ohne Uhrzeiten und Ergebnisse">Aushang drucken …</button>
+          <select id="noticeSize" title="Papierformat (quer)"><option value="A4">A4 quer</option><option value="A3">A3 quer</option></select>
+          <label class="chk"><input type="checkbox" id="noticeOpen" /> nur offene Kämpfe</label>
           <span class="grow"></span>
           <button class="btn danger" id="btnClearQueue">Kampfliste leeren</button>
           <button class="btn danger" id="btnClearParts">Teilnehmer leeren</button>
@@ -177,7 +181,7 @@
           <div class="table-wrap">
             <table class="tbl" id="logTable">
               <thead>
-                <tr><th>Nr</th><th>Zeit</th><th>Klasse</th><th>Weiß</th><th>Blau</th><th>Sieger</th><th>Entscheidung</th><th>Dauer</th></tr>
+                <tr><th>Nr</th><th>Zeit</th><th>Klasse</th><th>Weiß</th><th>Blau</th><th>Sieger</th><th>Entscheidung</th><th>Dauer</th><th></th></tr>
               </thead>
               <tbody></tbody>
             </table>
@@ -203,6 +207,13 @@
               </div>
               <label class="chk"><input type="checkbox" id="sShowClub" /> Verein anzeigen</label>
               <label class="chk"><input type="checkbox" id="sShowNext" /> nächsten Kampf unten einblenden</label>
+              <label>Größe „Nächster Kampf“
+                <select id="sNextSize">
+                  <option value="small">Klein (eine Zeile)</option>
+                  <option value="large">Groß (zweizeilig)</option>
+                  <option value="xlarge">Sehr groß (jeder Kämpfer eine Zeile)</option>
+                </select>
+              </label>
               <label class="chk"><input type="checkbox" id="sFlash" /> Wertungen groß einblenden</label>
               <label class="chk"><input type="checkbox" id="sSwap" /> Blau oben anzeigen (Seiten tauschen)</label>
             </div>
@@ -291,6 +302,7 @@
     <script src="js/render.js"></script>
     <script src="js/transport.js"></script>
     <script src="js/excel.js"></script>
+    <script src="js/notice.js"></script>
     <script src="js/control.js"></script>
     <script src="js/credits.js"></script>
   </body>

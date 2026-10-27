@@ -110,6 +110,11 @@
     f.no = cur.no;
     f.category = cur.category;
     f.ageClass = cur.ageClass;
+    // Ereignisprotokoll bleibt vollständig, „Rückgängig“ wird angehängt
+    const prevCount = (f.events || []).length;
+    const undone = (cur.events || []).slice(prevCount).map((e) => e.text).filter((t) => !/^Rückgängig/.test(t));
+    f.events = (cur.events || []).slice();
+    C.logEvent(f, Date.now(), 'Rückgängig' + (undone.length ? ': ' + undone.join(', ') : ''));
     const running = C.clockRunning(f.clock) || !!f.osae.side;
     if (f.status === 'running' && !running) f.status = 'paused';
     if ((f.status === 'paused' || f.status === 'ready') && running) f.status = 'running';
@@ -166,6 +171,7 @@
         winnerName: f.winner === 'draw' ? 'Unentschieden' : C.displayName(f[f.winner], f.winner),
         reason: f.reason,
         duration: C.formatClock(C.fightTimeMs(f, f.finishedAt), 'golden'),
+        events: (f.events || []).slice(),
       };
       if (i >= 0) state.log[i] = entry;
       else state.log.push(entry);
@@ -783,6 +789,35 @@
   });
 
   $('#btnTemplate').addEventListener('click', () => T.saveFile('Hajime-Import-Vorlage.xlsx', new Uint8Array(X.templateBytes())));
+  // Aushang: Kampfreihenfolge pro Matte (App: PDF-Datei, Browser: Druckdialog mit „Als PDF sichern“)
+  $('#btnNotice').addEventListener('click', async () => {
+    const N = window.JudoNotice;
+    const size = $('#noticeSize').value;
+    const mats = N.mats(state.queue, state.settings.mat, $('#noticeOpen').checked);
+    if (!mats.length) {
+      alert('Die Kampfliste ist leer – es gibt nichts auszuhängen.');
+      return;
+    }
+    const html = N.html({ tournament: state.settings.tournament, mats, size });
+    const name = `Hajime-Aushang-${(mats.length === 1 ? mats[0].name : 'Matten').replace(/[^\wäöüÄÖÜß-]+/g, '-')}.pdf`;
+    if (T.isElectron && T.bridge.savePdf) {
+      try {
+        await T.bridge.savePdf(name, html, size);
+      } catch (err) {
+        alert('PDF konnte nicht erstellt werden: ' + err.message);
+      }
+      return;
+    }
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    frame.srcdoc = html;
+    frame.onload = () => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      setTimeout(() => frame.remove(), 60000);
+    };
+    document.body.appendChild(frame);
+  });
   $('#btnClearQueue').addEventListener('click', () => {
     if (state.queue.length && confirm('Kampfliste komplett leeren?')) {
       state.queue = [];
@@ -798,17 +833,35 @@
 
   /* ================= Protokoll ================= */
 
+  // Ereignisprotokoll: welche Kämpfe aufgeklappt sind
+  const openEvents = new Set();
+  function fmtTimeSec(ts) {
+    const d = new Date(ts);
+    return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+  }
+  function eventsTable(events) {
+    if (!events || !events.length) return '<div class="muted">Keine Ereignisse aufgezeichnet.</div>';
+    return `<table class="tbl ev"><thead><tr><th>Uhrzeit</th><th>Kampfzeit</th><th>Ereignis</th></tr></thead><tbody>${events
+      .map((e) => `<tr><td>${esc(fmtTimeSec(e.at))}</td><td>${esc(e.clock)}</td><td>${esc(e.text)}</td></tr>`)
+      .join('')}</tbody></table>`;
+  }
+
   function renderLog() {
     const tb = $('#logTable tbody');
     const html = state.log
       .slice()
       .reverse()
-      .map(
-        (l) => `<tr><td>${esc(l.no)}</td><td>${esc(l.time)}</td><td>${esc([l.ageClass, l.category].filter(Boolean).join(' '))}</td>
+      .map((l) => {
+        const n = (l.events || []).length;
+        const open = openEvents.has(l.fightId);
+        return `<tr data-fight="${esc(l.fightId)}"><td>${esc(l.no)}</td><td>${esc(l.time)}</td><td>${esc([l.ageClass, l.category].filter(Boolean).join(' '))}</td>
         <td${l.winner === 'white' ? ' class="win"' : ''}>${esc(l.white.name || 'Weiß')}<br><small>${esc(l.whiteScore)}</small></td>
         <td${l.winner === 'blue' ? ' class="win"' : ''}>${esc(l.blue.name || 'Blau')}<br><small>${esc(l.blueScore)}</small></td>
-        <td>${esc(l.winnerName)}</td><td>${esc(l.reason)}</td><td>${esc(l.duration)}</td></tr>`
-      )
+        <td>${esc(l.winnerName)}</td><td>${esc(l.reason)}</td><td>${esc(l.duration)}</td>
+        <td><button class="btn ev-toggle" data-ev="${esc(l.fightId)}" ${n ? '' : 'disabled'}>${open ? 'Ereignisse ▴' : 'Ereignisse ▾'}${n ? ` (${n})` : ''}</button></td></tr>${
+          open ? `<tr class="ev-row"><td colspan="9">${eventsTable(l.events)}</td></tr>` : ''
+        }`;
+      })
       .join('');
     if (tb.dataset.h !== html) {
       tb.innerHTML = html;
@@ -816,6 +869,14 @@
     }
     $('#logCount').textContent = state.log.length || '';
   }
+  $('#logTable tbody').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ev]');
+    if (!b) return;
+    const id = b.dataset.ev;
+    if (openEvents.has(id)) openEvents.delete(id);
+    else openEvents.add(id);
+    renderLog();
+  });
   $('#btnExportLog').addEventListener('click', () => {
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -835,6 +896,7 @@
     sMat: ['mat', 'value'],
     sShowClub: ['showClub', 'checked'],
     sShowNext: ['showNext', 'checked'],
+    sNextSize: ['nextSize', 'value'],
     sFlash: ['flashScores', 'checked'],
     sSwap: ['swap', 'checked'],
     sSound: ['soundOn', 'checked'],
