@@ -1,6 +1,6 @@
 # Hajime
 
-**Judo-Anzeigetafel** für Wettkämpfe – **ohne Installation**: als App für macOS und als **Webversion** für Chrome/Edge (Windows, Linux, Mac – ganz ohne Programmdatei).
+**Judo-Anzeigetafel** für Wettkämpfe – **ohne Installation**: als **Webversion** für jeden Rechner mit Chrome oder Edge (läuft offline, keine Programmdatei) und als **App für macOS**.
 
 - **Publikumsanzeige** im Vollbild auf dem zweiten Bildschirm/Beamer (erweiterter Desktop)
 - **Bedienfenster** auf dem Laptop mit Live-Vorschau der Anzeige
@@ -31,40 +31,36 @@ Alle Namen in den Screenshots sind erfunden (aus der [Beispiel-Excel](beispiel/B
 
 Die fertigen Dateien liegen unter **Releases**.
 
-| System | Datei | Start |
+| Version | Datei | Start |
 |---|---|---|
-| **Windows** (und jedes andere System mit Chrome/Edge) | `Hajime-x.y.z-Web.zip` | Entpacken, `Hajime starten.html` öffnen. Keine Programmdatei, läuft offline – siehe [Webversion](#webversion-ohne-exe). |
-| **macOS** (Apple Silicon + Intel) | `Hajime-x.y.z-Mac.zip` | Entpacken, `Hajime.app` starten. |
+| **Webversion** – jeder Rechner mit Chrome oder Edge | `Hajime-x.y.z-Web.zip` | Entpacken, `Hajime starten.html` öffnen. |
+| **macOS-App** (Apple Silicon + Intel) | `Hajime-x.y.z-Mac.zip` | Entpacken, `Hajime.app` starten. |
 
-**macOS, erster Start** (die App ist nicht kostenpflichtig signiert): Meldung „kann nicht geöffnet werden“ → *Systemeinstellungen → Datenschutz & Sicherheit* → ganz unten *Dennoch öffnen*.
-Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
+### Webversion
 
-<details>
-<summary><b>Windows-Programm (.exe) – experimentell</b></summary>
+Dieselbe Anzeigetafel, nur im Browser: keine Installation, keine Programmdatei, **kein Internet nötig**. Ideal für Vereins- oder Leihrechner, auf denen keine fremden Programme laufen dürfen.
 
-Jeder Build erzeugt auch eine Windows-Version (`Hajime-x.y.z-Windows-portable.exe` und `Hajime-x.y.z-Windows.zip`). Sie wird automatisch auf einem Windows-Rechner gestartet und geprüft, liegt aber **nicht im Release**, sondern nur als Build-Ergebnis unter **Actions** → letzter erfolgreicher Lauf → *Artifacts* → `Hajime-Windows`.
-
-Grund: Die .exe ist nicht signiert. Windows Defender stuft solche neuen, unbekannten Programme teils als Bedrohung ein (z. B. „Trojan:Win32/Cinjo.O!cl“, ein Fehlalarm der Cloud-Erkennung). Auf Firmen- oder Schulrechnern landet das bei der IT. Die Webversion hat dieses Problem nicht.
-
-Die portable Version speichert ihre Daten im Ordner `Hajime-Daten` neben der .exe.
-</details>
-
-### Webversion (ohne .exe)
-
-Für Rechner, auf denen keine fremden Programme laufen dürfen oder der Virenscanner unsignierte Programme blockiert. Die Webversion ist dieselbe App, läuft aber im Browser – es wird nichts ausgeführt außer der Webseite.
-
-1. `Hajime-x.y.z-Web.zip` entpacken und `Hajime starten.html` in **Chrome oder Edge** öffnen (Internet ist nicht nötig).
+1. `Hajime-x.y.z-Web.zip` entpacken und `Hajime starten.html` in **Chrome oder Edge** öffnen.
 2. *Anzeige öffnen* klicken und Pop-ups erlauben, falls der Browser fragt.
 3. Beim ersten Mal fragt der Browser, ob die Seite **Fenster auf allen Bildschirmen verwalten** darf. Mit *Zulassen* erscheint oben eine Bildschirmauswahl und die Anzeige landet automatisch auf dem Beamer. Ohne Erlaubnis das Fenster von Hand hinüberziehen.
 4. Im Anzeigefenster **einmal klicken** (Browser geben den Ton erst nach einem Klick frei – bis dahin steht dort ein roter Hinweis) und **doppelklicken** für Vollbild.
 
-Daten (Einstellungen, Kampfliste, Protokoll) speichert der Browser. Für einen anderen Rechner unter *Einstellungen* eine Sicherung speichern und dort laden.
+Einstellungen, Kampfliste und Protokoll speichert der Browser. Für einen anderen Rechner unter *Einstellungen* eine Sicherung speichern und dort laden.
 
-Der Ordner kann auch auf jeden Webserver gelegt werden. Dann lässt sich Hajime in Chrome/Edge über das Installieren-Symbol in der Adressleiste wie eine App anlegen und läuft nach dem ersten Aufruf auch offline. Getestet ist die Webversion mit Chromium (Chrome/Edge). Firefox und Safari sollten grundsätzlich laufen, können die Anzeige aber nicht selbst auf den zweiten Bildschirm schieben.
+**Als Web-App:** Der Ordner kann auch auf einen Webserver gelegt werden. Dann lässt sich Hajime in Chrome/Edge über das Installieren-Symbol in der Adressleiste wie eine App anlegen und läuft nach dem ersten Aufruf offline.
+
+Getestet ist die Webversion mit Chrome/Edge. Firefox und Safari sollten grundsätzlich laufen, können die Anzeige aber nicht selbst auf den zweiten Bildschirm schieben.
+
+### macOS-App
+
+Die App öffnet die Anzeige selbst im Vollbild auf dem zweiten Bildschirm und braucht keinen Klick für den Ton.
+
+**Erster Start** (die App ist nicht kostenpflichtig signiert): Meldung „kann nicht geöffnet werden“ → *Systemeinstellungen → Datenschutz & Sicherheit* → ganz unten *Dennoch öffnen*.
+Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
 
 ## Bedienung
 
-1. App starten – die Anzeige öffnet sich automatisch im Vollbild auf dem zweiten Bildschirm (ist keiner angeschlossen: als Fenster). Oben rechts kann der Bildschirm gewechselt werden.
+1. Hajime starten. In der **macOS-App** öffnet sich die Anzeige automatisch im Vollbild auf dem zweiten Bildschirm (ist keiner angeschlossen: als Fenster). In der **Webversion** *Anzeige öffnen* klicken (siehe oben). Oben rechts kann der Bildschirm gewechselt werden.
 2. Namen eintragen (optional) oder Kampfliste laden, *Hajime* drücken.
 3. Nach dem Kampf *Nächster Kampf* (Taste `N`) – das Ergebnis landet automatisch im Protokoll.
 
@@ -118,8 +114,8 @@ Für U11/U13 ist „Ippon beendet den Kampf“ ab Werk ausgeschaltet; es zählt 
 
 ```bash
 npm install
-npm start        # App starten
-npm test         # Tests der Wettkampflogik und des Excel-Imports
+npm start           # App starten
+npm test            # Tests der Wettkampflogik und des Excel-Imports
 npm run build:web   # Webversion nach dist/Hajime-Web bauen
 HAJIME_SCREENSHOTS=docs/screenshots npx electron .   # README-Screenshots neu erzeugen
 ```
@@ -137,11 +133,11 @@ Aufbau:
 ### Neue Version veröffentlichen
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
-GitHub Actions baut dann Windows-, Mac- und Webversion, startet sie zur Probe und hängt Mac- und Webversion an ein neues Release (Windows nur unter Actions, siehe oben).
+GitHub Actions baut dann die Mac- und die Webversion, startet die App zur Probe und hängt beides an ein neues Release.
 
 ## Hinweis
 
