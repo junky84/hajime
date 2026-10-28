@@ -1205,8 +1205,13 @@ input.w-time {
   gap: 4px;
   font-size: 13px;
 }
-.call-lbl input {
-  width: 100%;
+.call-free {
+  display: flex;
+  gap: 8px;
+}
+.call-free input {
+  flex: 1;
+  min-width: 0;
 }
 .import-msg.info {
   color: var(--muted);

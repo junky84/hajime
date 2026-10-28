@@ -201,7 +201,7 @@ Fehlt ein Kämpfer an der Matte, *Aufruf* oben rechts klicken (oder Taste `K`):
 
 - Die beiden Kämpfer des aktuellen Kampfes sind **gelb hervorgehoben**, darunter folgen der nächste Kampf und die danach.
 - Ein Klick auf einen Namen zeigt oben auf der Anzeige eine gut sichtbare Zeile: „Tim Sauter (TSV Lindenau) bitte zur Matte 2“. Ein zweiter Name wird angehängt, ein erneuter Klick nimmt ihn wieder heraus.
-- Statt eines Namens geht auch freier Text („Kampfrichter bitte zum Tisch“).
+- Statt eines Namens geht auch freier Text („Kampfrichter bitte zum Tisch“). Er erscheint erst nach Enter bzw. *Anzeigen*, nicht schon beim Tippen.
 - Ausblenden mit *Zeile ausblenden* oder Taste `K`. Beim nächsten Kampf verschwindet die Zeile von selbst.
 
 | Auswahl im Bedienfenster |
@@ -264,8 +264,8 @@ Aufbau:
 ### Neue Version veröffentlichen
 
 ```bash
-git tag v1.4.1
-git push origin v1.4.1
+git tag v1.4.2
+git push origin v1.4.2
 ```
 
 GitHub Actions baut dann die Mac- und die Webversion, startet die App zur Probe und hängt beides an ein neues Release.

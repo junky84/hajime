@@ -1513,6 +1513,7 @@
     // freier Text nur zeigen, wenn er nicht aus der Auswahl stammt
     setVal($('#callMsg'), picks.length ? '' : msg);
     $('#btnCallClear').disabled = !msg;
+    updateSend();
   }
   function setCall(picks, text) {
     state.callPicks = picks;
@@ -1547,10 +1548,27 @@
     setCall(picks);
     b.blur(); // Tastenkürzel (Leertaste) sollen wieder für den Kampf gelten
   });
-  $('#callMsg').addEventListener('input', (e) => setCall([], e.target.value));
+  // freier Text geht erst nach Bestätigung (Enter / „Anzeigen“) auf die Anzeige, nicht beim Tippen
+  function freeText() {
+    return $('#callMsg').value.trim();
+  }
+  function updateSend() {
+    $('#btnCallSend').disabled = !freeText() || (freeText() === state.callMessage && !(state.callPicks || []).length);
+  }
+  function sendFree() {
+    if (!freeText()) return;
+    setCall([], freeText());
+    $('#callMsg').blur();
+    openCall(false);
+  }
+  $('#callMsg').addEventListener('input', updateSend);
   $('#callMsg').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') openCall(false);
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendFree();
+    }
   });
+  $('#btnCallSend').addEventListener('click', sendFree);
   $('#btnCallClear').addEventListener('click', () => setCall([], ''));
   $('#btnCallDone').addEventListener('click', () => openCall(false));
   document.addEventListener('mousedown', (e) => {
