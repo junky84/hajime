@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hajime – Übersicht</title>
+    <!-- Wird von der Hajime-Zentrale ausgeliefert (http://<zentrale>:47801/) und holt alle 1,5 s den Stand der Matten. -->
+    <style>
+      :root {
+        --bg: #07090d;
+        --card: #121722;
+        --line: #232c3d;
+        --muted: #9aa6bd;
+        --run: #2fe36f;
+        --stop: #ff4a4a;
+        --gold: #ffc400;
+        --blue: #6f9bff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: #fff;
+        font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 2vw;
+        padding: 1.6vh 2vw;
+        background: var(--card);
+        font-weight: 800;
+      }
+      header h1 {
+        margin: 0;
+        font-size: clamp(20px, 3.2vh, 44px);
+      }
+      header span {
+        color: var(--muted);
+        font-size: clamp(13px, 1.8vh, 24px);
+      }
+      main {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+        gap: 1.6vh 1.4vw;
+        padding: 1.6vh 1.4vw;
+      }
+      .mat {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 1.4vh 1.2vw;
+        border: 2px solid transparent;
+      }
+      .mat.off {
+        opacity: 0.55;
+        border-color: var(--stop);
+      }
+      .head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .head b {
+        font-size: clamp(22px, 3.4vh, 46px);
+        font-weight: 900;
+      }
+      .head small {
+        color: var(--muted);
+        font-size: clamp(12px, 1.6vh, 20px);
+        text-align: right;
+      }
+      .cls {
+        margin-top: 0.6vh;
+        color: var(--gold);
+        font-weight: 700;
+        font-size: clamp(14px, 2vh, 26px);
+      }
+      .fight {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.6vh 1vw;
+        align-items: center;
+        margin-top: 1vh;
+      }
+      .p {
+        display: flex;
+        align-items: center;
+        gap: 0.8vw;
+        min-width: 0;
+        padding: 0.6vh 0.8vw;
+        border-radius: 8px;
+        font-size: clamp(16px, 2.6vh, 36px);
+        font-weight: 700;
+      }
+      .p span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .p.w {
+        background: #f3f3ef;
+        color: #0d0f14;
+      }
+      .p.b {
+        background: #1243b8;
+      }
+      .p.win {
+        box-shadow: inset 6px 0 0 #17b856;
+      }
+      .sc {
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+      .sc i {
+        display: inline-block;
+        width: 0.5em;
+        height: 0.7em;
+        margin-left: 0.15em;
+        border-radius: 2px;
+        background: var(--gold);
+      }
+      .clock {
+        grid-row: span 2;
+        font-size: clamp(30px, 5.4vh, 76px);
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+        color: var(--stop);
+        text-align: right;
+      }
+      .clock.run {
+        color: var(--run);
+      }
+      .clock.gs::before {
+        content: 'GS ';
+        color: var(--gold);
+        font-size: 0.5em;
+      }
+      .state {
+        margin-top: 0.6vh;
+        color: var(--muted);
+        font-size: clamp(13px, 1.7vh, 22px);
+        min-height: 1.4em;
+      }
+      .next {
+        margin-top: 1vh;
+        border-top: 1px solid var(--line);
+        padding-top: 0.8vh;
+      }
+      .next h3 {
+        margin: 0 0 0.4vh;
+        font-size: clamp(12px, 1.5vh, 18px);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nx {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.8vw;
+        font-size: clamp(14px, 2vh, 26px);
+        padding: 0.3vh 0;
+      }
+      .nx em {
+        font-style: normal;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .nx span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .nx .bl {
+        color: var(--blue);
+      }
+      .empty {
+        padding: 10vh 2vw;
+        text-align: center;
+        color: var(--muted);
+        font-size: clamp(16px, 2.6vh, 32px);
+      }
+      #err {
+        display: none;
+        position: fixed;
+        left: 50%;
+        bottom: 2vh;
+        transform: translateX(-50%);
+        background: #b3261e;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">Hajime</h1>
+      <span id="clock"></span>
+    </header>
+    <main id="mats"></main>
+    <div id="err"></div>
+    <script>
+      (function () {
+        'use strict';
+        // Deutsch oder Englisch nach Browsersprache
+        const de = /^de/i.test(navigator.language || '');
+        const T = de
+          ? { none: 'Noch keine Matte verbunden.', next: 'Als Nächstes', off: 'Verbindung unterbrochen', open: 'offen', done: 'beendet', idle: 'Kein Kampf geladen', mate: 'Mate', win: 'Sieger', draw: 'Unentschieden', lost: 'Keine Verbindung zur Zentrale', white: 'Weiß', blue: 'Blau', overview: 'Übersicht' }
+          : { none: 'No mat connected yet.', next: 'Up next', off: 'Connection lost', open: 'open', done: 'finished', idle: 'No contest loaded', mate: 'Mate', win: 'Winner', draw: 'Draw', lost: 'No connection to the hub', white: 'White', blue: 'Blue', overview: 'Overview' };
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+        const fmt = (ms, golden) => {
+          let sec = golden ? Math.floor(ms / 1000) : Math.ceil(Math.max(0, ms) / 1000 - 1e-6);
+          return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+        };
+        let data = null;
+        let gotAt = 0;
+        const score = (p) => {
+          const s = p.score || {};
+          let cards = '';
+          for (let i = 0; i < Math.min(s.shido || 0, 3); i++) cards += '<i></i>';
+          return `${s.ippon ? s.ippon + ' I · ' : ''}${s.wazaari || 0} W${s.yuko ? ' · ' + s.yuko + ' Y' : ''}${cards}`;
+        };
+        function render() {
+          if (!data) return;
+          document.getElementById('title').textContent = (data.tournament || 'Hajime') + ' · ' + T.overview;
+          document.title = (data.tournament || 'Hajime') + ' – ' + T.overview;
+          const now = Date.now();
+          const box = document.getElementById('mats');
+          if (!data.mats.length) {
+            box.innerHTML = `<div class="empty">${esc(T.none)}</div>`;
+            return;
+          }
+          box.innerHTML = data.mats
+            .map((m) => {
+              const c = m.current;
+              let fight = `<div class="state">${esc(T.idle)}</div>`;
+              if (c && c.named) {
+                const ms = c.running ? (c.golden ? c.clockMs + (now - gotAt) : c.clockMs - (now - gotAt)) : c.clockMs;
+                let st = '';
+                if (c.status === 'finished') st = c.winner === 'draw' ? T.draw : `${T.win}: ${(c[c.winner] && c[c.winner].name) || (c.winner === 'white' ? T.white : T.blue)} · ${c.reason || ''}`;
+                else if (c.osae) st = 'Osaekomi';
+                else if (c.status === 'paused') st = T.mate;
+                fight = `<div class="cls">${esc([c.cls, c.no ? '#' + c.no : ''].filter(Boolean).join(' · '))}</div>
+                  <div class="fight">
+                    <div class="p w${c.winner === 'white' ? ' win' : ''}"><span>${esc(c.white.name || T.white)}</span><b class="sc">${score(c.white)}</b></div>
+                    <div class="clock${c.running ? ' run' : ''}${c.golden ? ' gs' : ''}">${fmt(ms, c.golden)}</div>
+                    <div class="p b${c.winner === 'blue' ? ' win' : ''}"><span>${esc(c.blue.name || T.blue)}</span><b class="sc">${score(c.blue)}</b></div>
+                  </div>
+                  <div class="state">${esc(st)}</div>`;
+              }
+              const next = (m.next || []).slice(0, 3);
+              return `<section class="mat${m.connected ? '' : ' off'}">
+                <div class="head"><b>${esc(m.mat)}</b><small>${m.connected ? `${m.open} ${esc(T.open)} · ${m.done} ${esc(T.done)}` : esc(T.off)}</small></div>
+                ${fight}
+                ${next.length ? `<div class="next"><h3>${esc(T.next)}</h3>${next.map((n) => `<div class="nx"><em>${esc([n.at, n.cls].filter(Boolean).join(' · '))}</em><span>${esc(n.white.name || '?')} – <span class="bl">${esc(n.blue.name || '?')}</span></span></div>`).join('')}</div>` : ''}
+              </section>`;
+            })
+            .join('');
+        }
+        async function load() {
+          try {
+            const r = await fetch('overview.json', { cache: 'no-store' });
+            data = await r.json();
+            gotAt = Date.now();
+            document.getElementById('err').style.display = 'none';
+          } catch (err) {
+            const e = document.getElementById('err');
+            e.textContent = T.lost;
+            e.style.display = 'block';
+          }
+          render();
+        }
+        load();
+        setInterval(load, 1500);
+        setInterval(() => {
+          render();
+          const d = new Date();
+          document.getElementById('clock').textContent = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        }, 500);
+      })();
+    </script>
+  </body>
+</html>

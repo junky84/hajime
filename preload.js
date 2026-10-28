@@ -23,4 +23,16 @@ contextBridge.exposeInMainWorld('judoBridge', {
   appVersion: () => ipcRenderer.invoke('app-version'),
   // Aushang, Siegerliste, Urkunden als PDF speichern
   savePdf: (name, html, size, landscape) => ipcRenderer.invoke('save-pdf', { name, html, size, landscape }),
+  // Sprache für Menü und Dialoge
+  setLang: (lang) => ipcRenderer.send('set-lang', lang),
+  // Zentrale (Matten im Netz)
+  hubStart: (opts) => ipcRenderer.invoke('hub-start', opts),
+  hubStop: () => ipcRenderer.invoke('hub-stop'),
+  hubSend: (id, msg) => ipcRenderer.invoke('hub-send', id, msg),
+  hubOverview: (data) => ipcRenderer.send('hub-overview', data),
+  onHubEvent: (cb) => ipcRenderer.on('hub-event', (_e, ev) => cb(ev)),
+  // Suche nach einer Zentrale im Netz
+  finderStart: () => ipcRenderer.invoke('finder-start'),
+  onHubsFound: (cb) => ipcRenderer.on('hubs-found', (_e, list) => cb(list)),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });

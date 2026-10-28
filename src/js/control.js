@@ -8,6 +8,9 @@
   const B = window.JudoBrackets;
   const M = window.JudoMats;
   const BV = window.JudoBracketView;
+  const TR = window.JudoTraining;
+  const TM = window.JudoTeam;
+  const N = window.JudoNet;
   const STORE = 'hajime-v1';
   const $ = (s, el) => (el || document).querySelector(s);
   const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
@@ -27,8 +30,16 @@
 
   let state = loadState();
   let history = [];
+  // Sprache der Bedienung: t('deutscher Text') liefert die Übersetzung
+  const I18n = window.HajimeI18n;
+  let t = I18n.make(state.settings.langControl);
+  const lvl = (min) => C.levelAtLeast(state.settings, min);
   let lastSoundKey = state.fight.sound ? state.fight.id + ':' + state.fight.sound.id : null;
   const preview = window.JudoBoard.mount($('#preview'), { preview: true });
+  const trPreview = window.JudoBoard.mount($('#trPreview'), { preview: true });
+  initTraining();
+  state.team = TM.normTeam(state.team);
+  let lastTrainSound = state.training.run.sound ? state.training.run.sound.id : null;
 
   let saveTimer = 0;
   function saveNow() {
@@ -70,6 +81,8 @@
     // Urkunden-Hintergrund nicht bei jeder Änderung an die Anzeige schicken
     const settings = Object.assign({}, state.settings);
     delete settings.certBg;
+    settings.level = state.settings.level || 'tournament';
+    settings.langBoard = I18n.resolve(state.settings.langBoard || state.settings.langControl);
     let table = null;
     if (state.screen === 'table') {
       const key = tableGroupKey();
@@ -83,24 +96,30 @@
       settings,
       screen: state.screen,
       table,
+      training: state.screen === 'training' ? TR.view(state.training, Date.now()) : null,
       next: nextEntries(6).map((e) => ({ white: e.white, blue: e.blue, ageClass: e.ageClass, category: e.category, gender: e.gender || '', no: e.no })),
       call: state.callMessage ? { message: state.callMessage } : null,
+      team: TM.view(state),
     };
   }
 
   function publish() {
     const v = view();
     preview.update(v);
+    // Vorschau im Reiter Training zeigt immer die Trainingsuhr
+    trPreview.update(v.training ? v : Object.assign({}, v, { screen: 'training', training: TR.view(state.training, Date.now()) }));
     T.send(v);
   }
 
   function commit() {
     syncQueueAndLog();
+    TM.sync(state);
     B.sync(state);
     save();
     publish();
     renderAll();
     checkSound();
+    netChanged();
   }
 
   // Aktion am laufenden Kampf; undoable = für "Rückgängig" merken
@@ -155,6 +174,12 @@
   }
 
   function checkSound() {
+    const ts = state.training.run.sound;
+    if (ts && ts.id !== lastTrainSound) {
+      lastTrainSound = ts.id;
+      const st = state.settings;
+      if (state.screen === 'training' && st.soundOn && (st.soundTarget === 'control' || st.soundTarget === 'both') && Date.now() - ts.at < 2500) S.play(ts.kind);
+    }
     const f = state.fight;
     const snd = f.sound;
     if (!snd) return;
@@ -185,6 +210,8 @@
           white: C.scoreText(f.white, r),
           blue: C.scoreText(f.blue, r),
           kind: C.winKind(f.winner, f.reason, { white: f.white, blue: f.blue }),
+          scores: { white: C.scoreParts(f.white, r), blue: C.scoreParts(f.blue, r) },
+          durationMs: C.fightTimeMs(f, f.finishedAt),
           finishedAt: f.finishedAt,
         };
       } else if (e.status === 'done' && e.result && e.result.fightId === f.id) {
@@ -240,7 +267,9 @@
   }
 
   function nextFight() {
-    if (fightBusy() && !confirm('Der aktuelle Kampf ist noch nicht beendet. Trotzdem zum nächsten Kampf wechseln?')) return;
+    if (fightBusy() && !confirm(t('Der aktuelle Kampf ist noch nicht beendet. Trotzdem zum nächsten Kampf wechseln?'))) return;
+    // Einfach: ohne Kampfliste setzt „Nächster Kampf“ nur die Tafel zurück
+    if (!lvl('standard')) return loadEntry(null);
     const e = nextEntries(1)[0];
     if (e) requestLoad(e);
     else loadEntry(null);
@@ -419,6 +448,7 @@
   $('#btnUndo').addEventListener('click', undo);
   $('#btnReset').addEventListener('click', resetFight);
   $('#btnNext').addEventListener('click', nextFight);
+  $('#btnDecShow').addEventListener('click', () => $('#decision').classList.toggle('shown'));
   $$('.dec').forEach((b) =>
     b.addEventListener('click', () => {
       const w = b.dataset.win;
@@ -505,6 +535,15 @@
     }
     const k = e.code;
     let handled = true;
+    // Anzeige zeigt die Trainingsuhr: Tasten wirken auf das Training
+    if (state.screen === 'training') {
+      if (k === 'Space') trainingAct((tr, now) => TR.toggle(tr, now));
+      else if (k === 'ArrowRight') trainingAct((tr, now) => TR.skip(tr, 1, now));
+      else if (k === 'ArrowLeft') trainingAct((tr, now) => TR.skip(tr, -1, now));
+      else handled = false;
+      if (handled) e.preventDefault();
+      return;
+    }
     if (k === 'Space') act((now) => C.hajimeMate(state, now), true);
     else if (k === 'KeyT') act((now) => C.toketa(state, now), true);
     else if (k === 'KeyA') act((now) => C.startOsae(state, 'white', now), true);
@@ -513,9 +552,9 @@
     else if (k === 'ArrowUp') act((now) => C.adjustClock(state, 1000, now), false);
     else if (k === 'ArrowDown') act((now) => C.adjustClock(state, -1000, now), false);
     else if (k === 'KeyN') nextFight();
-    else if (k === 'KeyB') toggleIdle();
-    else if (k === 'KeyG') toggleTable();
-    else if (k === 'KeyK') callKey();
+    else if (k === 'KeyB') lvl('standard') && toggleIdle();
+    else if (k === 'KeyG') lvl('tournament') && toggleTable();
+    else if (k === 'KeyK') lvl('tournament') && callKey();
     else handled = false;
     if (handled) e.preventDefault();
   });
@@ -533,11 +572,14 @@
   /* ================= Uhren-Takt ================= */
 
   setInterval(() => {
-    if (C.tick(state, Date.now())) commit();
+    const now = Date.now();
+    const a = C.tick(state, now);
+    const b = TR.tick(state.training, now);
+    if (a || b) commit();
   }, 40);
   setInterval(() => {
     const f = state.fight;
-    if (C.clockRunning(f.clock) || f.osae.side) saveNow();
+    if (C.clockRunning(f.clock) || f.osae.side || state.training.run.running) saveNow();
   }, 1000);
   window.addEventListener('beforeunload', saveNow);
 
@@ -660,6 +702,8 @@
     st.textContent = text;
     st.className = 'ctl-status ' + cls;
     $('#decision').classList.toggle('need', needDecision);
+    $('#decision').classList.toggle('manual', !!f.manual);
+    if (f.status !== 'finished' && !needDecision && f.status === 'ready') $('#decision').classList.remove('shown');
     $('.dec.x').style.display = f.manual ? '' : 'none';
     $('#btnUndo').disabled = !history.length;
     $('#btnIdle').classList.toggle('on', state.screen === 'idle');
@@ -871,6 +915,7 @@
     if (a === 'down' && i < state.queue.length - 1) state.queue.splice(i + 1, 0, state.queue.splice(i, 1)[0]);
     if (a === 'del') {
       const e = state.queue[i];
+      if (e.team) return alert(t('Dieser Kampf gehört zum Mannschaftskampf. Die Aufstellung lässt sich unter „Mannschaft“ ändern.'));
       const b = e.bracket && e.slot && bracketOf(e.bracket);
       if (b) {
         // Paarungen eines Turniersystems hängen zusammen: nur die ganze Gruppe entfernen
@@ -1162,7 +1207,7 @@
           .map(
             (r) => `<tr class="${r.tie ? 'tie' : ''}"><td class="pl p${r.place}">${r.place == null ? '–' : r.place}</td><td><b>${esc(r.name)}</b>${r.club ? ` <small>${esc(r.club)}</small>` : ''}${
               r.tie ? ' <span class="tb-tag">Stichkampf</span>' : ''
-            }</td><td>${r.fights}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td><b>${r.points}</b></td><td>${r.ippon} · ${r.wazaari}${t.yuko !== false ? ` · ${r.yuko}` : ''}</td></tr>`
+            }</td><td>${r.fights}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td><b>${r.points}</b></td>${t.scheme === 'ijf' ? `<td>${r.timeMs ? fmtSec(r.timeMs / 1000) : '–'}</td>` : ''}</tr>`
           )
           .join('');
         let ties = tieButtons(t, t.ties);
@@ -1177,7 +1222,9 @@
             <button class="btn" data-cert="${esc(t.key)}">Urkunden …</button></div>
           ${tree}
           ${ties}
-          <div class="table-wrap"><table class="tbl eval"><thead><tr><th>Platz</th><th>Name</th><th title="Kämpfe">K</th><th title="Siege">S</th><th title="Niederlagen">N</th><th title="Unentschieden">U</th><th>Punkte</th><th title="Siege durch Ippon · Waza-ari${t.yuko !== false ? ' · Yuko' : ''}">${t.yuko !== false ? 'I · W · Y' : 'I · W'}</th></tr></thead><tbody>${rows}</tbody></table></div>
+          <div class="table-wrap"><table class="tbl eval"><thead><tr><th>Platz</th><th>Name</th><th title="Kämpfe">K</th><th title="Siege">S</th><th title="Niederlagen">N</th><th title="Unentschieden">U</th><th title="${t.scheme === 'ijf' ? 'Punkte (IJF)' : t.scheme === 'custom' ? 'Wertungspunkte (eigene Werte)' : 'Wertungspunkte (DJB)'}">Punkte</th>${
+            t.scheme === 'ijf' ? '<th title="Gesamtzeit der gewonnenen Kämpfe – bei Gleichstand gewinnt die kürzere">Zeit</th>' : ''
+          }</tr></thead><tbody>${rows}</tbody></table></div>
           ${open}
           ${tree ? '<p class="muted">Sieger rücken automatisch weiter, sobald ein Kampf beendet ist. Vereinstrennung: Kämpfer desselben Vereins treffen möglichst spät aufeinander.</p>' : ''}
         </div>`;
@@ -1668,6 +1715,9 @@
   /* ================= Einstellungen ================= */
 
   const SETTING_INPUTS = {
+    sLevel: ['level', 'value'],
+    sLangControl: ['langControl', 'value'],
+    sLangBoard: ['langBoard', 'value'],
     sTournament: ['tournament', 'value'],
     sMat: ['mat', 'value'],
     sShowClub: ['showClub', 'checked'],
@@ -1695,6 +1745,7 @@
   });
 
   function renderSettings() {
+    fillLangSelects();
     Object.entries(SETTING_INPUTS).forEach(([id, [key, prop]]) => {
       const el = document.getElementById(id);
       if (document.activeElement === el) return;
@@ -1713,6 +1764,10 @@
     });
     // Yuko-Punkte nur zeigen, wenn ein Regelprofil Yuko verwendet
     $('[data-wp="yuko"]').closest('label').style.display = state.profiles.some((p) => p.yuko) ? '' : 'none';
+    const sc = C.scoringOpts(state.settings).scheme;
+    setVal($('#sScoring'), sc);
+    $('#customScoring').style.display = sc === 'custom' ? '' : 'none';
+    $('#scoringInfo').textContent = SCORING_INFO[sc] || '';
     $('.gender-in').style.display = state.settings.splitGender ? '' : 'none';
     const L = B.limitsOf(state.settings.systems);
     $$('[data-sl]').forEach((el) => {
@@ -1722,6 +1777,23 @@
     });
     $('#slInfo').textContent = `Vorschlag: 2 Kämpfer ${B.SYSTEMS[B.suggest(2, L)]} · 3–${L.rrMax} Jeder gegen jeden${L.poolMax > L.rrMax ? ` · ${Math.max(4, L.rrMax + 1)}–${L.poolMax} Doppel-Pool` : ''} · ab ${L.poolMax + 1} K.-o. mit Trostrunde`;
   }
+
+  const SCORING_INFO = {
+    djb: 'DJB-Regeln „Platzierungen im Pool“ (2023): je Sieg 1 Siegpunkt; Wertungspunkte nur für den Sieger nach der kampfentscheidenden Wertung – Ippon 10, Waza-ari 7, Hansoku-make / Kiken-gachi / Fusen-gachi 10, Hantei 0. Yuko ist dort nicht geregelt, Hajime rechnet 5. Rangfolge: Siegpunkte → Wertungspunkte → direkter Vergleich → Stichkampf.',
+    ijf: 'IJF Sport and Organisation Rules 2025: Punkte für beide Kämpfer – Summe der eigenen Wertungen (Ippon 100, Waza-ari 10, Yuko 1), höchstens 100 je Kampf; Hansoku-make / Kiken-gachi / Fusen-gachi 100 für den Sieger, Hantei 0. Rangfolge: Siege → Punkte → direkter Vergleich → kürzere Gesamtzeit der gewonnenen Kämpfe → Entscheidungskampf.',
+    custom: 'Eigene Wertungspunkte je Sieg (nur der Sieger bekommt Punkte) und wählbare Rangfolge.',
+  };
+  $('#sScoring').addEventListener('change', (e) => {
+    const prev = C.scoringOpts(state.settings);
+    const next = e.target.value;
+    // Wechsel auf „Eigene Werte“: Werte des bisherigen Schemas als Startwerte
+    if (next === 'custom' && prev.scheme !== 'custom') {
+      state.settings.winPoints = Object.assign({}, prev.winPoints);
+      state.settings.rankOrder = prev.rankOrder;
+    }
+    state.settings.scoring = next;
+    commit();
+  });
 
   $$('[data-sl]').forEach((el) =>
     el.addEventListener('change', () => {
@@ -1912,10 +1984,774 @@
     commit();
   });
 
+  /* ================= Matten im Netz ================= */
+
+  const net = () => state.settings.net;
+  let client = null; // Verbindung dieser Matte zur Zentrale
+  let clientState = 'off';
+  let hubInfo = null; // laufende Zentrale: { port, addresses }
+  let hubError = '';
+  const hubMats = new Map(); // Zentrale: verbundene Matten
+  let foundHubs = [];
+  let bannerDismissed = '';
+  let sentResults = new Set();
+  let statusTimer = 0;
+  let lastStatusAt = 0;
+  const appVersion = () => window.HAJIME_VERSION || '';
+
+  const newCode = () => String(Math.floor(1000 + Math.random() * 9000));
+
+  // Matte: Stand an die Zentrale (höchstens einmal pro Sekunde, Ergebnisse nur neue)
+  function sendStatus(force) {
+    if (!client || clientState !== 'connected') return;
+    const now = Date.now();
+    if (!force && now - lastStatusAt < 1000) {
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(() => sendStatus(true), 1000 - (now - lastStatusAt));
+      return;
+    }
+    lastStatusAt = now;
+    const st = N.matStatus(state, upcoming(false), now);
+    const sig = (r) => r.id + ':' + JSON.stringify(r.result);
+    st.results = st.results.filter((r) => !sentResults.has(sig(r)));
+    if (client.send(st)) st.results.forEach((r) => sentResults.add(sig(r)));
+  }
+  function netChanged() {
+    if (client) sendStatus(false);
+  }
+  setInterval(() => sendStatus(true), 5000);
+
+  function onHubMessage(msg) {
+    if (msg.type === 'call') {
+      state.callMessage = String(msg.message || '');
+      state.callPicks = [];
+      commit();
+    } else if (msg.type === 'fights') {
+      const r = N.mergeFights(state, msg);
+      commit();
+      importMsg(t('Kampfliste von der Zentrale übernommen: {a} neu, {u} aktualisiert, {r} entfernt.', { a: r.added, u: r.updated, r: r.removed }));
+    }
+  }
+
+  function connectHub() {
+    if (client) client.close();
+    client = null;
+    clientState = 'off';
+    const n = net();
+    if (n.role !== 'mat' || !n.address || !n.code) return renderNet();
+    sentResults = new Set();
+    client = N.connect({
+      url: N.wsUrl(n.address),
+      code: n.code,
+      mat: () => state.settings.mat,
+      version: appVersion(),
+      onStatus: (s) => {
+        clientState = s;
+        if (s === 'connected') {
+          sentResults = new Set();
+          sendStatus(true);
+        }
+        renderNet();
+      },
+      onMessage: onHubMessage,
+    });
+    clientState = client.status();
+    renderNet();
+  }
+
+  // Zentrale starten/stoppen (nur Desktop-App)
+  async function startHub() {
+    if (!T.isElectron || !T.bridge.hubStart) return;
+    const n = net();
+    if (!n.code) {
+      n.code = newCode();
+      save();
+    }
+    try {
+      hubInfo = await T.bridge.hubStart({ code: n.code, tournament: state.settings.tournament });
+      hubError = '';
+    } catch (err) {
+      hubInfo = null;
+      hubError = err.message;
+    }
+    renderNet();
+  }
+  async function stopHub() {
+    if (T.isElectron && T.bridge.hubStop) await T.bridge.hubStop();
+    hubInfo = null;
+    hubMats.clear();
+    renderNet();
+  }
+
+  let hubTournament = null;
+  function pushOverview() {
+    if (!hubInfo) return;
+    // Turniername geändert: Zentrale ruft ihn neu ins Netz
+    if (hubTournament !== state.settings.tournament) {
+      hubTournament = state.settings.tournament;
+      T.bridge.hubStart({ code: net().code, tournament: hubTournament });
+    }
+    T.bridge.hubOverview(N.overview(state, Array.from(hubMats.values()), Date.now()));
+  }
+  setInterval(() => {
+    if (hubInfo) {
+      pushOverview();
+      renderNetMats();
+    }
+  }, 1000);
+
+  if (T.isElectron && T.bridge.onHubEvent) {
+    T.bridge.onHubEvent((ev) => {
+      const now = Date.now();
+      if (ev.type === 'hello') {
+        // gleiche Matte neu verbunden: alten Eintrag ersetzen
+        hubMats.forEach((m, id) => {
+          if (!m.connected && m.mat === ev.mat) hubMats.delete(id);
+        });
+        hubMats.set(ev.id, { id: ev.id, mat: ev.mat, address: ev.address, connected: true, seenAt: now, status: null, receivedAt: 0 });
+      } else if (ev.type === 'gone') {
+        const m = hubMats.get(ev.id);
+        if (m) m.connected = false;
+      } else if (ev.type === 'message') {
+        const m = hubMats.get(ev.id) || { id: ev.id, connected: true };
+        m.mat = ev.mat;
+        m.seenAt = now;
+        hubMats.set(ev.id, m);
+        if (ev.msg.type === 'status') {
+          m.status = ev.msg;
+          m.receivedAt = now;
+          const n = N.applyResults(state, ev.mat, ev.msg.results);
+          if (n) commit();
+        }
+      }
+      renderNetMats();
+      pushOverview();
+    });
+    T.bridge.onHubsFound((list) => {
+      foundHubs = list || [];
+      renderNet();
+    });
+  }
+
+  function startNet() {
+    const n = net();
+    if (T.isElectron && T.bridge.finderStart && n.role !== 'hub') T.bridge.finderStart().then((l) => ((foundHubs = l || []), renderNet()));
+    if (n.role === 'hub') startHub();
+    if (n.role === 'mat') connectHub();
+  }
+
+  const STATUS_TEXT = {
+    off: 'Nicht verbunden.',
+    connecting: 'Verbinde mit der Zentrale …',
+    connected: 'Verbunden mit der Zentrale – Ergebnisse werden automatisch gemeldet.',
+    waiting: 'Keine Verbindung zur Zentrale – neuer Versuch alle paar Sekunden. Die Matte läuft normal weiter, der Stand wird nachgereicht.',
+    rejected: 'Die Zentrale hat die Verbindung abgelehnt: falscher Turniercode.',
+    closed: 'Getrennt.',
+  };
+
+  function renderNet() {
+    const n = net();
+    setVal($('#netRole'), n.role);
+    $('#netRole option[value="hub"]').disabled = !T.isElectron;
+    $('#netMatBox').hidden = n.role !== 'mat';
+    $('#netHubBox').hidden = n.role !== 'hub';
+    setVal($('#netAddress'), n.address);
+    setVal($('#netCode'), n.code);
+    // gefundene Zentralen
+    const found = n.role === 'mat' && T.isElectron ? foundHubs : [];
+    const fh = found
+      .map((h) => `<div class="net-hub"><b>${esc(h.name)}${h.tournament ? ' · ' + esc(h.tournament) : ''}</b><small class="muted">${esc(h.address)}:${h.port}</small><button class="btn" data-hub="${esc(h.address + ':' + h.port)}">${esc(t('Übernehmen'))}</button></div>`)
+      .join('');
+    const fEl = $('#netFound');
+    if (fEl.dataset.h !== fh) {
+      fEl.innerHTML = fh;
+      fEl.dataset.h = fh;
+    }
+    let text = '';
+    let cls = '';
+    if (n.role === 'mat') {
+      text = !n.address || !n.code ? t('Adresse und Turniercode eingeben (oder eine gefundene Zentrale übernehmen).') : t(STATUS_TEXT[clientState] || '');
+      cls = clientState === 'connected' ? 'ok' : clientState === 'rejected' ? 'err' : clientState === 'off' || clientState === 'closed' ? '' : 'warn';
+    } else if (n.role === 'hub') {
+      if (!T.isElectron) {
+        text = t('Die Webversion kann keine Zentrale sein – bitte die Desktop-App verwenden.');
+        cls = 'err';
+      } else if (hubError) {
+        text = t('Zentrale konnte nicht gestartet werden: {msg}', { msg: hubError });
+        cls = 'err';
+      } else if (hubInfo) {
+        const c = Array.from(hubMats.values()).filter((m) => m.connected).length;
+        text = t('Zentrale läuft – {n} Matten verbunden.', { n: c });
+        cls = 'ok';
+      } else text = t('Zentrale startet …');
+    }
+    $('#netStatus').textContent = text;
+    $('#netStatus').className = 'net-status ' + cls;
+    $('#btnNetDisconnect').disabled = !client;
+    $('#netHubCode').textContent = n.code || '–';
+    const addr = hubInfo ? hubInfo.addresses.map((a) => `${a}:${hubInfo.port}`) : [];
+    $('#netHubAddr').textContent = hubInfo
+      ? addr.length
+        ? t('Adresse für die Matten: {addr}. Übersicht im Browser: http://{first}/', { addr: addr.join(', '), first: addr[0] })
+        : t('Kein Netzwerk gefunden – Rechner mit dem WLAN oder Router verbinden.')
+      : '';
+    // Punkt am Reiter „Matten“
+    const dot = $('#netDot');
+    dot.hidden = !(n.role === 'hub' ? hubInfo : n.role === 'mat');
+    dot.className = 'net-dot' + (n.role === 'mat' ? (clientState === 'connected' ? '' : clientState === 'rejected' ? ' err' : ' warn') : '');
+    // Hinweis „Zentrale gefunden“
+    const cand = foundHubs.find((h) => h.key !== bannerDismissed);
+    const showBanner = T.isElectron && lvl('tournament') && n.role !== 'hub' && !(n.role === 'mat' && clientState === 'connected') && !!cand && !(n.role === 'mat' && n.address === cand.address + ':' + cand.port);
+    $('#netBanner').hidden = !showBanner;
+    if (showBanner) {
+      $('#netBannerText').textContent = t('Zentrale „{name}“ im Netz gefunden – diese Matte verbinden?', { name: cand.name + (cand.tournament ? ' · ' + cand.tournament : '') });
+      $('#netBanner').dataset.hub = cand.key;
+    }
+    renderNetMats();
+  }
+
+  function renderNetMats() {
+    const show = net().role === 'hub';
+    $('#netCard').hidden = !show;
+    if (!show) return;
+    const now = Date.now();
+    const list = Array.from(hubMats.values()).sort((a, b) => String(a.mat).localeCompare(String(b.mat), 'de', { numeric: true }));
+    const counts = new Map();
+    list.forEach((m) => m.connected && counts.set(m.mat, (counts.get(m.mat) || 0) + 1));
+    $('#netMatCount').textContent = list.filter((m) => m.connected).length || '';
+    $('#netCardInfo').textContent = hubInfo ? t('Turniercode {code}', { code: net().code }) : '';
+    $('#btnNetOverview').disabled = !hubInfo;
+    const html = list.length
+      ? list
+          .map((m) => {
+            const s = m.status || {};
+            const c = s.current;
+            const cur = c && c.named ? `${esc(c.cls)}${c.no ? ' · #' + esc(c.no) : ''}: ${esc(c.white.name || t('Weiß'))} – ${esc(c.blue.name || t('Blau'))}` : esc(t('kein Kampf geladen'));
+            const nx = (s.next || [])[0];
+            const ago = Math.round((now - (m.seenAt || now)) / 1000);
+            const dup = counts.get(m.mat) > 1 ? `<small class="warn">${esc(t('Mattenname doppelt!'))}</small>` : '';
+            return `<div class="net-mat${m.connected ? '' : ' off'}" data-net="${esc(m.id)}">
+              <div class="nm-head"><b>${esc(m.mat || '?')}</b>${dup}<small>${m.connected ? esc(t('{open} offen · {done} beendet', { open: s.open || 0, done: s.done || 0 })) : esc(t('getrennt seit {s} s', { s: ago }))}</small></div>
+              <div class="nm-cur">${cur}</div>
+              ${nx ? `<div class="nm-next">${esc(t('danach'))}: ${esc(nx.white.name || '?')} – ${esc(nx.blue.name || '?')}</div>` : ''}
+              <div class="nm-call"><input placeholder="${esc(t('Aufruf an diese Matte'))}" data-callin="${esc(m.id)}" ${m.connected ? '' : 'disabled'} /><button class="btn" data-callsend="${esc(m.id)}" ${m.connected ? '' : 'disabled'}>${esc(t('Senden'))}</button></div>
+              <div class="btnrow"><button class="btn" data-sendfights="${esc(m.id)}" ${m.connected ? '' : 'disabled'} title="${esc(t('Kämpfe dieser Matte aus der Kampfliste der Zentrale übertragen'))}">${esc(t('Kampfliste senden'))}</button>${
+                m.connected ? '' : `<button class="btn" data-netdel="${esc(m.id)}">${esc(t('Entfernen'))}</button>`
+              }</div>
+            </div>`;
+          })
+          .join('')
+      : `<p class="muted">${esc(t('Noch keine Matte verbunden. An den Mattenrechnern unter Einstellungen → Matten im Netz „Matte“ wählen und diesen Turniercode eingeben.'))}</p>`;
+    const box = $('#netMats');
+    // Eingabe im Aufruffeld nicht durch Neuzeichnen stören
+    if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+    if (box.dataset.h !== html) {
+      box.innerHTML = html;
+      box.dataset.h = html;
+    }
+  }
+
+  $('#netRole').addEventListener('change', async (e) => {
+    const n = net();
+    const prev = n.role;
+    n.role = e.target.value;
+    if (prev === 'hub' && n.role !== 'hub') await stopHub();
+    if (prev === 'mat' && n.role !== 'mat' && client) {
+      client.close();
+      client = null;
+      clientState = 'off';
+    }
+    if (n.role === 'hub') {
+      n.code = n.code || newCode();
+      startHub();
+    }
+    if (n.role !== 'hub' && T.isElectron && T.bridge.finderStart) T.bridge.finderStart().then((l) => ((foundHubs = l || []), renderNet()));
+    commit();
+    if (n.role === 'mat') connectHub();
+  });
+  $('#netAddress').addEventListener('change', (e) => {
+    net().address = e.target.value.trim();
+    commit();
+  });
+  $('#netCode').addEventListener('change', (e) => {
+    net().code = e.target.value.trim();
+    commit();
+  });
+  $('#btnNetConnect').addEventListener('click', () => {
+    net().address = $('#netAddress').value.trim();
+    net().code = $('#netCode').value.trim();
+    commit();
+    connectHub();
+  });
+  $('#btnNetDisconnect').addEventListener('click', () => {
+    if (client) client.close();
+    client = null;
+    clientState = 'off';
+    renderNet();
+  });
+  $('#netFound').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-hub]');
+    if (!b) return;
+    net().address = b.dataset.hub;
+    commit();
+    if (net().code) connectHub();
+    else $('#netCode').focus();
+  });
+  $('#btnNetNewCode').addEventListener('click', () => {
+    if (!confirm(t('Neuen Turniercode erzeugen? Verbundene Matten müssen danach den neuen Code eingeben.'))) return;
+    net().code = newCode();
+    commit();
+    startHub();
+  });
+  $('#btnNetOverview').addEventListener('click', () => {
+    if (!hubInfo) return;
+    const url = `http://${hubInfo.addresses[0] || '127.0.0.1'}:${hubInfo.port}/`;
+    if (T.bridge.openExternal) T.bridge.openExternal(url);
+    else window.open(url, '_blank');
+  });
+  $('#netMats').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.netdel) {
+      hubMats.delete(b.dataset.netdel);
+      renderNetMats();
+      return pushOverview();
+    }
+    const id = b.dataset.callsend || b.dataset.sendfights;
+    const m = id && hubMats.get(id);
+    if (!m) return;
+    if (b.dataset.callsend) {
+      const inp = $(`[data-callin="${CSS.escape(id)}"]`);
+      const msg = inp ? inp.value.trim() : '';
+      await T.bridge.hubSend(id, { type: 'call', message: msg });
+      if (inp) inp.value = '';
+      b.blur();
+    } else {
+      const msg = N.fightsFor(state, m.mat);
+      if (!msg.entries.length) return alert(t('In der Kampfliste der Zentrale gibt es keine Kämpfe für „{mat}“. Erst unter „Matten“ verteilen.', { mat: m.mat }));
+      if (!confirm(t('{n} Kämpfe an „{mat}“ senden? Offene Kämpfe dort werden ersetzt, beendete bleiben.', { n: msg.entries.length, mat: m.mat }))) return;
+      await T.bridge.hubSend(id, msg);
+    }
+  });
+  $('#netMats').addEventListener('keydown', (e) => {
+    const inp = e.target.closest('[data-callin]');
+    if (inp && e.key === 'Enter') {
+      e.preventDefault();
+      $(`[data-callsend="${CSS.escape(inp.dataset.callin)}"]`).click();
+    }
+  });
+  // Banner „Zentrale gefunden – verbinden?“
+  $('#btnNetBannerNo').addEventListener('click', () => {
+    bannerDismissed = $('#netBanner').dataset.hub;
+    renderNet();
+  });
+  $('#btnNetBannerYes').addEventListener('click', () => {
+    const h = foundHubs.find((x) => x.key === $('#netBanner').dataset.hub);
+    if (!h) return;
+    $('#dlgNetCodeInfo').textContent = `${h.name}${h.tournament ? ' · ' + h.tournament : ''} (${h.address}:${h.port})`;
+    $('#dlgNetCodeVal').value = net().code || '';
+    $('#dlgNetMat').value = state.settings.mat || '';
+    $('#dlgNetCode').dataset.hub = h.address + ':' + h.port;
+    $('#dlgNetCode').showModal();
+    $('#dlgNetCodeVal').focus();
+  });
+  $('#dlgNetCode').addEventListener('close', () => {
+    const dlg = $('#dlgNetCode');
+    if (dlg.returnValue !== 'ok') return;
+    const code = $('#dlgNetCodeVal').value.trim();
+    if (!code) return;
+    const n = net();
+    n.role = 'mat';
+    n.address = dlg.dataset.hub;
+    n.code = code;
+    const mat = $('#dlgNetMat').value.trim();
+    if (mat) state.settings.mat = mat;
+    commit();
+    connectHub();
+  });
+
+  /* ================= Mannschaftskampf ================= */
+
+  const TEAM_FIELDS = { tmTitle: 'title', tmAge: 'ageClass', tmWhite: 'white.name', tmBlue: 'blue.name' };
+  Object.entries(TEAM_FIELDS).forEach(([id, key]) => {
+    document.getElementById(id).addEventListener('change', (e) => {
+      const [a, b] = key.split('.');
+      if (b) state.team[a][b] = e.target.value.trim();
+      else state.team[a] = e.target.value.trim();
+      commit();
+    });
+  });
+  $('#tmActive').addEventListener('change', (e) => {
+    state.team.active = e.target.checked;
+    if (!e.target.checked) {
+      // Einzelkämpfe ohne Ergebnis aus der Kampfliste nehmen, Ergebnisse bleiben im Protokoll
+      const open = state.queue.filter((q) => q.team === state.team.id && (q.status !== 'done' || (q.result && q.result.auto)));
+      if (open.length) state.queue = state.queue.filter((q) => !open.includes(q));
+    }
+    commit();
+  });
+  $('#tmClasses').addEventListener('change', (e) => {
+    const list = e.target.value.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+    if (!list.length) return renderTeam(true);
+    const cur = order()[0];
+    state.team.classes = list;
+    state.team.start = Math.max(0, list.indexOf(cur));
+    commit();
+  });
+  const order = () => TM.order(state.team);
+  $('#tmStart').addEventListener('change', (e) => {
+    state.team.start = Number(e.target.value) || 0;
+    commit();
+  });
+  $('#tmLegs').addEventListener('change', (e) => {
+    state.team.legs = e.target.checked ? 2 : 1;
+    // Rückrunde: Aufstellung der Hinrunde als Vorschlag übernehmen
+    const [l1, l2] = state.team.lineup;
+    if (e.target.checked && !Object.keys(l2.white).length && !Object.keys(l2.blue).length) state.team.lineup[1] = C.clone(l1);
+    commit();
+  });
+  $('#tmRule').addEventListener('change', (e) => {
+    state.team.rule = e.target.value;
+    commit();
+  });
+  $$('[data-tp]').forEach((el) =>
+    el.addEventListener('change', () => {
+      state.team.points[el.dataset.tp] = Math.max(0, Math.round(Number(el.value) || 0));
+      commit();
+    })
+  );
+  $('#tmTable').addEventListener('change', (e) => {
+    const inp = e.target.closest('input[data-leg]');
+    if (!inp) return;
+    const lu = state.team.lineup[Number(inp.dataset.leg) - 1];
+    lu[inp.dataset.side][inp.dataset.cls] = inp.value.trim();
+    commit();
+  });
+  $('#tmTable').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-tmload]');
+    if (!b) return;
+    const entry = state.queue.find((q) => q.id === b.dataset.tmload);
+    if (!entry) return;
+    if (state.fight.queueId !== entry.id && fightBusy() && !confirm(t('Der aktuelle Kampf ist noch nicht beendet. Trotzdem diesen Kampf laden?'))) return;
+    if (entry.status === 'done' && !confirm(t('Dieser Kampf ist bereits beendet. Erneut laden (Ergebnis wird überschrieben)?'))) return;
+    requestLoad(entry, () => $('.tabs button[data-tab="fight"]').click());
+  });
+
+  function renderTeam(force) {
+    const tm = state.team;
+    $('#tmActive').checked = !!tm.active;
+    Object.entries(TEAM_FIELDS).forEach(([id, key]) => {
+      const [a, b] = key.split('.');
+      const v = b ? tm[a][b] : tm[a];
+      const el = document.getElementById(id);
+      if (force || document.activeElement !== el) el.value = v || '';
+    });
+    const clsEl = $('#tmClasses');
+    if (force || document.activeElement !== clsEl) clsEl.value = tm.classes.join(', ');
+    const startOpts = tm.classes.map((c, i) => `<option value="${i}">${esc(c)}</option>`).join('');
+    const st = $('#tmStart');
+    if (st.dataset.h !== startOpts) {
+      st.innerHTML = startOpts;
+      st.dataset.h = startOpts;
+    }
+    st.value = String(tm.start);
+    $('#tmLegs').checked = tm.legs === 2;
+    $('#tmRule').value = tm.rule;
+    $$('[data-tp]').forEach((el) => {
+      if (document.activeElement !== el) el.value = String(tm.points[el.dataset.tp]);
+    });
+    $('#tmHeadW').textContent = tm.white.name || t('Weiß');
+    $('#tmHeadB').textContent = tm.blue.name || t('Blau');
+    // Stand
+    const sc = TM.score(state);
+    const res = sc.winner === 'draw' ? t('Unentschieden') : sc.winner ? t('Sieger: {name}', { name: tm[sc.winner].name || t(sc.winner === 'white' ? 'Weiß' : 'Blau') }) : t('{n} von {m} Kämpfen', { n: sc.done, m: sc.total });
+    const scoreHtml = `<div class="tm-w">${esc(tm.white.name || t('Weiß'))}<small>${esc(t('{wins} Siege · {points} Wertungspunkte', { wins: sc.white.wins, points: sc.white.points }))}</small></div>
+      <div class="tm-mid">${sc.white.wins} : ${sc.blue.wins}<small>${esc(res)}</small></div>
+      <div class="tm-b">${esc(tm.blue.name || t('Blau'))}<small>${esc(t('{wins} Siege · {points} Wertungspunkte', { wins: sc.blue.wins, points: sc.blue.points }))}</small></div>`;
+    const sEl = $('#tmScore');
+    if (sEl.dataset.h !== scoreHtml) {
+      sEl.innerHTML = scoreHtml;
+      sEl.dataset.h = scoreHtml;
+    }
+    // Aufstellung: Zeilen in Kampfreihenfolge, Ergebnisse aus der Kampfliste
+    const rows = TM.plan(tm);
+    const byId = new Map(sc.rows.map((r) => [r.id, r]));
+    const html = rows
+      .map((p, i) => {
+        const r = byId.get(p.id);
+        const entry = state.queue.find((q) => q.id === p.id);
+        const cur = entry && entry.id === state.fight.queueId;
+        const res = r && r.winner ? `<b>${esc(r.winner === 'draw' ? t('Unentschieden') : tm[r.winner].name || t(r.winner === 'white' ? 'Weiß' : 'Blau'))}</b><br><small>${esc(TM.rowResult(r, t))}</small>` : cur ? `<small>${esc(t('läuft / geladen'))}</small>` : r && r.status === 'skipped' ? `<small>${esc(t('entfällt'))}</small>` : '';
+        const inp = (side) => `<td class="${p.vacant === side || p.vacant === 'both' ? 'vac' : ''}"><input data-leg="${p.leg}" data-side="${side}" data-cls="${esc(p.category)}" list="dlNames" placeholder="${esc(t('nicht besetzt'))}" autocomplete="off" /></td>`;
+        const legStart = i > 0 && rows[i - 1].leg !== p.leg;
+        const canLoad = tm.active && entry && !(r && r.auto) && entry.status !== 'skipped';
+        return `<tr class="${legStart ? 'leg-start' : ''}${cur ? ' current' : ''}"><td>${esc(p.no)}${p.round ? `<br><small>${esc(t(p.round))}</small>` : ''}</td><td>${esc(p.category)}</td>${inp('white')}${inp('blue')}<td>${res}</td><td class="acts"><button class="load" data-tmload="${esc(p.id)}" ${canLoad ? '' : 'disabled'}>${esc(t('Laden'))}</button></td></tr>`;
+      })
+      .join('');
+    const tb = $('#tmTable tbody');
+    if (tb.dataset.h !== html) {
+      tb.innerHTML = html;
+      tb.dataset.h = html;
+    }
+    $$('input[data-leg]', tb).forEach((el) => {
+      if (!force && document.activeElement === el) return;
+      const v = tm.lineup[Number(el.dataset.leg) - 1][el.dataset.side][el.dataset.cls] || '';
+      if (el.value !== v) el.value = v;
+    });
+  }
+
+  $('#btnTmTemplate').addEventListener('click', () => T.saveFile(t('Hajime-Mannschaft-Vorlage') + '.xlsx', new Uint8Array(X.teamTemplateBytes(t))));
+  $('#btnTmImport').addEventListener('click', () => $('#fileTm').click());
+  $('#fileTm').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const msg = (text, err) => {
+      $('#tmMsg').textContent = text;
+      $('#tmMsg').classList.toggle('err', !!err);
+    };
+    try {
+      const res = await X.importFile(file);
+      const lu = X.teamFromFights(res.fights);
+      if (!lu.classes.length) return msg(t('In der Datei wurde keine Aufstellung erkannt (Spalten „Gewichtsklasse“, „Weiß Name“, „Blau Name“).'), true);
+      const tm = state.team;
+      tm.classes = lu.classes;
+      tm.start = 0;
+      tm.legs = lu.legs;
+      tm.lineup = lu.lineup;
+      if (lu.white) tm.white.name = lu.white;
+      if (lu.blue) tm.blue.name = lu.blue;
+      if (lu.ageClass) tm.ageClass = lu.ageClass;
+      commit();
+      renderTeam(true);
+      msg(t('„{file}“ importiert – {n} Gewichtsklassen.', { file: file.name, n: lu.classes.length }));
+    } catch (err) {
+      msg(t('Import fehlgeschlagen: {msg}', { msg: err.message }), true);
+    }
+  });
+  const teamFile = () => fileSafe([state.team.white.name, state.team.blue.name].filter(Boolean).join('-') || t('Mannschaftskampf'));
+  $('#btnTmPdf').addEventListener('click', () => {
+    printDoc(`${t('Hajime-Ergebnisbogen')}-${teamFile()}.pdf`, TM.sheetHtml(state, { t, settings: state.settings }), 'A4', false);
+  });
+  $('#btnTmXlsx').addEventListener('click', () => {
+    const bytes = X.teamBytes({ team: state.team, score: TM.score(state), t, reasonText: (r) => C.reasonText(r, t) });
+    T.saveFile(`${t('Hajime-Ergebnisbogen')}-${teamFile()}.xlsx`, new Uint8Array(bytes));
+  });
+  $('#btnTmNew').addEventListener('click', () => {
+    if (!confirm(t('Neue Begegnung anlegen? Aufstellung und offene Einzelkämpfe werden entfernt, Mannschaften, Gewichtsklassen und Wertung bleiben.'))) return;
+    const old = state.team;
+    state.queue = state.queue.filter((q) => q.team !== old.id || (q.status === 'done' && !(q.result && q.result.auto)));
+    const tm = TM.normTeam({ white: old.white, blue: old.blue, classes: old.classes, legs: old.legs, points: old.points, rule: old.rule, ageClass: old.ageClass, active: old.active });
+    state.team = tm;
+    commit();
+    renderTeam(true);
+  });
+
+  /* ================= Training ================= */
+
+  function initTraining() {
+    if (!state.training || !state.training.current || !Array.isArray(state.training.templates)) state.training = TR.createTraining();
+    const tr = state.training;
+    tr.current = TR.normTemplate(tr.current);
+    tr.templates = tr.templates.map(TR.normTemplate);
+    if (!tr.run) tr.run = TR.newRun();
+    // nach einem Neustart läuft das Training nicht von selbst weiter
+    if (tr.run.running) {
+      const at = state.savedAt || Date.now();
+      tr.run.leftMs = Math.max(0, tr.run.endsAt - at);
+      tr.run.running = false;
+    }
+    tr.run.sound = null;
+  }
+
+  function trainingAct(fn) {
+    const now = Date.now();
+    if (fn(state.training, now) === false) return;
+    if (state.training.run.running || state.training.run.phase !== 'ready') state.screen = 'training';
+    commit();
+  }
+
+  const TR_FIELDS = {
+    trName: ['name', 'text'],
+    trRound: ['round', 'time'],
+    trPause: ['pause', 'time'],
+    trRounds: ['rounds', 'number'],
+    trRoundNote: ['roundNote', 'text'],
+    trPauseNote: ['pauseNote', 'text'],
+    trSignal: ['signalOnly', 'check'],
+  };
+  Object.entries(TR_FIELDS).forEach(([id, [key, kind]]) => {
+    const el = document.getElementById(id);
+    el.addEventListener(kind === 'text' ? 'input' : 'change', () => {
+      const cur = state.training.current;
+      let v;
+      if (kind === 'check') v = el.checked;
+      else if (kind === 'time') {
+        v = parseTime(el.value);
+        if (v == null) return renderTraining(true);
+      } else if (kind === 'number') v = Number(el.value);
+      else v = el.value;
+      state.training.current = TR.normTemplate(Object.assign({}, cur, { [key]: v }));
+      if (kind !== 'text') renderTraining(true);
+      commit();
+    });
+  });
+
+  function renderTraining(force) {
+    const tr = state.training;
+    const cur = tr.current;
+    const sel = $('#trTplSelect');
+    const known = tr.templates.some((x) => x.id === cur.id);
+    const opts = (known ? '' : `<option value="">${esc(t('(nicht gespeichert)'))}</option>`) + tr.templates.map((x) => `<option value="${esc(x.id)}">${esc(x.name)} – ${esc(TR.summary(x, t))}</option>`).join('');
+    if (sel.dataset.h !== opts) {
+      sel.innerHTML = opts;
+      sel.dataset.h = opts;
+    }
+    sel.value = known ? cur.id : '';
+    Object.entries(TR_FIELDS).forEach(([id, [key, kind]]) => {
+      const el = document.getElementById(id);
+      if (!force && document.activeElement === el) return;
+      if (kind === 'check') el.checked = !!cur[key];
+      else el.value = kind === 'time' ? fmtSec(cur[key]) : String(cur[key]);
+    });
+    const saved = tr.templates.find((x) => x.id === cur.id);
+    $('#btnTrSave').disabled = !!saved && JSON.stringify(saved) === JSON.stringify(cur);
+    $('#btnTrDel').disabled = !saved || tr.templates.length < 2;
+    const r = tr.run;
+    const b = $('#btnTrStart');
+    const label = r.running ? t('Pause') : r.phase === 'ready' ? t('Start') : r.phase === 'done' ? t('Neu starten') : t('Weiter');
+    const html = `${esc(label)} <kbd>${esc(t('Leertaste'))}</kbd>`;
+    if (b.innerHTML !== html) b.innerHTML = html;
+    b.classList.toggle('mate', r.running);
+    $('#btnTrBoard').classList.toggle('on', state.screen === 'training');
+    $('#trainBanner').hidden = state.screen !== 'training';
+  }
+
+  $('#trTplSelect').addEventListener('change', (e) => {
+    const tpl = state.training.templates.find((x) => x.id === e.target.value);
+    if (!tpl) return;
+    const r = state.training.run;
+    if (r.phase !== 'ready' && r.phase !== 'done' && !confirm(t('Das laufende Training wird zurückgesetzt. Vorlage trotzdem laden?'))) return renderTraining(true);
+    state.training.current = TR.normTemplate(tpl);
+    TR.reset(state.training);
+    commit();
+    renderTraining(true);
+  });
+  $('#btnTrSave').addEventListener('click', () => {
+    const tr = state.training;
+    const i = tr.templates.findIndex((x) => x.id === tr.current.id);
+    if (i >= 0) tr.templates[i] = TR.normTemplate(tr.current);
+    else tr.templates.push(TR.normTemplate(tr.current));
+    commit();
+  });
+  $('#btnTrNew').addEventListener('click', () => {
+    const tr = state.training;
+    const copy = TR.normTemplate(Object.assign({}, tr.current, { id: '' }));
+    if (tr.templates.some((x) => x.name === copy.name)) copy.name += ' ' + t('(Kopie)');
+    tr.templates.push(copy);
+    tr.current = TR.normTemplate(copy);
+    commit();
+    renderTraining(true);
+  });
+  $('#btnTrDel').addEventListener('click', () => {
+    const tr = state.training;
+    if (tr.templates.length < 2 || !confirm(t('Vorlage „{name}“ löschen?', { name: tr.current.name }))) return;
+    tr.templates = tr.templates.filter((x) => x.id !== tr.current.id);
+    tr.current = TR.normTemplate(Object.assign({}, tr.current, { id: '' }));
+    commit();
+  });
+  $('#btnTrStart').addEventListener('click', () => trainingAct((tr, now) => TR.toggle(tr, now)));
+  $('#btnTrPrev').addEventListener('click', () => trainingAct((tr, now) => TR.skip(tr, -1, now)));
+  $('#btnTrNext').addEventListener('click', () => trainingAct((tr, now) => TR.skip(tr, 1, now)));
+  $('#btnTrReset').addEventListener('click', () => {
+    TR.reset(state.training);
+    commit();
+  });
+  $('#btnTrBoard').addEventListener('click', () => {
+    state.screen = state.screen === 'training' ? 'board' : 'training';
+    commit();
+  });
+  $('#btnTrBack').addEventListener('click', () => {
+    if (state.training.run.running) TR.pause(state.training, Date.now());
+    state.screen = 'board';
+    commit();
+  });
+
+  /* ================= Umfang und Sprache ================= */
+
+  const LEVEL_INFO = {
+    simple: 'Nur Anzeigetafel: Uhr, Wertungen, Shido und Osaekomi. Namen, Kampfliste, Protokoll und Turnierfunktionen sind ausgeblendet.',
+    standard: 'Kämpfe mit Namen: Kampfliste, Excel-Import, Mannschaftskampf, Aushang und Protokoll. Ohne Turniersysteme, Matten, Auswertung und Aufruf.',
+    tournament: 'Alle Funktionen: Turniersysteme, Matten, Vernetzung, Auswertung, Urkunden und Aufruf.',
+  };
+  function renderLevel() {
+    const lv = state.settings.level || 'tournament';
+    C.LEVELS.forEach((l) => document.body.classList.toggle('lvl-' + l, l === lv));
+    $('#levelInfo').textContent = t(LEVEL_INFO[lv]);
+    // ausgeblendeter Reiter offen? Dann zurück zum Kampf
+    const active = $('.tabs button.active');
+    if (active && active.dataset.min && !lvl(active.dataset.min)) $('.tabs button[data-tab="fight"]').click();
+  }
+
+  function langOptions(first) {
+    return [`<option value="">${esc(first)}</option>`].concat(I18n.languages().map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`)).join('');
+  }
+  function fillLangSelects() {
+    const sys = I18n.languages().find((l) => l.id === I18n.detect());
+    const set = (el, html) => {
+      if (el.dataset.h !== html) {
+        el.innerHTML = html;
+        el.dataset.h = html;
+      }
+    };
+    set($('#sLangControl'), langOptions(t('Automatisch') + (sys ? ` (${sys.name})` : '')));
+    set($('#sLangBoard'), langOptions(t('wie die Bedienung')));
+    set($('#dlgLevelLang'), langOptions(t('Automatisch') + (sys ? ` (${sys.name})` : '')));
+    setVal($('#dlgLevelLang'), state.settings.langControl || '');
+  }
+
+  // Sprache gewechselt: feste Texte neu übersetzen, Hauptprozess (Menü, Dialoge) informieren
+  let shownLang = null;
+  function applyLang() {
+    const want = I18n.resolve(state.settings.langControl);
+    if (shownLang === want) return;
+    shownLang = want;
+    t = I18n.make(state.settings.langControl);
+    C.setTranslator(t);
+    document.documentElement.lang = want;
+    I18n.translateDom(document.body, t);
+    document.title = t('Hajime – Bedienung');
+    if (T.isElectron && T.bridge.setLang) T.bridge.setLang(want);
+  }
+
+  // Erster Start: Umfang abfragen
+  function askLevel() {
+    const dlg = $('#dlgLevel');
+    fillLangSelects();
+    dlg.addEventListener('cancel', (e) => e.preventDefault());
+    $('#dlgLevelLang').addEventListener('change', (e) => {
+      state.settings.langControl = e.target.value;
+      commit();
+    });
+    $$('.level-opt', dlg).forEach((b) =>
+      b.addEventListener('click', () => {
+        state.settings.level = b.dataset.level;
+        dlg.close();
+        commit();
+      })
+    );
+    dlg.showModal();
+  }
+
   /* ================= Start ================= */
 
   function renderAll() {
+    applyLang();
+    renderLevel();
     renderFight();
+    renderTraining();
+    renderTeam();
+    renderNet();
     renderQueue();
     renderParticipants();
     renderMats();
@@ -1929,6 +2765,8 @@
 
   commit();
   requestAnimationFrame(frame);
+  if (!state.settings.level) askLevel();
+  startNet();
   // für Fehlersuche und das Screenshot-Skript
   window.__judo = {
     get state() {

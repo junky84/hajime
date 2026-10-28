@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node test/core.test.js && node test/brackets.test.js && node test/mats.test.js && node test/excel.test.js",
+    "test": "node test/core.test.js && node test/brackets.test.js && node test/mats.test.js && node test/excel.test.js && node test/training.test.js && node test/team.test.js && node test/net.test.js",
     "dist:mac": "electron-builder --mac --publish never",
     "dist:win": "electron-builder --win --publish never",
     "build:web": "node scripts/build-web.js"
@@ -29,6 +29,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "hub.js",
       "package.json",
       "src/**/*"
     ],

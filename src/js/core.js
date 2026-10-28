@@ -10,6 +10,12 @@
   const SIDES = ['white', 'blue'];
   const other = (s) => (s === 'white' ? 'blue' : 'white');
   const SIDE_LABEL = { white: 'Weiß', blue: 'Blau' };
+  // Übersetzung der Ereignistexte (setzt die Bedienung, siehe i18n.js); Standard: Deutsch
+  let tr = (s, p) => (p ? String(s).replace(/\{(\w+)\}/g, (m, k) => (p[k] == null ? m : p[k])) : s);
+  function setTranslator(fn) {
+    if (typeof fn === 'function') tr = fn;
+  }
+  const sideTr = (side) => tr(SIDE_LABEL[side]);
   const SCORE_LABEL = { ippon: 'IPPON', wazaari: 'WAZA-ARI', yuko: 'YUKO', shido: 'SHIDO', hsk: 'HANSOKU-MAKE' };
 
   const BASE_RULES = {
@@ -38,8 +44,30 @@
     { ...BASE_RULES, id: 'p-masters', name: 'Masters', aliases: 'Ü30, Veteranen, Masters', duration: 180, restTime: 600 },
   ];
 
-  // Wertungspunkte je Sieg für Gruppentabellen (in den Einstellungen änderbar)
+  // Wertungspunkte je Sieg für Gruppentabellen („Eigene Werte“ in den Einstellungen)
   const DEFAULT_WIN_POINTS = { ippon: 10, wazaari: 7, yuko: 5, decision: 1 };
+
+  /*
+   * Punkteschemata für Gruppentabellen (Pool / Jeder gegen jeden):
+   *  djb    – DJB Pool 2023: nur der Sieger bekommt Punkte für die kampfentscheidende Wertung, Hantei 0
+   *  ijf    – IJF SOR 2025: beide Kämpfer bekommen die Summe ihrer Wertungen (max. 100), danach kürzere Kampfzeit
+   *  custom – eigene Wertungspunkte je Sieg und wählbare Rangfolge
+   */
+  const SCORING = {
+    djb: { points: { ippon: 10, wazaari: 7, yuko: 5, decision: 0 }, rankOrder: 'points' },
+    ijf: { points: { ippon: 100, wazaari: 10, yuko: 1, decision: 0 }, rankOrder: 'points' },
+  };
+  const SCORING_IDS = ['djb', 'ijf', 'custom'];
+  // Umfang der Bedienung (Einstellungen → Bedienung)
+  const LEVELS = ['simple', 'standard', 'tournament'];
+  const levelAtLeast = (settings, min) => LEVELS.indexOf((settings && settings.level) || 'tournament') >= LEVELS.indexOf(min);
+  // Optionen für standings() aus den Einstellungen
+  function scoringOpts(settings) {
+    const s = settings || {};
+    const scheme = SCORING_IDS.includes(s.scoring) ? s.scoring : 'djb';
+    if (scheme === 'custom') return { scheme, winPoints: Object.assign({}, DEFAULT_WIN_POINTS, s.winPoints), rankOrder: s.rankOrder === 'direct' ? 'direct' : 'points' };
+    return { scheme, winPoints: Object.assign({}, SCORING[scheme].points), rankOrder: SCORING[scheme].rankOrder };
+  }
 
   function uid() {
     return Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -84,6 +112,9 @@
     return {
       version: 1,
       settings: {
+        level: '', // simple | standard | tournament – leer = beim ersten Start fragen
+        langControl: '', // Sprache der Bedienung, leer = wie Betriebssystem/Browser
+        langBoard: '', // Sprache der Anzeige, leer = wie die Bedienung
         tournament: '',
         mat: 'Matte 1',
         logo: null,
@@ -95,8 +126,9 @@
         soundTarget: 'control', // control | board | both
         swap: false, // Blau oben anzeigen
         // Auswertung
-        winPoints: { ...DEFAULT_WIN_POINTS },
-        rankOrder: 'points', // points: Siege → Wertungspunkte → direkter Vergleich | direct: Siege → direkter Vergleich → Wertungspunkte
+        scoring: 'djb', // djb | ijf | custom (Punkteschema der Gruppentabellen)
+        winPoints: { ...DEFAULT_WIN_POINTS }, // nur bei scoring 'custom'
+        rankOrder: 'points', // nur bei 'custom' – points: Siege → Wertungspunkte → direkter Vergleich | direct: Siege → direkter Vergleich → Wertungspunkte
         // Urkunden
         tournamentDate: '',
         tournamentPlace: '',
@@ -108,10 +140,11 @@
         // Turniersysteme: Vorschlag nach Gruppengröße
         systems: { bo3: true, rrMax: 5, poolMax: 8 },
         splitGender: false, // Gruppen nach Geschlecht trennen
+        net: { role: '', code: '', address: '' }, // Matten im Netz: role '' | 'mat' | 'hub'
       },
       profiles,
       activeProfileId: active.id,
-      screen: 'board', // board | idle | table
+      screen: 'board', // board | idle | table | training
       boardGroup: null, // Gruppe für die Gruppentabelle auf der Anzeige
       fight: newFight(active),
       queue: [],
@@ -221,7 +254,7 @@
     f.finishedAt = now;
     f.clock.zeroSignalled = true;
     setSound(f, 'gong', now);
-    logEvent(f, now, side === 'draw' ? 'Kampfende · Unentschieden' : `Kampfende · Sieger ${SIDE_LABEL[side]} (${reason})`);
+    logEvent(f, now, side === 'draw' ? tr('Kampfende · Unentschieden') : tr('Kampfende · Sieger {side} ({reason})', { side: sideTr(side), reason: reasonText(reason, tr) }));
   }
 
   function timeUp(state, now) {
@@ -231,7 +264,7 @@
     const c = compare(f, r);
     if (c) return finish(f, c.side, c.reason, now);
     f.status = 'timeup';
-    logEvent(f, now, 'Zeit abgelaufen · Gleichstand');
+    logEvent(f, now, tr('Zeit abgelaufen · Gleichstand'));
     if (!f.clock.zeroSignalled) {
       f.clock.zeroSignalled = true;
       setSound(f, 'gong', now);
@@ -298,7 +331,7 @@
       if (f.clock.mode === 'regular' && r.golden) {
         f.clock = { mode: 'golden', baseMs: 0, startedAt: now, zeroSignalled: true };
         f.status = 'running';
-        logEvent(f, now, 'Golden Score · Hajime');
+        logEvent(f, now, tr('Golden Score · Hajime'));
         return true;
       }
       return false; // Kampfrichterentscheid nötig
@@ -332,7 +365,7 @@
       if (f.status === 'finished') return true;
     }
     if (f.clock.mode === 'regular' && clockMs(f.clock, now) <= 0) return false;
-    logEvent(f, now, 'Osaekomi ' + SIDE_LABEL[side]);
+    logEvent(f, now, 'Osaekomi ' + sideTr(side));
     f.osae.side = side;
     f.osae.baseMs = 0;
     f.osae.startedAt = now;
@@ -366,7 +399,11 @@
         setFlash(f, side, SCORE_LABEL[k], now);
       }
     }
-    logEvent(f, now, k ? `Osaekomi ${sec} s → ${KIND_LABEL[k]} ${SIDE_LABEL[side]} (automatisch)` : `Toketa ${SIDE_LABEL[side]} nach ${sec} s`);
+    logEvent(
+      f,
+      now,
+      k ? tr('Osaekomi {sec} s → {kind} {side} (automatisch)', { sec, kind: KIND_LABEL[k], side: sideTr(side) }) : tr('Toketa {side} nach {sec} s', { side: sideTr(side), sec })
+    );
     checkEnd(state, now);
     return true;
   }
@@ -386,9 +423,9 @@
     if (delta > 0) {
       const text = kind === 'shido' && isHansoku(c, r) ? SCORE_LABEL.hsk : SCORE_LABEL[kind];
       setFlash(f, side, text, now);
-      logEvent(f, now, `${KIND_LABEL[kind]} ${SIDE_LABEL[side]}` + (kind === 'shido' && isHansoku(c, r) ? ' → Hansoku-make' : ''));
+      logEvent(f, now, `${KIND_LABEL[kind]} ${sideTr(side)}` + (kind === 'shido' && isHansoku(c, r) ? ' → Hansoku-make' : ''));
     } else {
-      logEvent(f, now, `Korrektur: ${KIND_LABEL[kind]} ${SIDE_LABEL[side]} zurückgenommen`);
+      logEvent(f, now, tr('Korrektur: {kind} {side} zurückgenommen', { kind: KIND_LABEL[kind], side: sideTr(side) }));
     }
     reevaluate(state, now);
     return true;
@@ -400,7 +437,7 @@
     if (side == null) {
       if (!f.manual) return false;
       f.manual = false;
-      logEvent(f, now, 'Entscheidung aufgehoben');
+      logEvent(f, now, tr('Entscheidung aufgehoben'));
       reevaluate(state, now);
       return true;
     }
@@ -425,7 +462,7 @@
     const running = clockRunning(c);
     c.baseMs = Math.max(0, Math.round(ms));
     c.startedAt = running ? now : null;
-    logEvent(f, now, 'Uhr gestellt auf ' + clockLabel(f, now), 'clock');
+    logEvent(f, now, tr('Uhr gestellt auf {clock}', { clock: clockLabel(f, now) }), 'clock');
     if (c.mode === 'regular' && !f.started) f.regularMs = Math.max(f.regularMs, c.baseMs);
     if (c.mode === 'regular' && c.baseMs > 0) c.zeroSignalled = false;
     if (f.status === 'timeup' && (c.mode === 'regular' ? c.baseMs > 0 : !goldenLimitReached(f, getRules(state), now))) {
@@ -483,14 +520,20 @@
     const s = Object.assign(base, saved || {});
     s.settings = Object.assign(createState().settings, (saved && saved.settings) || {});
     s.settings.winPoints = Object.assign({}, DEFAULT_WIN_POINTS, s.settings.winPoints);
+    // ältere Stände kannten nur den vollen Funktionsumfang
+    if (!saved || !saved.settings || !('level' in saved.settings)) s.settings.level = 'tournament';
+    if (s.settings.level && !LEVELS.includes(s.settings.level)) s.settings.level = 'tournament';
+    // ältere Stände ohne Punkteschema rechnen ab jetzt nach DJB
+    if (!SCORING_IDS.includes(s.settings.scoring)) s.settings.scoring = 'djb';
     s.settings.systems = Object.assign({}, base.settings.systems, s.settings.systems);
+    s.settings.net = Object.assign({}, base.settings.net, s.settings.net);
     if (!Array.isArray(s.brackets)) s.brackets = [];
     if (!s.groupSystems || typeof s.groupSystems !== 'object') s.groupSystems = {};
     s.matPlan = Object.assign({}, base.matPlan, s.matPlan);
     if (typeof s.callMessage !== 'string') s.callMessage = '';
     if (!Array.isArray(s.callPicks)) s.callPicks = [];
     delete s.settings.callRows;
-    if (!['board', 'idle', 'table'].includes(s.screen)) s.screen = 'board'; // früherer Aufrufbildschirm
+    if (!['board', 'idle', 'table', 'training'].includes(s.screen)) s.screen = 'board'; // früherer Aufrufbildschirm
     if (!Array.isArray(s.profiles) || !s.profiles.length) s.profiles = clone(DEFAULT_PROFILES);
     // Profile aus älteren Versionen: fehlende Felder ergänzen, Ruhezeit der Standardprofile übernehmen
     s.profiles = s.profiles.map((p) => {
@@ -544,7 +587,7 @@
           pauseClock(f.clock, now);
           f.status = 'paused';
           setSound(f, 'gong', now);
-          logEvent(f, now, 'Mate (Haltegriff ausgehalten)');
+          logEvent(f, now, tr('Mate (Haltegriff ausgehalten)'));
         }
         changed = true;
       }
@@ -567,7 +610,7 @@
         c.baseMs = r.goldenLimit * 1000;
         c.startedAt = null;
         if (!f.osae.side) f.status = 'timeup';
-        logEvent(f, now, 'Golden Score: Höchstdauer erreicht');
+        logEvent(f, now, tr('Golden Score: Höchstdauer erreicht'));
         setSound(f, 'gong', now);
         changed = true;
       }
@@ -578,20 +621,43 @@
   /* ---------- Auswertung: Gruppentabellen ---------- */
 
   // Wie wurde der Kampf gewonnen? ippon | wazaari | yuko | decision (Hantei, Shido …)
+  // Hantei bei Wertungsführung zählt die führende Wertung (nur, wenn die Wertungen bekannt sind)
+  const FORFEIT = /ippon|hansoku|kiken|fusen|disqual|verletzung/i;
   function winKind(winner, reason, scores) {
     if (winner !== 'white' && winner !== 'blue') return null;
     const r = String(reason || '');
-    if (/hantei/i.test(r)) return 'decision';
-    if (/ippon|hansoku|kiken|fusen|disqual|verletzung/i.test(r)) return 'ippon';
+    if (!/hantei/i.test(r) && FORFEIT.test(r)) return 'ippon';
     if (scores && scores.white && scores.blue) {
       const w = scores[winner];
       const l = scores[other(winner)];
       for (const k of ['ippon', 'wazaari', 'yuko']) if ((w[k] || 0) > (l[k] || 0)) return k;
       return 'decision';
     }
+    if (/hantei/i.test(r)) return 'decision';
     if (/waza-ari/i.test(r)) return 'wazaari';
     if (/yuko/i.test(r)) return 'yuko';
     return 'decision';
+  }
+
+  // Wertungen eines Ergebnisses aus der Kampfliste (ältere Ergebnisse: aus dem Text „1 I · 2 W“)
+  function resultScores(res) {
+    if (!res) return null;
+    if (res.scores && res.scores.white && res.scores.blue) return res.scores;
+    if (typeof res.white === 'string' || typeof res.blue === 'string') return { white: parseScoreText(res.white), blue: parseScoreText(res.blue) };
+    return null;
+  }
+  function parseScoreText(t) {
+    t = String(t || '');
+    const n = (k) => {
+      const m = t.match(new RegExp('(\\d+) ' + k + '(?![A-Za-z])'));
+      return m ? Number(m[1]) : 0;
+    };
+    return { ippon: n('I'), wazaari: n('W'), yuko: n('Y'), shido: n('S'), hsk: /HSK/.test(t) };
+  }
+  // IJF: eigene Wertungen eines Kämpfers, Ippon 100 · Waza-ari 10 · Yuko 1, höchstens 100
+  function ijfPoints(sc, pts) {
+    if (!sc) return 0;
+    return Math.min(100, (sc.ippon || 0) * pts.ippon + (sc.wazaari || 0) * pts.wazaari + (sc.yuko || 0) * pts.yuko);
   }
 
   /* ---------- Geschlecht (optional, Einstellung „nach Geschlecht trennen“) ---------- */
@@ -620,6 +686,7 @@
   function poolGroups(queue) {
     const m = new Map();
     (queue || []).forEach((e) => {
+      if (e.team) return; // Mannschaftskämpfe haben ihre eigene Wertung
       const key = groupKey(e);
       if (!m.has(key)) m.set(key, { key, ageClass: e.ageClass || '', category: e.category || '', gender: e.gender || '', label: groupLabel(e), entries: [] });
       m.get(key).entries.push(e);
@@ -636,13 +703,16 @@
    */
   function standings(group, opts) {
     opts = opts || {};
-    const pts = Object.assign({}, DEFAULT_WIN_POINTS, opts.winPoints);
+    // ohne Schema: frühere Aufrufe mit winPoints/rankOrder rechnen wie „Eigene Werte“
+    const scheme = SCORING_IDS.includes(opts.scheme) ? opts.scheme : 'custom';
+    const pts = scheme === 'custom' ? Object.assign({}, DEFAULT_WIN_POINTS, opts.winPoints) : Object.assign({}, SCORING[scheme].points);
+    const rankOrder = scheme === 'custom' && opts.rankOrder === 'direct' ? 'direct' : 'points';
     const players = new Map();
     const person = (p) => {
       const id = norm(p && p.name);
       if (!id) return null;
       if (!players.has(id)) {
-        players.set(id, { id, name: String(p.name).trim(), club: p.club || '', wins: 0, losses: 0, draws: 0, fights: 0, points: 0, ippon: 0, wazaari: 0, yuko: 0, decision: 0 });
+        players.set(id, { id, name: String(p.name).trim(), club: p.club || '', wins: 0, losses: 0, draws: 0, fights: 0, points: 0, ippon: 0, wazaari: 0, yuko: 0, decision: 0, timeMs: 0 });
       }
       const pl = players.get(id);
       if (!pl.club && p.club) pl.club = p.club;
@@ -670,6 +740,12 @@
       regular.push({ a, b, winner: res.winner });
       a.fights++;
       b.fights++;
+      const sc = resultScores(res);
+      if (scheme === 'ijf' && sc) {
+        // IJF: beide Kämpfer bekommen ihre eigenen Wertungen
+        a.points += ijfPoints(sc.white, pts);
+        b.points += ijfPoints(sc.blue, pts);
+      }
       if (res.winner === 'draw') {
         a.draws++;
         b.draws++;
@@ -677,11 +753,18 @@
       }
       const win = res.winner === 'white' ? a : b;
       const lose = win === a ? b : a;
-      const kind = res.kind || winKind(res.winner, res.reason, res.scores) || 'decision';
+      // Art des Sieges neu bestimmen, wenn die Wertungen bekannt sind (Hantei bei Wertungsführung)
+      const kind = (sc && winKind(res.winner, res.reason, sc)) || res.kind || winKind(res.winner, res.reason) || 'decision';
       win.wins++;
       lose.losses++;
       win[kind]++;
-      win.points += Number(pts[kind]) || 0;
+      if (scheme === 'ijf') {
+        // Hansoku-make, Kiken-gachi, Fusen-gachi (und Waza-ari-awasete-ippon) zählen für den Sieger 100
+        const full = /hansoku|kiken|fusen|disqual|verletzung|awasete/i.test(res.reason || '');
+        if (!sc) win.points += Number(pts[kind]) || 0;
+        else if (full) win.points += 100 - ijfPoints(sc[res.winner], pts);
+        if (Number(res.durationMs) > 0) win.timeMs += Number(res.durationMs);
+      } else win.points += Number(pts[kind]) || 0;
     });
 
     const winnerOf = (f) => (f.winner === 'white' ? f.a : f.winner === 'blue' ? f.b : null);
@@ -689,6 +772,8 @@
       let val;
       if (crit === 'wins') val = (p) => p.wins;
       else if (crit === 'points') val = (p) => p.points;
+      // IJF: kürzere Gesamtzeit der gewonnenen Kämpfe ist besser (nur, wenn für alle bekannt)
+      else if (crit === 'time') val = list.every((p) => p.timeMs > 0 || !p.wins) ? (p) => -Math.round(p.timeMs / 1000) : () => 0;
       else {
         // direkter Vergleich / Stichkampf: Siege gegen die anderen Gleichplatzierten
         const fights = crit === 'tiebreak' ? extra : regular;
@@ -704,7 +789,8 @@
       return parts;
     }
     // nach den Punkten nochmal direkter Vergleich für die verbliebenen Gleichen, zuletzt Stichkämpfe
-    const crits = opts.rankOrder === 'direct' ? ['wins', 'direct', 'points', 'direct', 'tiebreak'] : ['wins', 'points', 'direct', 'tiebreak'];
+    const crits =
+      scheme === 'ijf' ? ['wins', 'points', 'direct', 'time', 'tiebreak'] : rankOrder === 'direct' ? ['wins', 'direct', 'points', 'direct', 'tiebreak'] : ['wins', 'points', 'direct', 'tiebreak'];
     function rank(list, cs) {
       if (list.length < 2 || !cs.length) return [list];
       const parts = split(list, cs[0]);
@@ -738,13 +824,14 @@
       tiebreakOpen,
       rows,
       ties,
+      scheme,
       winPoints: pts,
-      rankOrder: opts.rankOrder === 'direct' ? 'direct' : 'points',
+      rankOrder,
     };
   }
 
   function allStandings(state) {
-    const opts = { winPoints: state.settings.winPoints, rankOrder: state.settings.rankOrder };
+    const opts = scoringOpts(state.settings);
     return poolGroups(state.queue).map((g) => standings(g, opts));
   }
 
@@ -826,8 +913,18 @@
   const logUsesYuko = (log) =>
     (log || []).some((l) => l.yuko === true || (l.yuko == null && /\d+ Y(?![A-Za-z])/.test((l.whiteScore || '') + ' ' + (l.blueScore || ''))) || logScores(l, 'white').yuko || logScores(l, 'blue').yuko);
 
-  function displayName(c, side) {
-    return c.name ? c.name : SIDE_LABEL[side];
+  function displayName(c, side, t) {
+    return c.name ? c.name : (t || tr)(SIDE_LABEL[side]);
+  }
+
+  // Entscheidungsgrund zur Anzeige übersetzen; gespeichert wird er immer deutsch,
+  // weil die Auswertung ihn auswertet („Golden Score – Waza-ari“, „Kiken-gachi (Aufgabe)“ …)
+  function reasonText(reason, t) {
+    t = t || tr;
+    return String(reason || '')
+      .split(' – ')
+      .map((p) => t(p))
+      .join(' – ');
   }
 
   // Jeder-gegen-jeden (Kreis-Methode), möglichst ohne direkt aufeinanderfolgende Kämpfe.
@@ -862,6 +959,12 @@
     BASE_RULES,
     DEFAULT_PROFILES,
     DEFAULT_WIN_POINTS,
+    SCORING,
+    SCORING_IDS,
+    scoringOpts,
+    LEVELS,
+    levelAtLeast,
+    resultScores,
     uid,
     clone,
     norm,
@@ -896,6 +999,8 @@
     logScores,
     logUsesYuko,
     displayName,
+    reasonText,
+    setTranslator,
     roundRobin,
     winKind,
     GENDER_LABEL,

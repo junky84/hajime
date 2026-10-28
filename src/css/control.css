@@ -307,7 +307,8 @@ main {
   border: 1px solid var(--line);
   background: #000;
 }
-#preview {
+#preview,
+#trPreview {
   width: 100%;
   aspect-ratio: 16 / 9;
 }
@@ -1238,4 +1239,291 @@ input.w-time {
 }
 .import-msg.info {
   color: var(--muted);
+}
+
+/* ---------- Umfang der Bedienung (Einfach / Standard / Turnier) ---------- */
+body.lvl-simple [data-min='standard'],
+body.lvl-simple [data-min='tournament'],
+body.lvl-standard [data-min='tournament'],
+body:not(.lvl-simple) [data-only='simple'] {
+  display: none !important;
+}
+body.lvl-simple .decision:not(.need):not(.manual):not(.shown) {
+  display: none;
+}
+.level-dlg {
+  max-width: 760px;
+}
+.level-dlg h3 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+.level-opts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+.level-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid #2a3242;
+  background: #161b25;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.level-opt b {
+  font-size: 19px;
+}
+.level-opt span {
+  color: #9aa6bd;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.level-opt:hover,
+.level-opt:focus-visible {
+  border-color: #3b82f6;
+  background: #1a2232;
+}
+.level-lang {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------- Training ---------- */
+.train-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.4fr);
+  gap: 16px;
+  align-items: start;
+}
+.train-run {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.train-run .preview-wrap {
+  width: 100%;
+}
+.train-btns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.row3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.train-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(47, 227, 111, 0.12);
+  border: 1px solid rgba(47, 227, 111, 0.4);
+  font-weight: 600;
+}
+.train-banner[hidden] {
+  display: none;
+}
+
+/* ---------- Mannschaft ---------- */
+.team-grid {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(480px, 1.4fr);
+  gap: 16px;
+  align-items: start;
+}
+.tm-active {
+  font-weight: 700;
+  font-size: 15px;
+}
+.tm-legs {
+  align-self: end;
+  padding-bottom: 8px;
+}
+.tm-score {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #121722;
+}
+.tm-score .tm-w,
+.tm-score .tm-b {
+  font-weight: 700;
+}
+.tm-score .tm-b {
+  text-align: right;
+  color: #8fb0ff;
+}
+.tm-score small {
+  display: block;
+  color: #9aa6bd;
+  font-weight: 500;
+}
+.tm-score .tm-mid {
+  text-align: center;
+  font-size: 30px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.tm-score .tm-mid small {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tm-table input {
+  width: 100%;
+  min-width: 120px;
+}
+.tm-table td.vac input {
+  border-style: dashed;
+}
+.tm-table tr.leg-start td {
+  border-top: 2px solid #3a4458;
+}
+.tm-table tr.current td {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+/* ---------- Matten im Netz ---------- */
+.net-found {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.net-found:empty {
+  display: none;
+}
+.net-hub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #161b25;
+  border: 1px solid #2a3242;
+}
+.net-hub b {
+  flex: 1;
+}
+.net-code {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.net-code b {
+  font-size: 28px;
+  letter-spacing: 0.2em;
+  font-variant-numeric: tabular-nums;
+}
+.net-status {
+  font-weight: 600;
+  margin: 0;
+}
+.net-status.ok {
+  color: #2fe36f;
+}
+.net-status.warn {
+  color: #ffc400;
+}
+.net-status.err {
+  color: #ff6b6b;
+}
+.net-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2fe36f;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.net-dot.warn {
+  background: #ffc400;
+}
+.net-dot.err {
+  background: #ff4a4a;
+}
+.net-card {
+  margin-bottom: 14px;
+}
+.net-mats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+}
+.net-mat {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #161b25;
+  border: 1px solid #2a3242;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.net-mat.off {
+  opacity: 0.6;
+  border-color: #ff4a4a;
+}
+.net-mat .nm-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.net-mat .nm-head b {
+  font-size: 17px;
+}
+.net-mat .nm-head small {
+  margin-left: auto;
+  color: #9aa6bd;
+}
+.net-mat .nm-cur {
+  font-weight: 600;
+}
+.net-mat .nm-next {
+  color: #9aa6bd;
+  font-size: 13px;
+}
+.net-mat .nm-call {
+  display: flex;
+  gap: 6px;
+}
+.net-mat .nm-call input {
+  flex: 1;
+  min-width: 0;
+}
+.net-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #13324f;
+  border-bottom: 1px solid #2c5d8f;
+  font-weight: 600;
+}
+.net-banner[hidden] {
+  display: none;
+}
+.net-banner span {
+  flex: 1;
+}
+
+/* „hidden“ gilt immer, auch wenn eine Klasse display setzt */
+[hidden] {
+  display: none !important;
 }

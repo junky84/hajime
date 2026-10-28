@@ -235,7 +235,7 @@
       const have = new Set(pools[p].rows.map((r) => r.id));
       (pl.pools[p] || []).forEach((i) => {
         const pp = b.players[i];
-        if (pp && !have.has(C.norm(pp.name))) pools[p].rows.push({ id: C.norm(pp.name), name: pp.name, club: pp.club || '', wins: 0, losses: 0, draws: 0, fights: 0, points: 0, ippon: 0, wazaari: 0, yuko: 0, decision: 0, place: null, tie: false });
+        if (pp && !have.has(C.norm(pp.name))) pools[p].rows.push({ id: C.norm(pp.name), name: pp.name, club: pp.club || '', wins: 0, losses: 0, draws: 0, fights: 0, points: 0, ippon: 0, wazaari: 0, yuko: 0, decision: 0, timeMs: 0, place: null, tie: false });
       });
       return pools[p];
     }
@@ -325,7 +325,7 @@
    */
   function sync(state, opts) {
     let changed = false;
-    opts = opts || { winPoints: state.settings && state.settings.winPoints, rankOrder: state.settings && state.settings.rankOrder };
+    opts = opts || C.scoringOpts(state.settings);
     (state.brackets || []).forEach((b) => {
       const pl = plan(b);
       const mine = state.queue.filter((e) => e.bracket === b.key);
@@ -466,7 +466,7 @@
     const stats = new Map(base.rows.map((r) => [r.id, r]));
     const rows = b.players.map((p) => {
       const id = C.norm(p.name);
-      const st = stats.get(id) || { id, name: p.name, club: p.club || '', wins: 0, losses: 0, draws: 0, fights: 0, points: 0, ippon: 0, wazaari: 0, yuko: 0, decision: 0 };
+      const st = stats.get(id) || { id, name: p.name, club: p.club || '', wins: 0, losses: 0, draws: 0, fights: 0, points: 0, ippon: 0, wazaari: 0, yuko: 0, decision: 0, timeMs: 0 };
       return Object.assign({}, st, { place: places.has(id) ? places.get(id) : null, tie: false });
     });
     rows.sort((x, y) => (x.place == null ? 999 : x.place) - (y.place == null ? 999 : y.place) || x.name.localeCompare(y.name, 'de'));
@@ -481,7 +481,7 @@
 
   // Alle Gruppen der Kampfliste – mit Turniersystem, sonst „Jeder gegen jeden“ wie bisher
   function allTables(state) {
-    const opts = { winPoints: state.settings.winPoints, rankOrder: state.settings.rankOrder };
+    const opts = C.scoringOpts(state.settings);
     const brackets = new Map((state.brackets || []).map((b) => [b.key, b]));
     return C.poolGroups(state.queue).map((g) => {
       const t = brackets.has(g.key) ? table(brackets.get(g.key), g, opts) : C.standings(g, opts);
@@ -497,7 +497,7 @@
   function treeModel(state, b, liveId) {
     const pl = plan(b);
     const entries = state.queue.filter((e) => e.bracket === b.key);
-    const opts = { winPoints: state.settings.winPoints, rankOrder: state.settings.rankOrder };
+    const opts = C.scoringOpts(state.settings);
     const R = resolver(b, pl, entries, opts);
     const fight = state.fight;
     const match = (s) => {

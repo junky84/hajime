@@ -424,4 +424,74 @@ test('Geschlecht: Erkennung und eigene Gruppen', () => {
   assert.strictEqual(C.classLabel({}), '');
 });
 
+/* ---------- Punkteschema DJB / IJF ---------- */
+
+const sc = (ippon, wazaari, yuko) => ({ ippon, wazaari, yuko: yuko || 0, shido: 0, hsk: false });
+function scored(a, b, winner, reason, w, bl, ms) {
+  return fight(a, b, winner, reason, { result: { winner, reason, scores: { white: w, blue: bl }, durationMs: ms || 0 } });
+}
+
+test('DJB: Siegpunkte / Wertungspunkte, Hantei 0, Hantei bei Wertungsführung zählt die Wertung', () => {
+  const opts = C.scoringOpts({ scoring: 'djb' });
+  assert.strictEqual(opts.scheme, 'djb');
+  const t = C.standings(
+    poolOf([
+      scored('A', 'B', 'white', 'Ippon', sc(1, 0), sc(0, 1)),
+      scored('A', 'C', 'white', 'Hantei', sc(0, 0), sc(0, 0)),
+      scored('B', 'C', 'white', 'Hantei', sc(0, 1), sc(0, 0)), // Hantei, aber B führt mit Waza-ari → 7
+      scored('C', 'D', 'white', 'Fusen-gachi (nicht angetreten)', sc(0, 0), sc(0, 0)),
+    ]),
+    opts
+  );
+  const row = (n) => t.rows.find((r) => r.name === n);
+  assert.strictEqual(row('A').points, 10);
+  assert.strictEqual(row('A').wins, 2);
+  assert.strictEqual(row('B').points, 7);
+  assert.strictEqual(row('C').points, 10);
+  assert.strictEqual(row('D').points, 0);
+  assert.strictEqual(t.scheme, 'djb');
+});
+
+test('IJF: Punkte für beide, max. 100, Hansoku-make 100, Zeit entscheidet', () => {
+  const opts = C.scoringOpts({ scoring: 'ijf' });
+  // A schlägt B mit Waza-ari + Yuko (11), B hatte einen Yuko (1)
+  let t = C.standings(poolOf([scored('A', 'B', 'white', 'Waza-ari', sc(0, 1, 1), sc(0, 0, 1))]), opts);
+  assert.deepStrictEqual(t.rows.map((r) => [r.name, r.points]), [['A', 11], ['B', 1]]);
+  // Ippon nach Waza-ari: höchstens 100
+  t = C.standings(poolOf([scored('A', 'B', 'white', 'Ippon', sc(1, 1, 2), sc(0, 0))]), opts);
+  assert.strictEqual(t.rows[0].points, 100);
+  // Hansoku-make: Sieger 100, Verlierer behält eigene Wertungen
+  t = C.standings(poolOf([scored('A', 'B', 'blue', 'Hansoku-make', sc(0, 1), sc(0, 0))]), opts);
+  assert.deepStrictEqual(t.rows.map((r) => [r.name, r.points]), [['B', 100], ['A', 10]]);
+  // Kreis mit gleichen Punkten: kürzere Gesamtzeit der Siege gewinnt
+  t = C.standings(
+    poolOf([
+      scored('A', 'B', 'white', 'Ippon', sc(1, 0), sc(0, 0), 60000),
+      scored('B', 'C', 'white', 'Ippon', sc(1, 0), sc(0, 0), 30000),
+      scored('C', 'A', 'white', 'Ippon', sc(1, 0), sc(0, 0), 90000),
+    ]),
+    opts
+  );
+  assert.deepStrictEqual(t.rows.map((r) => [r.name, r.place, r.tie]), [['B', 1, false], ['A', 2, false], ['C', 3, false]]);
+});
+
+test('Eigene Werte und Umstellung alter Stände auf DJB', () => {
+  const old = C.createState();
+  delete old.settings.scoring;
+  old.settings.winPoints = { ippon: 3, wazaari: 2, yuko: 1, decision: 1 };
+  const s = C.restore(JSON.parse(JSON.stringify(old)), 0);
+  assert.strictEqual(s.settings.scoring, 'djb');
+  assert.strictEqual(C.scoringOpts(s.settings).winPoints.ippon, 10);
+  s.settings.scoring = 'custom';
+  assert.strictEqual(C.scoringOpts(s.settings).winPoints.ippon, 3);
+  assert.strictEqual(C.createState().settings.scoring, 'djb');
+});
+
+test('Ältere Ergebnisse ohne Wertungsobjekt: Wertungen aus dem Text', () => {
+  const r = C.resultScores({ white: '1 I · 2 W', blue: '0 W · 1 Y · 2 S' });
+  assert.strictEqual(r.white.ippon, 1);
+  assert.strictEqual(r.blue.yuko, 1);
+  assert.strictEqual(r.blue.shido, 2);
+});
+
 console.log(`\n${passed} Tests bestanden`);

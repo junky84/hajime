@@ -126,6 +126,7 @@
         if (has('mat') && cellStr(row[c.mat])) f.mat = cellStr(row[c.mat]);
         if (has('at') && cellStr(row[c.at])) f.at = cellStr(row[c.at]);
         if (slot) f.slot = slot;
+        if (has('round') && cellStr(row[c.round])) f.round = cellStr(row[c.round]);
         ['white', 'blue'].forEach((s) => {
           const from = placeholder(f[s]);
           if (from) {
@@ -390,5 +391,84 @@
     return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   }
 
-  root.JudoExcel = { importFile, templateBytes, protocolBytes, winnersBytes, matBytes, _parseSheet: parseSheet };
+  /* ---------- Mannschaftskampf ---------- */
+
+  const idT = (s, p) => (p ? String(s).replace(/\{(\w+)\}/g, (m, k) => (p[k] == null ? m : p[k])) : s);
+
+  // Vorlage für die Aufstellung (lässt sich unter „Mannschaft“ wieder einlesen)
+  function teamTemplateBytes(t) {
+    t = t || idT;
+    const XLSX = root.XLSX;
+    const head = [t('Runde'), t('Gewichtsklasse'), t('Weiß Name'), t('Weiß Verein'), t('Blau Name'), t('Blau Verein')];
+    const rows = [
+      [t('Hinrunde'), '-60 kg', 'Paul Hagedorn', 'JC Mittelstadt', 'Lea Dornbusch', 'TSV Lindenau'],
+      [t('Hinrunde'), '-66 kg', 'Leon Pfisterer', 'JC Mittelstadt', '', 'TSV Lindenau'],
+      [t('Hinrunde'), '-73 kg', 'Jonas Eichhorn', 'JC Mittelstadt', 'Finn Ostermann', 'TSV Lindenau'],
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheetFrom([head].concat(rows), [12, 14, 24, 22, 24, 22]), t('Aufstellung'));
+    XLSX.utils.book_append_sheet(
+      wb,
+      sheetFrom(
+        [
+          [t('Aufstellung für den Mannschaftskampf')],
+          [''],
+          [t('Eine Zeile je Gewichtsklasse, in der Reihenfolge der Kämpfe. Leerer Name = Klasse nicht besetzt (kampfloser Sieg).')],
+          [t('Spalte „Runde“: Hinrunde oder Rückrunde (leer = Hinrunde). Die Vereinsspalten geben die Namen der Mannschaften.')],
+        ],
+        [110]
+      ),
+      t('Hinweise')
+    );
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  }
+
+  // Aufstellung aus importierten Kampfzeilen: Gewichtsklassen, Mannschaften, Durchgänge
+  function teamFromFights(fights) {
+    const legOf = (r) => (/r(ü|ue)ck|return|second|2/i.test(r || '') ? 2 : 1);
+    const out = { classes: [], white: '', blue: '', ageClass: '', legs: 1, lineup: [{ white: {}, blue: {} }, { white: {}, blue: {} }] };
+    (fights || []).forEach((f) => {
+      const cls = String(f.category || '').trim();
+      if (!cls) return;
+      const leg = legOf(f.round);
+      if (leg === 2) out.legs = 2;
+      if (!out.classes.includes(cls)) out.classes.push(cls);
+      out.lineup[leg - 1].white[cls] = (f.white && f.white.name) || '';
+      out.lineup[leg - 1].blue[cls] = (f.blue && f.blue.name) || '';
+      if (!out.white && f.white && f.white.club) out.white = f.white.club;
+      if (!out.blue && f.blue && f.blue.club) out.blue = f.blue.club;
+      if (!out.ageClass && f.ageClass) out.ageClass = f.ageClass;
+    });
+    return out;
+  }
+
+  // Ergebnisbogen der Begegnung (rows aus JudoTeam.score)
+  function teamBytes(opts) {
+    const t = opts.t || idT;
+    const XLSX = root.XLSX;
+    const sc = opts.score;
+    const team = opts.team;
+    const wName = team.white.name || t('Weiß');
+    const bName = team.blue.name || t('Blau');
+    const head = [t('Kampf'), t('Runde'), t('Klasse'), wName, bName, t('Sieger'), t('Wertung'), t('Punkte')];
+    const rows = sc.rows.map((r) => [
+      r.no,
+      r.round ? t(r.round) : '',
+      r.category,
+      (r.white && r.white.name) || t('nicht besetzt'),
+      (r.blue && r.blue.name) || t('nicht besetzt'),
+      r.winner === 'white' ? wName : r.winner === 'blue' ? bName : r.winner === 'draw' ? t('Unentschieden') : '',
+      r.winner ? (r.auto ? t('kampflos') : opts.reasonText ? opts.reasonText(r.reason) : r.reason) : r.status === 'skipped' ? t('entfällt') : '',
+      r.winner === 'white' || r.winner === 'blue' ? r.points : '',
+    ]);
+    const res = sc.winner === 'draw' ? t('Unentschieden') : sc.winner ? t('Sieger: {name}', { name: sc.winner === 'white' ? wName : bName }) : t('vorläufig ({n} von {m} Kämpfen)', { n: sc.done, m: sc.total });
+    const aoa = [[team.title || t('Mannschaftskampf')], [], head]
+      .concat(rows)
+      .concat([[], [t('Stand'), '', '', t('{wins} Siege · {points}', { wins: sc.white.wins, points: sc.white.points }), t('{wins} Siege · {points}', { wins: sc.blue.wins, points: sc.blue.points }), res]]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheetFrom(aoa, [7, 11, 12, 26, 26, 22, 26, 8]), t('Ergebnisbogen'));
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  }
+
+  root.JudoExcel = { importFile, templateBytes, protocolBytes, winnersBytes, matBytes, teamTemplateBytes, teamFromFights, teamBytes, _parseSheet: parseSheet };
 })(typeof self !== 'undefined' ? self : this);

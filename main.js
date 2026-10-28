@@ -30,6 +30,9 @@ process.on('uncaughtException', (err) => {
   }
 });
 
+// Zweite Instanz zum Testen der Vernetzung auf einem Rechner: HAJIME_USERDATA=<Ordner>
+if (process.env.HAJIME_USERDATA) app.setPath('userData', path.resolve(process.env.HAJIME_USERDATA));
+
 // Portable Windows-Version: Daten neben der .exe ablegen statt im Benutzerprofil –
 // nur wenn der Ordner beschreibbar ist (z. B. nicht direkt aus einem ZIP oder schreibgeschützten Stick).
 if (process.env.PORTABLE_EXECUTABLE_DIR) {
@@ -367,6 +370,48 @@ ipcMain.handle('save-file', async (_e, { name, bytes }) => {
   return true;
 });
 
+/* ---------- Matten im Netz ---------- */
+
+const NET = require('./hub');
+let hub = null;
+let finder = null;
+const sendControl = (ch, data) => controlWin && !controlWin.isDestroyed() && controlWin.webContents.send(ch, data);
+ipcMain.handle('hub-start', async (_e, opts) => {
+  if (hub) {
+    hub.update({ code: String(opts.code), tournament: opts.tournament || '' });
+    return { port: hub.port(), addresses: hub.addresses() };
+  }
+  const h = NET.createHub({
+    code: String(opts.code),
+    tournament: opts.tournament || '',
+    name: opts.name || require('os').hostname().replace(/\.local$/, ''),
+    version: app.getVersion(),
+    log,
+    onMat: (ev) => sendControl('hub-event', ev),
+  });
+  try {
+    const r = await h.start();
+    hub = h;
+    return r;
+  } catch (err) {
+    await h.stop();
+    throw err;
+  }
+});
+ipcMain.handle('hub-stop', async () => {
+  if (hub) await hub.stop();
+  hub = null;
+});
+ipcMain.handle('hub-send', (_e, id, msg) => (hub ? hub.send(id, msg) : false));
+ipcMain.on('hub-overview', (_e, data) => hub && hub.setOverview(data));
+ipcMain.handle('finder-start', () => {
+  if (!finder) finder = NET.createFinder((list) => sendControl('hubs-found', list), log);
+  return finder.list();
+});
+ipcMain.handle('open-external', (_e, url) => {
+  if (/^https?:\/\//.test(String(url))) shell.openExternal(url);
+});
+
 /* ---------- Start ---------- */
 
 app.on('web-contents-created', (_e, wc) => {
@@ -439,5 +484,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   quitting = true;
+  if (hub) hub.stop();
+  if (finder) finder.stop();
 });
 app.on('window-all-closed', () => app.quit());

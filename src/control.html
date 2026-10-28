@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws: wss: http:" />
     <title>Hajime – Bedienung</title>
     <link rel="icon" type="image/png" href="img/favicon.png" />
     <link rel="stylesheet" href="css/board.css" />
@@ -15,10 +15,12 @@
       <div class="brand">Hajime</div>
       <nav class="tabs">
         <button data-tab="fight" class="active">Kampf</button>
-        <button data-tab="list">Kampfliste <span class="pill" id="queueCount"></span></button>
-        <button data-tab="mats">Matten</button>
-        <button data-tab="eval">Auswertung</button>
-        <button data-tab="log">Protokoll <span class="pill" id="logCount"></span></button>
+        <button data-tab="list" data-min="standard">Kampfliste <span class="pill" id="queueCount"></span></button>
+        <button data-tab="team" data-min="standard">Mannschaft</button>
+        <button data-tab="mats" data-min="tournament">Matten <span class="net-dot" id="netDot" hidden></span></button>
+        <button data-tab="eval" data-min="tournament">Auswertung</button>
+        <button data-tab="log" data-min="standard">Protokoll <span class="pill" id="logCount"></span></button>
+        <button data-tab="training">Training</button>
         <button data-tab="settings">Einstellungen</button>
       </nav>
       <div class="boardctl">
@@ -26,9 +28,9 @@
         <select id="displaySelect" title="Bildschirm für die Anzeige"></select>
         <button id="btnBoardShow" class="btn">Anzeige öffnen</button>
         <button id="btnBoardFs" class="btn">Vollbild</button>
-        <button id="btnTable" class="btn toggle" title="Gruppentabelle der aktuellen Klasse auf der Anzeige (Taste G)">Gruppentabelle</button>
-        <button id="btnIdle" class="btn toggle" title="Pausenbild mit Turniername und nächsten Kämpfen (Taste B)">Pausenbild</button>
-        <button id="btnCall" class="btn toggle" aria-expanded="false" title="Kämpfer oben auf der Anzeige aufrufen (Taste K)">Aufruf</button>
+        <button id="btnTable" data-min="tournament" class="btn toggle" title="Gruppentabelle der aktuellen Klasse auf der Anzeige (Taste G)">Gruppentabelle</button>
+        <button id="btnIdle" data-min="standard" class="btn toggle" title="Pausenbild mit Turniername und nächsten Kämpfen (Taste B)">Pausenbild</button>
+        <button id="btnCall" data-min="tournament" class="btn toggle" aria-expanded="false" title="Kämpfer oben auf der Anzeige aufrufen (Taste K)">Aufruf</button>
       </div>
       <div class="call-pop" id="callPop" hidden>
         <div class="call-head"><b>Aufruf auf der Anzeige</b><span class="muted">Taste K: Zeile ausblenden</span></div>
@@ -40,14 +42,24 @@
       </div>
     </header>
 
+    <div class="net-banner" id="netBanner" hidden>
+      <span id="netBannerText"></span>
+      <button class="btn primary" id="btnNetBannerYes">Verbinden</button>
+      <button class="btn" id="btnNetBannerNo">Später</button>
+    </div>
+
     <main>
       <!-- ============ KAMPF ============ -->
       <section class="tab active" id="tab-fight">
+        <div class="train-banner" id="trainBanner" hidden>
+          <span>Die Anzeige zeigt gerade die Trainingsuhr. Tasten wirken auf das Training.</span>
+          <button class="btn" id="btnTrBack">Zurück zur Wettkampfanzeige</button>
+        </div>
         <div class="fight-meta">
           <label>Regelprofil <select id="profileSelect"></select></label>
-          <label>Kampf-Nr. <input id="fNo" class="w-s" /></label>
-          <label>Altersklasse <input id="fAge" class="w-m" list="dlAge" /></label>
-          <label>Gewichtsklasse <input id="fCat" class="w-m" list="dlCat" /></label>
+          <label data-min="standard">Kampf-Nr. <input id="fNo" class="w-s" /></label>
+          <label data-min="standard">Altersklasse <input id="fAge" class="w-m" list="dlAge" /></label>
+          <label data-min="standard">Gewichtsklasse <input id="fCat" class="w-m" list="dlCat" /></label>
           <span class="rules-summary" id="rulesSummary"></span>
         </div>
 
@@ -55,8 +67,8 @@
           <!-- Weiß -->
           <div class="side" data-side="white">
             <div class="side-head"><span>WEISS</span><span class="side-badge"></span></div>
-            <input class="in-name" placeholder="Name (optional)" list="dlNames" autocomplete="off" />
-            <input class="in-club" placeholder="Verein (optional)" list="dlClubs" autocomplete="off" />
+            <input class="in-name" data-min="standard" placeholder="Name (optional)" list="dlNames" autocomplete="off" />
+            <input class="in-club" data-min="standard" placeholder="Verein (optional)" list="dlClubs" autocomplete="off" />
             <div class="srows">
               <div class="srow" data-k="ippon"><span class="lbl">Ippon</span><span class="val">0</span><button class="act minus" title="Shift+Q">−</button><button class="act plus">+ <kbd>Q</kbd></button></div>
               <div class="srow" data-k="wazaari"><span class="lbl">Waza-ari</span><span class="val">0</span><button class="act minus" title="Shift+W">−</button><button class="act plus">+ <kbd>W</kbd></button></div>
@@ -102,15 +114,16 @@
             <div class="navrow">
               <button class="act" id="btnUndo">↶ Rückgängig <kbd>Strg/⌘+Z</kbd></button>
               <button class="act" id="btnReset">Kampf neu</button>
-              <button class="act primary" id="btnNext">Nächster Kampf ▸ <kbd>N</kbd></button>
+              <button class="act" id="btnDecShow" data-only="simple" title="Kampfrichterentscheidung (Hantei, Kiken-gachi …)">Entscheidung …</button>
+              <button class="act primary" id="btnNext" data-min="standard">Nächster Kampf ▸ <kbd>N</kbd></button>
             </div>
           </div>
 
           <!-- Blau -->
           <div class="side" data-side="blue">
             <div class="side-head"><span>BLAU</span><span class="side-badge"></span></div>
-            <input class="in-name" placeholder="Name (optional)" list="dlNames" autocomplete="off" />
-            <input class="in-club" placeholder="Verein (optional)" list="dlClubs" autocomplete="off" />
+            <input class="in-name" data-min="standard" placeholder="Name (optional)" list="dlNames" autocomplete="off" />
+            <input class="in-club" data-min="standard" placeholder="Verein (optional)" list="dlClubs" autocomplete="off" />
             <div class="srows">
               <div class="srow" data-k="ippon"><span class="lbl">Ippon</span><span class="val">0</span><button class="act minus" title="Shift+U">−</button><button class="act plus">+ <kbd>U</kbd></button></div>
               <div class="srow" data-k="wazaari"><span class="lbl">Waza-ari</span><span class="val">0</span><button class="act minus" title="Shift+I">−</button><button class="act plus">+ <kbd>I</kbd></button></div>
@@ -121,7 +134,7 @@
           </div>
         </div>
 
-        <details class="keys-help">
+        <details class="keys-help" data-min="standard">
           <summary>Tastenkürzel</summary>
           <div class="keys-grid">
             <div><kbd>Leertaste</kbd> Hajime / Mate (bei Gleichstand nach Zeitende: Golden Score starten)</div>
@@ -149,7 +162,7 @@
           <label class="chk"><input type="checkbox" id="noticeOpen" /> nur offene Kämpfe</label>
           <span class="grow"></span>
           <button class="btn danger" id="btnClearQueue">Kampfliste leeren</button>
-          <button class="btn danger" id="btnClearParts">Teilnehmer leeren</button>
+          <button class="btn danger" id="btnClearParts" data-min="tournament">Teilnehmer leeren</button>
         </div>
         <div class="import-msg" id="importMsg"></div>
         <div class="import-msg info" id="queueMatHint" style="display: none"></div>
@@ -176,11 +189,73 @@
             </div>
           </div>
 
-          <div class="card">
+          <div class="card" data-min="tournament">
             <h2>Teilnehmer <span class="pill" id="partCount"></span></h2>
             <p class="muted">Gruppiert nach Alters- und Gewichtsklasse (auf Wunsch auch nach Geschlecht). Das Turniersystem wird nach Gruppengröße vorgeschlagen und lässt sich je Gruppe ändern. „Kampfliste erzeugen“ lost aus (Vereinstrennung) und legt alle Paarungen an – spätere Runden als Platzhalter, die sich automatisch füllen.</p>
             <div id="partGroups"></div>
             <div class="empty" id="partEmpty">Keine Teilnehmer geladen. Namen kommen aus dem Excel-Blatt „Teilnehmer“ (oder einer Liste mit Spalte „Name“).</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ MANNSCHAFT ============ -->
+      <section class="tab" id="tab-team">
+        <div class="toolbar">
+          <label class="chk tm-active"><input type="checkbox" id="tmActive" /> Mannschaftskampf aktiv</label>
+          <span class="tool-sep"></span>
+          <button class="btn" id="btnTmImport">Aufstellung aus Excel …</button>
+          <input type="file" id="fileTm" accept=".xlsx,.xls,.xlsm,.ods,.csv" hidden />
+          <button class="btn" id="btnTmTemplate">Excel-Vorlage speichern</button>
+          <span class="grow"></span>
+          <button class="btn primary" id="btnTmPdf" title="Ergebnisbogen der Begegnung zum Ausdrucken und Unterschreiben">Ergebnisbogen drucken …</button>
+          <button class="btn" id="btnTmXlsx">Ergebnisbogen als Excel …</button>
+          <button class="btn danger" id="btnTmNew">Neue Begegnung</button>
+        </div>
+        <div class="import-msg" id="tmMsg"></div>
+        <div class="team-grid">
+          <div class="card">
+            <h2>Begegnung</h2>
+            <div class="form">
+              <label>Bezeichnung <input id="tmTitle" placeholder="z. B. Bezirksliga Männer · 4. Kampftag" /></label>
+              <label>Altersklasse (wählt das Regelprofil) <input id="tmAge" list="dlAge" placeholder="z. B. Männer" /></label>
+              <div class="row2">
+                <label>Mannschaft Weiß <input id="tmWhite" list="dlClubs" placeholder="z. B. JC Mittelstadt" /></label>
+                <label>Mannschaft Blau <input id="tmBlue" list="dlClubs" placeholder="z. B. TSV Lindenau" /></label>
+              </div>
+              <label>Gewichtsklassen in Kampfreihenfolge (mit Komma getrennt) <input id="tmClasses" /></label>
+              <div class="row2">
+                <label>Beginn mit <select id="tmStart"></select></label>
+                <label class="chk tm-legs"><input type="checkbox" id="tmLegs" /> Hin- und Rückrunde</label>
+              </div>
+            </div>
+            <h2>Wertung</h2>
+            <div class="form">
+              <div class="wp-fields">
+                <span>Unterbewertungen je Sieg</span>
+                <label>Ippon <input data-tp="ippon" type="number" min="0" max="99" class="w-xs" /></label>
+                <label>Waza-ari <input data-tp="wazaari" type="number" min="0" max="99" class="w-xs" /></label>
+                <label>Yuko <input data-tp="yuko" type="number" min="0" max="99" class="w-xs" /></label>
+                <label title="Hantei oder andere Entscheidung ohne Wertungsvorsprung">Entscheidung <input data-tp="decision" type="number" min="0" max="99" class="w-xs" /></label>
+                <label title="nicht besetzte Klasse, Fusen-gachi, Kiken-gachi, Hansoku-make">kampflos <input data-tp="forfeit" type="number" min="0" max="99" class="w-xs" /></label>
+              </div>
+              <label>Bei gleich vielen Siegen
+                <select id="tmRule">
+                  <option value="wins-points">entscheiden die Unterbewertungen</option>
+                  <option value="wins">endet die Begegnung unentschieden</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Aufstellung und Ergebnisse</h2>
+            <div class="tm-score" id="tmScore"></div>
+            <div class="table-wrap">
+              <table class="tbl tm-table" id="tmTable">
+                <thead><tr><th>Kampf</th><th>Klasse</th><th id="tmHeadW">Weiß</th><th id="tmHeadB">Blau</th><th>Ergebnis</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p class="muted">Leeres Feld = Klasse nicht besetzt: Die andere Mannschaft gewinnt kampflos. Ist der Mannschaftskampf aktiv, stehen die Einzelkämpfe in der Kampfliste, „Nächster Kampf“ geht sie der Reihe nach durch und die Anzeige zeigt den Mannschaftsstand.</p>
           </div>
         </div>
       </section>
@@ -201,6 +276,10 @@
         <div class="card" id="mpIntro" style="display: none">
           <p>Hajime verteilt die Gruppen der Kampfliste auf die Matten – jede Gruppe bleibt komplett auf einer Matte, die Auslastung richtet sich nach der erwarteten Dauer. Innerhalb einer Matte werden die Kämpfe so gemischt, dass niemand zweimal direkt hintereinander kämpft. Sind die Gruppen nach Geschlecht getrennt, bekommen Mädchen und Jungen möglichst eigene Matten – so müssen Kampfrichterinnen und Kampfrichter nicht ständig wechseln.</p>
           <p class="muted">Danach lassen sich Gruppen mit der Maus auf eine andere Matte ziehen. „Excel je Matte“ speichert pro Matte eine Datei (Matte-1.xlsx …), die am Rechner der Matte importiert wird – die Matte stellt sich dabei automatisch ein.</p>
+        </div>
+        <div class="card net-card" id="netCard">
+          <div class="eval-head"><h2>Matten im Netz</h2><span class="pill" id="netMatCount"></span><span class="grow"></span><span class="muted" id="netCardInfo"></span><button class="btn" id="btnNetOverview" title="Übersicht aller Matten im Browser öffnen (auch auf Fernseher oder Tablet)">Übersicht im Browser</button></div>
+          <div class="net-mats" id="netMats"></div>
         </div>
         <div class="mats-grid" id="mpGrid"></div>
         <div class="empty" id="mpEmpty">Noch keine Kämpfe. Erst unter „Kampfliste“ Teilnehmer importieren und Kampflisten erzeugen.</div>
@@ -249,14 +328,67 @@
         </div>
       </section>
 
+      <!-- ============ TRAINING ============ -->
+      <section class="tab" id="tab-training">
+        <div class="train-grid">
+          <div class="card">
+            <h2>Vorlage</h2>
+            <div class="prof-bar">
+              <select id="trTplSelect" title="Vorlage laden"></select>
+              <button class="btn" id="btnTrSave" title="Änderungen in dieser Vorlage speichern">Speichern</button>
+              <button class="btn" id="btnTrNew" title="Als neue Vorlage speichern">Als neue Vorlage</button>
+              <button class="btn danger" id="btnTrDel">Löschen</button>
+            </div>
+            <div class="form">
+              <label>Name <input id="trName" /></label>
+              <div class="row3">
+                <label>Runde (m:ss) <input id="trRound" class="w-s" /></label>
+                <label>Pause (m:ss, 0 = keine) <input id="trPause" class="w-s" /></label>
+                <label>Runden <input id="trRounds" type="number" min="1" max="99" class="w-s" /></label>
+              </div>
+              <label>Hinweis während der Runde <input id="trRoundNote" placeholder="z. B. Start in Bodenlage" /></label>
+              <label>Hinweis während der Pause <input id="trPauseNote" placeholder="z. B. Partnerwechsel" /></label>
+              <label class="chk"><input type="checkbox" id="trSignal" /> nur Signalton, kein Gong</label>
+              <p class="muted">Gong bei Rundenbeginn und -ende, kurzer Signalton 10 s vor Rundenende. Farben auf der Anzeige: grün = Runde, gelb = letzte 10 Sekunden, blau = Pause.</p>
+            </div>
+          </div>
+          <div class="card train-run">
+            <div class="preview-wrap"><div id="trPreview"></div></div>
+            <button class="act big hajime" id="btnTrStart">Start <kbd>Leertaste</kbd></button>
+            <div class="train-btns">
+              <button class="act" id="btnTrPrev">◂ Runde zurück</button>
+              <button class="act" id="btnTrReset">Zurücksetzen</button>
+              <button class="act" id="btnTrNext">Weiter ▸</button>
+            </div>
+            <button class="btn toggle" id="btnTrBoard">Trainingsuhr auf der Anzeige</button>
+            <p class="muted">„Start“ schaltet die Anzeige auf die Trainingsuhr. Solange sie zu sehen ist, startet und pausiert die Leertaste das Training; ← / → wechseln die Runde.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- ============ EINSTELLUNGEN ============ -->
       <section class="tab" id="tab-settings">
         <div class="settings-grid">
           <div class="card">
+            <h2>Bedienung</h2>
+            <div class="form">
+              <label>Umfang
+                <select id="sLevel">
+                  <option value="simple">Einfach – nur Anzeigetafel</option>
+                  <option value="standard">Standard – Kämpfe mit Namen</option>
+                  <option value="tournament">Turnier – alle Funktionen</option>
+                </select>
+              </label>
+              <p class="muted" id="levelInfo"></p>
+              <div class="row2">
+                <label>Sprache der Bedienung <select id="sLangControl" class="lang-select"></select></label>
+                <label>Sprache der Anzeige <select id="sLangBoard" class="lang-select"></select></label>
+              </div>
+            </div>
             <h2>Anzeige</h2>
             <div class="form">
               <label>Turniername <input id="sTournament" placeholder="z. B. Bezirksmeisterschaft U13" /></label>
-              <label>Matte <input id="sMat" placeholder="Matte 1" /></label>
+              <label data-min="standard">Matte <input id="sMat" placeholder="Matte 1" /></label>
               <div class="logo-row">
                 <span>Logo</span>
                 <img id="sLogoPreview" alt="" />
@@ -264,9 +396,9 @@
                 <button class="btn" id="btnLogoRemove">Entfernen</button>
                 <input type="file" id="fileLogo" accept="image/*" hidden />
               </div>
-              <label class="chk"><input type="checkbox" id="sShowClub" /> Verein anzeigen</label>
-              <label class="chk"><input type="checkbox" id="sShowNext" /> nächsten Kampf unten einblenden</label>
-              <label>Größe „Nächster Kampf“
+              <label class="chk" data-min="standard"><input type="checkbox" id="sShowClub" /> Verein anzeigen</label>
+              <label class="chk" data-min="standard"><input type="checkbox" id="sShowNext" /> nächsten Kampf unten einblenden</label>
+              <label data-min="standard">Größe „Nächster Kampf“
                 <select id="sNextSize">
                   <option value="small">Klein (eine Zeile)</option>
                   <option value="large">Groß (zweizeilig)</option>
@@ -287,6 +419,32 @@
                 </select>
               </label>
               <div><button class="btn" id="btnTestSound">Gong testen</button></div>
+            </div>
+            <div data-min="tournament">
+              <h2>Matten im Netz</h2>
+              <div class="form">
+                <label>Dieser Rechner
+                  <select id="netRole">
+                    <option value="">nicht vernetzt</option>
+                    <option value="mat">Matte – meldet sich bei der Zentrale</option>
+                    <option value="hub">Zentrale – sammelt die Ergebnisse aller Matten</option>
+                  </select>
+                </label>
+                <div id="netMatBox">
+                  <div id="netFound" class="net-found"></div>
+                  <div class="row2">
+                    <label>Adresse der Zentrale <input id="netAddress" placeholder="z. B. 192.168.1.20" autocomplete="off" /></label>
+                    <label>Turniercode <input id="netCode" placeholder="4 Ziffern" maxlength="8" autocomplete="off" inputmode="numeric" /></label>
+                  </div>
+                  <div class="btnrow"><button class="btn primary" id="btnNetConnect">Verbinden</button><button class="btn" id="btnNetDisconnect">Trennen</button></div>
+                </div>
+                <div id="netHubBox">
+                  <div class="net-code"><span>Turniercode</span><b id="netHubCode">–</b><button class="btn" id="btnNetNewCode" title="Neuen Code erzeugen – verbundene Matten müssen ihn neu eingeben">Neuer Code</button></div>
+                  <p class="muted" id="netHubAddr"></p>
+                </div>
+                <p class="net-status" id="netStatus"></p>
+                <p class="muted">Alle Rechner müssen im selben Netz sein. Hallen- und Gäste-WLANs blockieren oft die Verbindung zwischen Geräten – dann einen eigenen Router oder einen Handy-Hotspot nutzen. macOS fragt beim ersten Mal nach „Lokales Netzwerk“ bzw. eingehenden Verbindungen, Windows nach der Firewall: jeweils erlauben.</p>
+              </div>
             </div>
             <h2>Daten</h2>
             <div class="form">
@@ -340,22 +498,32 @@
             </div>
           </div>
 
-          <div class="card">
+          <div class="card" data-min="tournament">
             <h2>Auswertung</h2>
             <div class="form">
-              <div class="wp-fields">
-                <span>Wertungspunkte je Sieg</span>
-                <label>Ippon <input data-wp="ippon" type="number" min="0" max="99" class="w-xs" /></label>
-                <label>Waza-ari <input data-wp="wazaari" type="number" min="0" max="99" class="w-xs" /></label>
-                <label>Yuko <input data-wp="yuko" type="number" min="0" max="99" class="w-xs" /></label>
-                <label title="Hantei, Shido oder andere Entscheidung ohne höhere Wertung">Entscheidung <input data-wp="decision" type="number" min="0" max="99" class="w-xs" /></label>
-              </div>
-              <label>Bei gleich vielen Siegen entscheidet
-                <select id="sRankOrder">
-                  <option value="points">zuerst die Wertungspunkte, dann der direkte Vergleich</option>
-                  <option value="direct">zuerst der direkte Vergleich, dann die Wertungspunkte</option>
+              <label>Punkteschema der Gruppentabellen
+                <select id="sScoring">
+                  <option value="djb">DJB (Standard)</option>
+                  <option value="ijf">IJF</option>
+                  <option value="custom">Eigene Werte</option>
                 </select>
               </label>
+              <p class="muted" id="scoringInfo"></p>
+              <div id="customScoring">
+                <div class="wp-fields">
+                  <span>Wertungspunkte je Sieg</span>
+                  <label>Ippon <input data-wp="ippon" type="number" min="0" max="99" class="w-xs" /></label>
+                  <label>Waza-ari <input data-wp="wazaari" type="number" min="0" max="99" class="w-xs" /></label>
+                  <label>Yuko <input data-wp="yuko" type="number" min="0" max="99" class="w-xs" /></label>
+                  <label title="Hantei, Shido oder andere Entscheidung ohne höhere Wertung">Entscheidung <input data-wp="decision" type="number" min="0" max="99" class="w-xs" /></label>
+                </div>
+                <label>Bei gleich vielen Siegen entscheidet
+                  <select id="sRankOrder">
+                    <option value="points">zuerst die Wertungspunkte, dann der direkte Vergleich</option>
+                    <option value="direct">zuerst der direkte Vergleich, dann die Wertungspunkte</option>
+                  </select>
+                </label>
+              </div>
               <p class="muted">Bleibt es gleich (z. B. drei Kämpfer im Kreis), markiert Hajime „Stichkampf nötig“. Stichkämpfe legt die Auswertung an; sie zählen nicht als Siege.</p>
             </div>
             <h2>Turniersysteme</h2>
@@ -420,7 +588,29 @@
       </div>
     </dialog>
 
-    <!-- Aufrufbildschirm -->
+    <!-- Turniercode für die Verbindung zur Zentrale -->
+    <dialog id="dlgNetCode">
+      <form method="dialog">
+        <h3>Mit der Zentrale verbinden</h3>
+        <p class="muted" id="dlgNetCodeInfo"></p>
+        <label>Turniercode (steht an der Zentrale unter Einstellungen) <input id="dlgNetCodeVal" maxlength="8" inputmode="numeric" autocomplete="off" /></label>
+        <label>Diese Matte <input id="dlgNetMat" placeholder="Matte 1" autocomplete="off" /></label>
+        <div class="btnrow"><button value="cancel" class="btn">Abbrechen</button><button value="ok" class="btn primary">Verbinden</button></div>
+      </form>
+    </dialog>
+
+    <!-- Erster Start: Umfang wählen -->
+    <dialog id="dlgLevel" class="level-dlg">
+      <h3>Wie möchtest du Hajime nutzen?</h3>
+      <p class="muted">Das lässt sich jederzeit unter Einstellungen → Bedienung ändern. Dabei geht nichts verloren.</p>
+      <div class="level-opts">
+        <button type="button" class="level-opt" data-level="simple"><b>Einfach</b><span>Nur Anzeigetafel: Uhr, Wertungen, Shido und Osaekomi. Ohne Namen und Listen.</span></button>
+        <button type="button" class="level-opt" data-level="standard"><b>Standard</b><span>Kämpfe mit Namen: Kampfliste, Excel-Import, Mannschaftskampf, Aushang und Protokoll.</span></button>
+        <button type="button" class="level-opt" data-level="tournament"><b>Turnier</b><span>Alles: Turniersysteme, Matten, Vernetzung, Auswertung, Urkunden und Aufruf.</span></button>
+      </div>
+      <label class="level-lang">Sprache / Language <select id="dlgLevelLang" class="lang-select"></select></label>
+    </dialog>
+
 
     <datalist id="dlNames"></datalist>
     <datalist id="dlClubs"></datalist>
@@ -428,10 +618,15 @@
     <datalist id="dlCat"></datalist>
 
     <script src="vendor/xlsx.full.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="lang/en.js"></script>
     <script src="js/core.js"></script>
     <script src="js/brackets.js"></script>
     <script src="js/mats.js"></script>
     <script src="js/bracketview.js"></script>
+    <script src="js/training.js"></script>
+    <script src="js/team.js"></script>
+    <script src="js/net.js"></script>
     <script src="js/sound.js"></script>
     <script src="js/render.js"></script>
     <script src="js/transport.js"></script>
