@@ -22,6 +22,10 @@ module.exports = async function run({ getControl, getBoard, quit }) {
     await wait(700);
     // echte Monitornamen des Rechners nicht in die öffentlichen Bilder übernehmen
     if (win === ctl) {
+      // offene Dialoge nur dort, wo sie gezeigt werden sollen (sonst verdecken sie die Bedienung)
+      const allowed = { 'bedienung-start': 'dlgLevel', 'bedienung-ruhezeit': 'dlgRest' };
+      const open = await ctl.webContents.executeJavaScript(`Array.from(document.querySelectorAll('dialog[open]')).map((d) => d.id).join(',')`);
+      if (open && open !== allowed[name]) throw new Error(`Screenshot ${name}: Dialog offen (${open})`);
       await ctl.webContents.executeJavaScript(
         `document.querySelectorAll('#displaySelect option').forEach((o, i) => (o.textContent = 'Bildschirm ' + (i + 1) + ': 1920×1080' + (i ? ' (Anzeige)' : ' (Haupt, Bedienung)')))`
       );
@@ -304,6 +308,8 @@ module.exports = async function run({ getControl, getBoard, quit }) {
 
   // Erster Start: Abfrage des Umfangs
   await js(`
+    __judo.state.settings.level = '';
+    __judo.commit();
     document.querySelector('.tabs button[data-tab="fight"]').click();
     document.getElementById('dlgLevel').showModal();
   `);

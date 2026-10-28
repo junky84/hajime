@@ -2710,6 +2710,8 @@
   function renderLevel() {
     const lv = state.settings.level || 'tournament';
     C.LEVELS.forEach((l) => document.body.classList.toggle('lvl-' + l, l === lv));
+    // Umfang steht fest (gewählt oder per Sicherung geladen): Abfrage schließen
+    if (state.settings.level && $('#dlgLevel').open) $('#dlgLevel').close();
     $('#levelInfo').textContent = t(LEVEL_INFO[lv]);
     // ausgeblendeter Reiter offen? Dann zurück zum Kampf
     const active = $('.tabs button.active');
