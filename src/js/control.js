@@ -1558,8 +1558,9 @@
   function sendFree() {
     if (!freeText()) return;
     setCall([], freeText());
+    // Auswahl bleibt offen; Fokus raus aus dem Feld, damit die Tastenkürzel wieder gehen
     $('#callMsg').blur();
-    openCall(false);
+    $('#btnCallSend').blur();
   }
   $('#callMsg').addEventListener('input', updateSend);
   $('#callMsg').addEventListener('keydown', (e) => {
