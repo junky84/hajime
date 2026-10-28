@@ -108,8 +108,6 @@
         // Turniersysteme: Vorschlag nach Gruppengröße
         systems: { bo3: true, rrMax: 5, poolMax: 8 },
         splitGender: false, // Gruppen nach Geschlecht trennen
-        // Aufrufbildschirm
-        callRows: 6,
       },
       profiles,
       activeProfileId: active.id,
@@ -121,7 +119,8 @@
       brackets: [], // Turniersysteme je Gruppe (siehe brackets.js)
       groupSystems: {}, // gewähltes System je Teilnehmergruppe, bevor die Kampfliste erzeugt ist
       matPlan: { active: false, count: 2, start: '09:00', extra: 60, assign: {} },
-      callMessage: '', // Aufrufzeile auf dem Aufrufbildschirm
+      callMessage: '', // Aufrufzeile oben auf der Anzeige (leer = aus)
+      callPicks: [], // ausgewählte Kämpfer für die Aufrufzeile
       log: [],
       savedAt: 0,
     };
@@ -489,6 +488,9 @@
     if (!s.groupSystems || typeof s.groupSystems !== 'object') s.groupSystems = {};
     s.matPlan = Object.assign({}, base.matPlan, s.matPlan);
     if (typeof s.callMessage !== 'string') s.callMessage = '';
+    if (!Array.isArray(s.callPicks)) s.callPicks = [];
+    delete s.settings.callRows;
+    if (!['board', 'idle', 'table'].includes(s.screen)) s.screen = 'board'; // früherer Aufrufbildschirm
     if (!Array.isArray(s.profiles) || !s.profiles.length) s.profiles = clone(DEFAULT_PROFILES);
     // Profile aus älteren Versionen: fehlende Felder ergänzen, Ruhezeit der Standardprofile übernehmen
     s.profiles = s.profiles.map((p) => {

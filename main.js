@@ -6,7 +6,6 @@ const fs = require('fs');
 const isMac = process.platform === 'darwin';
 let controlWin = null;
 let boardWin = null;
-let callWin = null; // Aufrufbildschirm (optional, dritter Bildschirm)
 let lastView = null;
 let quitting = false;
 
@@ -114,8 +113,6 @@ function sendBoardStatus() {
   if (!controlWin || controlWin.isDestroyed()) return;
   const open = !!boardWin && !boardWin.isDestroyed();
   controlWin.webContents.send('board-status', { open, fullscreen: open && boardIsFullscreen() });
-  const callOpen = !!callWin && !callWin.isDestroyed();
-  controlWin.webContents.send('call-status', { open: callOpen, fullscreen: callOpen && isFullscreen(callWin) });
 }
 
 function targetDisplay(displayId) {
@@ -197,59 +194,6 @@ function createBoard(displayId) {
   });
 }
 
-// Aufrufbildschirm: gleiche Seite wie die Anzeige, aber im Aufruf-Modus (ohne Ton)
-function placeCall(displayId) {
-  const all = screen.getAllDisplays();
-  const ctrl = controlWin ? screen.getDisplayMatching(controlWin.getBounds()) : screen.getPrimaryDisplay();
-  const d = all.find((x) => x.id === displayId);
-  const apply = () => {
-    if (d && d.id !== ctrl.id) {
-      callWin.setBounds(d.bounds);
-      setFullscreen(callWin, true);
-    } else {
-      const wa = ctrl.workArea;
-      const w = Math.min(1100, Math.round(wa.width * 0.5));
-      callWin.setBounds({ x: wa.x + 40, y: wa.y + 60, width: w, height: Math.round((w * 9) / 16) });
-    }
-    sendBoardStatus();
-  };
-  if (isFullscreen(callWin)) {
-    setFullscreen(callWin, false);
-    setTimeout(apply, isMac ? 400 : 150);
-  } else apply();
-}
-
-function createCall(displayId) {
-  if (callWin && !callWin.isDestroyed()) {
-    placeCall(displayId);
-    callWin.showInactive();
-    return;
-  }
-  callWin = new BrowserWindow({
-    width: 1280,
-    height: 720,
-    show: false,
-    title: 'Hajime – Aufruf',
-    backgroundColor: '#000000',
-    autoHideMenuBar: true,
-    fullscreenable: true,
-    webPreferences: webPrefs,
-  });
-  callWin.setMenuBarVisibility(false);
-  callWin.loadFile(path.join(__dirname, 'src', 'board.html'), { query: { mode: 'call' } });
-  whenShowable(callWin, 'Aufruf', () => {
-    placeCall(displayId);
-    callWin.showInactive();
-    if (controlWin && !controlWin.isDestroyed()) controlWin.focus();
-  });
-  callWin.on('enter-full-screen', sendBoardStatus);
-  callWin.on('leave-full-screen', sendBoardStatus);
-  callWin.on('closed', () => {
-    callWin = null;
-    sendBoardStatus();
-  });
-}
-
 function createControl() {
   const primary = screen.getPrimaryDisplay().workArea;
   controlWin = new BrowserWindow({
@@ -284,7 +228,6 @@ function createControl() {
   controlWin.on('closed', () => {
     controlWin = null;
     if (boardWin && !boardWin.isDestroyed()) boardWin.destroy();
-    if (callWin && !callWin.isDestroyed()) callWin.destroy();
     app.quit();
   });
   // Links nie im App-Fenster öffnen
@@ -332,7 +275,6 @@ function buildMenu() {
       submenu: [
         { label: 'Anzeige öffnen', click: () => createBoard() },
         { label: 'Anzeige Vollbild an/aus', accelerator: 'CmdOrCtrl+F', click: () => setBoardFullscreen(!boardIsFullscreen()) },
-        { label: 'Aufruf-Fenster öffnen', click: () => createCall() },
         { type: 'separator' },
         { role: 'toggleDevTools', label: 'Entwicklerwerkzeuge' },
       ],
@@ -347,7 +289,6 @@ function buildMenu() {
 ipcMain.on('view', (_e, v) => {
   lastView = v;
   if (boardWin && !boardWin.isDestroyed()) boardWin.webContents.send('view', v);
-  if (callWin && !callWin.isDestroyed()) callWin.webContents.send('view', v);
 });
 ipcMain.on('board-ready', (e) => {
   if (lastView) e.sender.send('view', lastView);
@@ -382,7 +323,7 @@ ipcMain.handle('save-pdf', async (_e, { name, html, size, landscape }) => {
   }
 });
 ipcMain.handle('board-show', (_e, opts) => createBoard(opts && opts.displayId));
-// Vollbild: aus der Bedienung für die Anzeige, aus Anzeige/Aufruf für das eigene Fenster
+// Vollbild: aus der Bedienung oder der Anzeige gilt es immer für die Anzeige
 const fsTarget = (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);
   return w && w !== controlWin ? w : boardWin;
@@ -392,8 +333,6 @@ ipcMain.handle('board-fullscreen-toggle', (e) => {
   setFullscreen(w, !isFullscreen(w));
 });
 ipcMain.handle('board-fullscreen', (e, flag) => setFullscreen(fsTarget(e), !!flag));
-ipcMain.handle('call-show', (_e, opts) => createCall(opts && opts.displayId));
-ipcMain.handle('call-close', () => callWin && !callWin.isDestroyed() && callWin.close());
 ipcMain.handle('save-files', async (_e, files) => {
   const res = await dialog.showOpenDialog(controlWin, {
     title: 'Ordner für die Dateien wählen',

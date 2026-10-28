@@ -73,19 +73,71 @@
       .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }));
   }
 
-  // Gleichmäßig verteilen: größte Gruppen zuerst auf die am wenigsten belastete Matte
-  function distribute(groups, count) {
-    const load = new Array(count).fill(0);
-    const assign = {};
+  // LPT: größte Gruppen zuerst auf die am wenigsten belastete der erlaubten Matten
+  function lpt(groups, mats, load, assign) {
     groups
       .slice()
       .sort((a, b) => b.durSec - a.durSec || a.label.localeCompare(b.label, 'de', { numeric: true }))
       .forEach((g) => {
-        let best = 0;
-        for (let i = 1; i < count; i++) if (load[i] < load[best]) best = i;
+        let best = mats[0];
+        mats.forEach((i) => load[i] < load[best] && (best = i));
         assign[g.key] = best;
         load[best] += g.durSec;
       });
+  }
+  const sexOf = (g) => (g.gender === 'm' || g.gender === 'w' ? g.gender : '');
+  const range = (a, b) => Array.from({ length: b - a }, (_, i) => a + i);
+
+  /*
+   * Gleichmäßig verteilen. Sind die Gruppen nach Geschlecht getrennt, bekommen
+   * Jungen/Männer und Mädchen/Frauen möglichst eigene Matten (wegen der
+   * Kampfrichter). Nur wenn das deutlich länger dauern würde, kommen einzelne
+   * Gruppen ans Ende einer Matte des anderen Geschlechts.
+   */
+  function distribute(groups, count) {
+    const all = range(0, count);
+    const mixed = () => {
+      const load = new Array(count).fill(0);
+      const assign = {};
+      lpt(groups, all, load, assign);
+      return { assign, load };
+    };
+    const w = groups.filter((g) => sexOf(g) === 'w');
+    const m = groups.filter((g) => sexOf(g) === 'm');
+    if (count < 2 || !w.length || !m.length) return mixed().assign;
+    const rest = groups.filter((g) => !sexOf(g));
+    const sum = (gs) => gs.reduce((a, g) => a + g.durSec, 0);
+    // Matten zuerst den Mädchen (vorne), dann den Jungen – Aufteilung mit der kürzesten Gesamtdauer
+    let best = null;
+    for (let k = 1; k < count; k++) {
+      const load = new Array(count).fill(0);
+      const assign = {};
+      lpt(w, range(0, k), load, assign);
+      lpt(m, range(k, count), load, assign);
+      lpt(rest, all, load, assign);
+      const span = Math.max(...load);
+      const ratio = Math.abs(k / count - sum(w) / Math.max(1, sum(w) + sum(m)));
+      if (!best || span < best.span - 1 || (Math.abs(span - best.span) <= 1 && ratio < best.ratio)) best = { k, load, assign, span, ratio };
+    }
+    // deutlich länger als gemischt? Dann einzelne Gruppen hinüber, bis es passt
+    const target = Math.max(...mixed().load) * 1.15;
+    const { load, assign } = best;
+    const byKey = new Map(groups.map((g) => [g.key, g]));
+    for (let guard = 0; guard < groups.length && Math.max(...load) > target; guard++) {
+      const from = load.indexOf(Math.max(...load));
+      const to = load.indexOf(Math.min(...load));
+      const cands = Object.keys(assign)
+        .filter((key) => assign[key] === from)
+        .map((key) => byKey.get(key))
+        .filter((g) => load[to] + g.durSec < load[from]);
+      if (!cands.length) break;
+      // die Gruppe, nach der beide Matten am ausgeglichensten sind
+      cands.sort((a, b) => Math.abs(load[from] - 2 * a.durSec - load[to]) - Math.abs(load[from] - 2 * b.durSec - load[to]));
+      const g = cands[0];
+      assign[g.key] = to;
+      load[from] -= g.durSec;
+      load[to] += g.durSec;
+    }
     return assign;
   }
 
@@ -105,13 +157,40 @@
       if (Number.isInteger(i) && i >= 0 && i < plan.count) place(g, i);
       else rest.push(g);
     });
+    // neue Gruppen: möglichst auf eine Matte mit demselben Geschlecht, dort die leerste
+    const sexDur = (m, x) => m.groups.reduce((a, g) => a + (sexOf(g) === x ? g.durSec || 1 : 0), 0);
     rest
       .sort((a, b) => b.durSec - a.durSec)
       .forEach((g) => {
-        let best = 0;
-        for (let i = 1; i < mats.length; i++) if (mats[i].durSec < mats[best].durSec) best = i;
-        place(g, best);
+        const x = sexOf(g);
+        const y = x === 'm' ? 'w' : 'm';
+        let pool = x ? mats.filter((m) => sexDur(m, x) > sexDur(m, y)) : [];
+        if (!pool.length) pool = mats;
+        let best = pool[0];
+        pool.forEach((m) => m.durSec < best.durSec && (best = m));
+        place(g, best.index);
       });
+    /*
+     * Geschlecht je Matte. Auf einer gemischten Matte kommt das Geschlecht mit
+     * weniger Kämpfen insgesamt zuerst – dessen Kampfrichter sind dann früh fertig.
+     */
+    const split = groups.some((g) => sexOf(g) === 'w') && groups.some((g) => sexOf(g) === 'm');
+    const totalOf = (x) => groups.reduce((a, g) => a + (sexOf(g) === x ? g.durSec || 1 : 0), 0);
+    const minority = totalOf('w') <= totalOf('m') ? 'w' : 'm';
+    mats.forEach((m) => {
+      m.gender = '';
+      m.then = '';
+      m.mixed = false;
+      if (!split) return;
+      const dur = { m: 0, w: 0 };
+      m.groups.forEach((g) => sexOf(g) && (dur[sexOf(g)] += g.durSec || 1));
+      if (!dur.m && !dur.w) return;
+      m.mixed = dur.m > 0 && dur.w > 0;
+      m.gender = m.mixed ? minority : dur.w ? 'w' : 'm';
+      m.then = m.mixed ? (minority === 'w' ? 'm' : 'w') : '';
+      const rank = (g) => (sexOf(g) === m.gender ? 0 : sexOf(g) ? 2 : 1);
+      m.groups = m.groups.map((g, i) => [g, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map((x) => x[0]);
+    });
     const start = parseHM(plan.start);
     const total = mats.reduce((a, m) => a + m.durSec, 0);
     const avg = total / plan.count;
@@ -143,14 +222,19 @@
       return false;
     };
     while (rest.length) {
+      // Geschlechterwechsel ist eine harte Grenze: nicht über ihn hinweg mischen
+      const sex = rest[0].sex || '';
+      const same = (x) => (x.sex || '') === sex;
       const groups = [];
-      rest.forEach((x) => groups.length < 2 && !groups.includes(x.group) && groups.push(x.group));
+      rest.forEach((x) => groups.length < 2 && same(x) && !groups.includes(x.group) && groups.push(x.group));
       let cands = rest.filter((x) => groups.includes(x.group) && ready(x));
+      if (!cands.length) cands = rest.filter((x) => same(x) && ready(x));
       if (!cands.length) cands = rest.filter(ready);
       if (!cands.length) cands = [rest[0]];
       const last = out[out.length - 1];
       const prev = out[out.length - 2];
-      const wide = rest.filter(ready);
+      let wide = rest.filter((x) => same(x) && ready(x));
+      if (!wide.length) wide = rest.filter(ready);
       const pick =
         cands.find((x) => !clash(x, last) && !clash(x, prev)) ||
         cands.find((x) => !clash(x, last)) ||
@@ -180,6 +264,9 @@
       for (const k of order) {
         const x = out[k];
         if (clash(x, out[i - 1]) || clash(x, out[i])) continue;
+        // nicht über einen Geschlechterwechsel verschieben
+        const sx = x.sex || '';
+        if ((out[i - 1].sex || '') !== sx || (out[i].sex || '') !== sx) continue;
         // Lücke an der alten Stelle darf keine neue Doppelung erzeugen
         if (k > 0 && k < out.length - 1 && clash(out[k - 1], out[k + 1])) continue;
         // Reihenfolge der Abhängigkeiten wahren
@@ -213,7 +300,7 @@
       const done = entries.filter((e) => e.status === 'done');
       const items = entries
         .filter((e) => e.status !== 'done')
-        .map((e) => Object.assign({ id: e.id, group: C.groupKey(e), entry: e }, B.entryInfo(state, e, cache)));
+        .map((e) => Object.assign({ id: e.id, group: C.groupKey(e), sex: e.gender === 'm' || e.gender === 'w' ? e.gender : '', entry: e }, B.entryInfo(state, e, cache)));
       const ordered = done.concat(schedule(items).map((x) => x.entry));
       let t = L.start;
       const per = new Map(m.groups.map((g) => [g.key, g.perSec]));

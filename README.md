@@ -19,7 +19,7 @@ Fertig. Keine Anmeldung, kein Internet, keine Namen nötig. Die Kampfzeit und di
 | nur Uhr und Punkte zeigen | **nichts weiter** – siehe oben |
 | Namen und Vereine auf der Anzeige | die Namensfelder in der Ansicht *Kampf* (einfach hineinschreiben) |
 | eine vorbereitete Kampfliste abarbeiten | den Reiter *Kampfliste* mit **Excel-Import** ([Vorlage](#excel-import)) |
-| ein ganzes Turnier mit Platzierungen, Urkunden, mehreren Matten | *Auswertung*, *Matten*, Turniersysteme und Aufrufbildschirm ([ab hier](#auswertung-und-siegerehrung)) |
+| ein ganzes Turnier mit Platzierungen, Urkunden, mehreren Matten | *Auswertung*, *Matten* und Turniersysteme ([ab hier](#auswertung-und-siegerehrung)) |
 
 Was du nicht brauchst, kannst du ignorieren – es stört den Kampf nicht. Ein einfacher Modus, der ungenutzte Bereiche ganz ausblendet, ist [geplant](https://github.com/junky84/hajime/issues/18).
 
@@ -42,8 +42,7 @@ Was du nicht brauchst, kannst du ignorieren – es stört den Kampf nicht. Ein e
 **Optional: Turnier**
 
 - **Turniersysteme:** Best of Three, Jeder gegen jeden, Doppel-Pool und K.-o. mit Trostrunde – nach Gruppengröße vorgeschlagen, mit Vereinstrennung, Sieger rücken automatisch weiter
-- **Mehrere Matten:** Gruppen gleichmäßig verteilen und pro Matte als Excel exportieren
-- **Aufrufbildschirm** für Aufwärmbereich und Hallenrand mit freier Aufrufzeile
+- **Mehrere Matten:** Gruppen gleichmäßig verteilen, Mädchen und Jungen möglichst auf eigenen Matten, pro Matte als Excel exportieren
 - Gruppen auf Wunsch **nach Geschlecht getrennt**
 - **Gruppentabellen und Turnierbäume** mit automatischer Platzierung, auch groß auf der Anzeige
 - **Siegerliste und Urkunden** als PDF (Siegerliste auch als Excel)
@@ -60,8 +59,8 @@ Was du nicht brauchst, kannst du ignorieren – es stört den Kampf nicht. Ein e
 | ![Anzeige Golden Score](docs/screenshots/anzeige-golden-score.png) | ![Pausenbild](docs/screenshots/anzeige-pausenbild.png) |
 | **Gruppentabelle** (Taste `G`) | **Turnierbaum** K.-o. mit Trostrunde |
 | ![Gruppentabelle](docs/screenshots/anzeige-gruppentabelle.png) | ![Turnierbaum](docs/screenshots/anzeige-turnierbaum.png) |
-| **Aufrufbildschirm** (eigenes Fenster) | |
-| ![Aufrufbildschirm](docs/screenshots/anzeige-aufruf.png) | |
+| **Aufrufzeile** oben auf der Anzeige (Taste `K`) | |
+| ![Aufrufzeile](docs/screenshots/anzeige-aufruf.png) | |
 
 **Bedienfenster** (Laptop)
 
@@ -137,6 +136,7 @@ Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
 | `N` | Nächster Kampf |
 | `B` | Pausenbild (Turniername, Logo, nächste Kämpfe) an/aus |
 | `G` | Gruppentabelle der aktuellen Klasse an/aus |
+| `K` | Kämpfer aufrufen (Auswahl öffnen) bzw. Aufrufzeile ausblenden |
 
 Im Anzeigefenster: Doppelklick oder `F` = Vollbild an/aus.
 
@@ -189,17 +189,24 @@ Im Reiter *Kampfliste* bekommt jede Teilnehmergruppe ein System, vorgeschlagen n
 Im Reiter *Matten*: Anzahl der Matten, Beginn und Zuschlag je Kampf eingeben, *Verteilen*.
 
 - Jede Gruppe bleibt komplett auf einer Matte; verteilt wird nach der erwarteten Dauer (Kämpfe × (Kampfzeit aus dem Regelprofil + Zuschlag)), damit alle Matten etwa gleich lang brauchen.
+- Sind die Gruppen **nach Geschlecht getrennt**, bekommen Mädchen und Jungen möglichst eigene Matten – Kampfrichterinnen und Kampfrichter müssen dann nicht ständig die Matte wechseln. Nur wenn das deutlich länger dauern würde, kommen einzelne Gruppen ans Ende einer Matte (über der Matte steht dann z. B. „weiblich, danach männlich“).
 - Gruppen lassen sich mit der Maus auf eine andere Matte ziehen.
 - Innerhalb einer Matte mischt Hajime die Kämpfe so, dass niemand zweimal direkt hintereinander kämpft; spätere K.-o.-Runden kommen immer nach ihren Vorkämpfen. Jede Matte bekommt eigene Kampfnummern und eine ungefähre Uhrzeit.
 - *Excel je Matte exportieren* speichert `Matte-1.xlsx`, `Matte-2.xlsx` … im Import-Format. Am Rechner der Matte importiert, stellt sich die Matte automatisch ein und Sieger rücken auch dort automatisch weiter (Blatt „Turniersystem“).
 - *Aushänge drucken* erzeugt die Kampfreihenfolge je Matte.
 
-### Aufrufbildschirm
+### Kämpfer aufrufen
 
-*Aufruf …* oben rechts öffnet ein zusätzliches Fenster für Aufwärmbereich oder Hallenrand (dritter Bildschirm, zweiter Beamer) – oder zeigt den Aufruf statt des Kampfes auf der Anzeige.
+Fehlt ein Kämpfer an der Matte, *Aufruf* oben rechts klicken (oder Taste `K`):
 
-- Der laufende Kampf, wer sich bereitmachen soll und die folgenden Kämpfe mit „in 2 Kämpfen“ usw. – bewusst ohne Uhrzeiten.
-- Eine freie **Aufrufzeile** („Mia Kaltenbach bitte zur Matte 1“), per Klick auf einen Namen schnell ausgefüllt.
+- Die beiden Kämpfer des aktuellen Kampfes sind **gelb hervorgehoben**, darunter folgen der nächste Kampf und die danach.
+- Ein Klick auf einen Namen zeigt oben auf der Anzeige eine gut sichtbare Zeile: „Tim Sauter (TSV Lindenau) bitte zur Matte 2“. Ein zweiter Name wird angehängt, ein erneuter Klick nimmt ihn wieder heraus.
+- Statt eines Namens geht auch freier Text („Kampfrichter bitte zum Tisch“).
+- Ausblenden mit *Zeile ausblenden* oder Taste `K`. Beim nächsten Kampf verschwindet die Zeile von selbst.
+
+| Auswahl im Bedienfenster |
+|---|
+| ![Aufruf im Bedienfenster](docs/screenshots/bedienung-aufruf.png) |
 
 ### Ruhezeit
 
@@ -245,7 +252,7 @@ Aufbau:
 - `src/js/brackets.js` – Turniersysteme (Auslosung, Paarungen, Nachrücken, Platzierung), ohne Oberfläche
 - `src/js/mats.js` – Verteilung auf Matten und Reihenfolge je Matte, ohne Oberfläche
 - `src/js/bracketview.js` – Turnierbaum als HTML (Bedienung, Anzeige, Druck)
-- `src/js/render.js` + `src/css/board.css` – Anzeigetafel (auch als Vorschau im Bedienfenster und als Aufrufbildschirm `board.html?mode=call`)
+- `src/js/render.js` + `src/css/board.css` – Anzeigetafel (auch als Vorschau im Bedienfenster)
 - `src/js/control.js` – Bedienfenster
 - `src/js/excel.js` – Import/Export (SheetJS liegt lokal in `src/vendor/`, funktioniert offline)
 - `src/js/notice.js` – Aushang (Kampfreihenfolge pro Matte als Druckseite)
@@ -257,8 +264,8 @@ Aufbau:
 ### Neue Version veröffentlichen
 
 ```bash
-git tag v1.4.0
-git push origin v1.4.0
+git tag v1.4.1
+git push origin v1.4.1
 ```
 
 GitHub Actions baut dann die Mac- und die Webversion, startet die App zur Probe und hängt beides an ein neues Release.

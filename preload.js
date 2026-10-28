@@ -19,10 +19,6 @@ contextBridge.exposeInMainWorld('judoBridge', {
   saveFile: (name, bytes) => ipcRenderer.invoke('save-file', { name, bytes }),
   // mehrere Dateien in einen Ordner (Excel je Matte)
   saveFiles: (files) => ipcRenderer.invoke('save-files', files),
-  // Aufrufbildschirm als eigenes Fenster
-  showCall: (opts) => ipcRenderer.invoke('call-show', opts),
-  closeCall: () => ipcRenderer.invoke('call-close'),
-  onCallStatus: (cb) => ipcRenderer.on('call-status', (_e, s) => cb(s)),
   // Versionsnummer für „Über Hajime“
   appVersion: () => ipcRenderer.invoke('app-version'),
   // Aushang, Siegerliste, Urkunden als PDF speichern

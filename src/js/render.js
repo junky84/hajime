@@ -56,11 +56,7 @@
       <div class="jb-tb-grid"></div>
       <div class="jb-tb-foot"></div>
     </div>
-    <div class="jb-call">
-      <div class="jb-call-top"><div class="jb-call-title"></div><div class="jb-call-mat"></div></div>
-      <div class="jb-call-list"></div>
-      <div class="jb-call-msg"><span>AUFRUF</span><b></b></div>
-    </div>
+    <div class="jb-callbar"><span class="jb-cb-lbl">AUFRUF</span><b class="jb-cb-msg"></b></div>
   </div>`;
 
   function esc(s) {
@@ -101,6 +97,7 @@
         fitText(rows[s].querySelector('.jb-club'), 0.045, 0.022);
       });
       fitText($('.jb-title'), 0.048, 0.022);
+      if (container.querySelector('.jb-callbar.on')) fitText($('.jb-cb-msg'), 0.056, 0.026);
       // Turnierbaum auf der Anzeige: Schrift so groß, dass alles in den Bildschirm passt
       const bk = container.querySelector('.jb-tb-grid .bk');
       if (bk && container.classList.contains('is-table')) {
@@ -183,8 +180,6 @@
       container.classList.toggle('no-yuko', !r.yuko && !f.white.yuko && !f.blue.yuko);
       container.classList.toggle('is-idle', view.screen === 'idle');
       container.classList.toggle('is-table', view.screen === 'table');
-      const callMode = opts.mode === 'call' || view.screen === 'call';
-      container.classList.toggle('is-call', callMode);
       container.classList.toggle('golden', f.clock.mode === 'golden');
 
       const logo = $('.jb-logo');
@@ -252,14 +247,14 @@
         : '';
 
       renderTable(view.table, s);
-      renderCall(view.call, s);
+      renderCallBar(view.call);
 
       // Wertungs-Einblendung
       const fl = f.flash;
       const flKey = fl ? f.id + ':' + fl.id : null;
       if (fl && flKey !== lastFlashId) {
         lastFlashId = flKey;
-        if (s.flashScores && !callMode && Date.now() - fl.at < 2500) showFlash(fl);
+        if (s.flashScores && Date.now() - fl.at < 2500) showFlash(fl);
       }
       // Ton (nur im Publikumsfenster, wenn so eingestellt)
       const snd = f.sound;
@@ -267,7 +262,7 @@
       if (snd && sndKey !== lastSoundId) {
         lastSoundId = sndKey;
         const wanted = s.soundOn && (s.soundTarget === 'board' || s.soundTarget === 'both');
-        if (opts.sound && opts.mode !== 'call' && wanted && Date.now() - snd.at < 2500 && root.JudoSound) root.JudoSound.play(snd.kind);
+        if (opts.sound && wanted && Date.now() - snd.at < 2500 && root.JudoSound) root.JudoSound.play(snd.kind);
       }
 
       fitPending = true;
@@ -324,32 +319,19 @@
       }
     }
 
-    // Aufrufbildschirm: laufender Kampf, Bereitmachen, „in n Kämpfen“, Aufrufzeile
-    function renderCall(c, s) {
-      const box = $('.jb-call');
-      if (!c) return;
-      box.querySelector('.jb-call-title').textContent = s.tournament || 'Judo';
-      box.querySelector('.jb-call-mat').textContent = s.mat || '';
-      box.style.setProperty('--rows', Math.max(4, c.rowsMax || 6));
-      const person = (p, from, cls) =>
-        `<div class="jb-call-p ${cls}">${p && p.name ? `<b>${esc(p.name)}</b>${s.showClub && p.club ? `<small>${esc(p.club)}</small>` : ''}` : `<b class="from">${esc(from || '?')}</b>`}</div>`;
-      const html = c.rows.length
-        ? c.rows
-            .map(
-              (r) =>
-                `<div class="jb-call-row ${r.state}"><span class="jb-call-no">${r.no ? 'Nr. ' + esc(r.no) : ''}</span><span class="jb-call-cls">${esc(r.cls)}</span>${person(
-                  r.white,
-                  r.whiteFrom,
-                  'w'
-                )}<span class="jb-call-vs">–</span>${person(r.blue, r.blueFrom, 'b')}<span class="jb-call-st">${esc(r.label)}</span></div>`
-            )
-            .join('')
-        : '<div class="jb-call-empty">Keine weiteren Kämpfe auf dieser Matte</div>';
-      const list = box.querySelector('.jb-call-list');
-      if (list.innerHTML !== html) list.innerHTML = html;
-      const msg = box.querySelector('.jb-call-msg');
-      msg.classList.toggle('on', !!c.message);
-      msg.querySelector('b').textContent = c.message || '';
+    // Aufrufzeile oben über die ganze Breite; blinkt kurz, wenn ein neuer Aufruf kommt
+    let lastCall = '';
+    function renderCallBar(c) {
+      const msg = (c && c.message) || '';
+      const bar = $('.jb-callbar');
+      bar.classList.toggle('on', !!msg);
+      $('.jb-cb-msg').textContent = msg;
+      if (msg && msg !== lastCall) {
+        bar.classList.remove('flash');
+        void bar.offsetWidth;
+        bar.classList.add('flash');
+      }
+      lastCall = msg;
     }
 
     function showFlash(fl) {

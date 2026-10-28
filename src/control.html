@@ -27,7 +27,15 @@
         <button id="btnBoardFs" class="btn">Vollbild</button>
         <button id="btnTable" class="btn toggle" title="Gruppentabelle der aktuellen Klasse auf der Anzeige (Taste G)">Gruppentabelle</button>
         <button id="btnIdle" class="btn toggle" title="Pausenbild mit Turniername und nächsten Kämpfen (Taste B)">Pausenbild</button>
-        <button id="btnCall" class="btn toggle" title="Aufrufbildschirm für Aufwärmbereich und Hallenrand, Aufrufzeile">Aufruf …</button>
+        <button id="btnCall" class="btn toggle" aria-expanded="false" title="Kämpfer oben auf der Anzeige aufrufen (Taste K)">Aufruf</button>
+      </div>
+      <div class="call-pop" id="callPop" hidden>
+        <div class="call-head"><b>Aufruf auf der Anzeige</b><span class="muted">Taste K: Zeile ausblenden</span></div>
+        <div id="callGroups"></div>
+        <label class="call-lbl">Oder freier Text
+          <input id="callMsg" placeholder="z. B. Kampfrichter bitte zum Tisch" autocomplete="off" />
+        </label>
+        <div class="btnrow"><button type="button" class="btn" id="btnCallClear">Zeile ausblenden</button><span class="grow"></span><button type="button" class="btn primary" id="btnCallDone">Fertig</button></div>
       </div>
     </header>
 
@@ -190,7 +198,7 @@
         </div>
         <div class="import-msg" id="mpMsg"></div>
         <div class="card" id="mpIntro" style="display: none">
-          <p>Hajime verteilt die Gruppen der Kampfliste auf die Matten – jede Gruppe bleibt komplett auf einer Matte, die Auslastung richtet sich nach der erwarteten Dauer. Innerhalb einer Matte werden die Kämpfe so gemischt, dass niemand zweimal direkt hintereinander kämpft.</p>
+          <p>Hajime verteilt die Gruppen der Kampfliste auf die Matten – jede Gruppe bleibt komplett auf einer Matte, die Auslastung richtet sich nach der erwarteten Dauer. Innerhalb einer Matte werden die Kämpfe so gemischt, dass niemand zweimal direkt hintereinander kämpft. Sind die Gruppen nach Geschlecht getrennt, bekommen Mädchen und Jungen möglichst eigene Matten – so müssen Kampfrichterinnen und Kampfrichter nicht ständig wechseln.</p>
           <p class="muted">Danach lassen sich Gruppen mit der Maus auf eine andere Matte ziehen. „Excel je Matte“ speichert pro Matte eine Datei (Matte-1.xlsx …), die am Rechner der Matte importiert wird – die Matte stellt sich dabei automatisch ein.</p>
         </div>
         <div class="mats-grid" id="mpGrid"></div>
@@ -412,28 +420,6 @@
     </dialog>
 
     <!-- Aufrufbildschirm -->
-    <dialog id="dlgCall" class="call-dlg">
-      <form method="dialog">
-        <h3>Aufrufbildschirm</h3>
-        <p class="muted">Zeigt die nächsten Kämpfe dieser Matte groß – für Aufwärmbereich und Hallenrand. Bewusst ohne Uhrzeiten.</p>
-        <div class="btnrow call-win">
-          <select id="callDisplay" title="Bildschirm für das Aufruf-Fenster"></select>
-          <button type="button" class="btn primary" id="btnCallShow">Aufruf-Fenster öffnen</button>
-          <button type="button" class="btn" id="btnCallClose">Schließen</button>
-          <span class="board-state" id="callState"></span>
-        </div>
-        <label class="chk"><input type="checkbox" id="callOnBoard" /> stattdessen auf der Anzeige zeigen</label>
-        <label class="call-lbl">Zeilen
-          <select id="sCallRows"><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select>
-        </label>
-        <label class="call-lbl">Aufrufzeile (frei, leer = aus)
-          <input id="callMsg" placeholder="z. B. Mia Kaltenbach bitte zur Matte 1" autocomplete="off" />
-        </label>
-        <div class="muted">Schnellaufruf:</div>
-        <div class="call-quick" id="callQuick"></div>
-        <div class="btnrow call-foot"><button type="button" class="btn" id="btnCallClear">Aufrufzeile leeren</button><span class="grow"></span><button value="close" class="btn primary">Fertig</button></div>
-      </form>
-    </dialog>
 
     <datalist id="dlNames"></datalist>
     <datalist id="dlClubs"></datalist>

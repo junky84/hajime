@@ -9,12 +9,7 @@
   const isElectron = !!E;
 
   /* ----- Anzeige-Seite ----- */
-  // mode: 'board' (Anzeige) oder 'call' (Aufrufbildschirm)
-  function boardListen(mode, cb) {
-    if (typeof mode === 'function') {
-      cb = mode;
-      mode = 'board';
-    }
+  function boardListen(cb) {
     if (isElectron) {
       E.onView(cb);
       E.boardReady();
@@ -29,7 +24,7 @@
     });
     const hello = () => {
       try {
-        if (root.opener && !root.opener.closed) root.opener.postMessage({ type: 'judo-board-hello', mode, needView: !received }, '*');
+        if (root.opener && !root.opener.closed) root.opener.postMessage({ type: 'judo-board-hello', needView: !received }, '*');
       } catch (err) {
         /* Bedienfenster weg */
       }
@@ -46,51 +41,25 @@
 
   /* ----- Bedien-Seite ----- */
   let boardWin = null;
-  let callWin = null;
   let onNeedView = null;
   if (!isElectron) {
     root.addEventListener('message', (e) => {
       if (!e.data || e.data.type !== 'judo-board-hello') return;
-      let isNew;
-      if (e.data.mode === 'call') {
-        isNew = callWin !== e.source;
-        callWin = e.source;
-      } else {
-        isNew = boardWin !== e.source;
-        boardWin = e.source;
-      }
+      const isNew = boardWin !== e.source;
+      boardWin = e.source;
       if ((isNew || e.data.needView) && onNeedView) onNeedView();
     });
   }
 
-  function post(w, view) {
-    if (!w || w.closed) return false;
-    try {
-      w.postMessage({ type: 'judo-view', view }, '*');
-      return true;
-    } catch (err) {
-      return false;
-    }
-  }
   function send(view) {
     if (isElectron) return E.sendView(view);
-    if (!post(boardWin, view)) boardWin = null;
-    if (!post(callWin, view)) callWin = null;
-  }
-
-  // Aufrufbildschirm als eigenes Pop-up (muss direkt im Klick passieren)
-  function openCallBrowser() {
-    if (callWin && !callWin.closed) {
-      callWin.focus();
-      return true;
+    if (boardWin && !boardWin.closed) {
+      try {
+        boardWin.postMessage({ type: 'judo-view', view }, '*');
+      } catch (err) {
+        boardWin = null;
+      }
     }
-    const w = root.open('board.html?mode=call', 'judoCall', 'popup=yes,width=1280,height=720');
-    if (w) callWin = w;
-    return !!w;
-  }
-  function closeCallBrowser() {
-    if (callWin && !callWin.closed) callWin.close();
-    callWin = null;
   }
 
   /*
@@ -191,9 +160,6 @@
     browserScreens,
     onScreensChanged,
     boardOpen: () => !!(boardWin && !boardWin.closed),
-    callOpen: () => !!(callWin && !callWin.closed),
-    openCallBrowser,
-    closeCallBrowser,
     setOnNeedView: (fn) => (onNeedView = fn),
     saveFile,
     saveFiles,

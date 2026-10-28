@@ -2,14 +2,11 @@
 (function () {
   'use strict';
   const T = window.JudoTransport;
-  // board.html?mode=call: eigenes Fenster für den Aufrufbildschirm (ohne Ton)
-  const mode = new URLSearchParams(location.search).get('mode') === 'call' ? 'call' : 'board';
-  if (mode === 'call') document.title = 'Hajime – Aufruf';
-  const board = window.JudoBoard.mount(document.getElementById('board'), { sound: mode !== 'call', mode });
+  const board = window.JudoBoard.mount(document.getElementById('board'), { sound: true });
   const wait = document.getElementById('wait');
   const hint = document.getElementById('hint');
 
-  T.boardListen(mode, (view) => {
+  T.boardListen((view) => {
     wait.style.display = 'none';
     board.update(view);
   });
@@ -38,7 +35,7 @@
   poke();
 
   // Browser: Ton darf erst nach einem Klick ins Anzeigefenster starten
-  if (T.isElectron || mode === 'call') {
+  if (T.isElectron) {
     document.addEventListener('click', () => window.JudoSound.unlock(), { once: true });
   } else {
     const soundHint = document.getElementById('soundHint');

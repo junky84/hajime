@@ -21,9 +21,9 @@ const rng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 
 function tournament(spec) {
   const s = C.createState();
-  spec.forEach(([ageClass, category, n, system]) => {
-    const ps = Array.from({ length: n }, (_, i) => ({ name: `${ageClass}${category}-${i}`, club: 'V' + (i % 3) }));
-    s.brackets.push(B.newBracket({ ageClass, category }, system || B.suggest(n), ps, rng));
+  spec.forEach(([ageClass, category, n, system, gender]) => {
+    const ps = Array.from({ length: n }, (_, i) => ({ name: `${ageClass}${gender || ''}${category}-${i}`, club: 'V' + (i % 3) }));
+    s.brackets.push(B.newBracket({ ageClass, category, gender: gender || '' }, system || B.suggest(n), ps, rng));
   });
   B.sync(s);
   return s;
@@ -84,6 +84,63 @@ test('Von Hand verschobene Gruppe bleibt, Aufheben entfernt Matten', () => {
   M.clear(s);
   assert.ok(s.queue.every((e) => !e.mat && !e.at));
   assert.ok(M.forMat({ mat: 'matte 2' }, 'Matte 2') && !M.forMat({ mat: 'Matte 2' }, 'Matte 1') && M.forMat({}, 'Matte 1'));
+});
+
+// Gruppen erzeugen wie mit „Nach Geschlecht trennen“
+const sexed = (list) => list.map(([a, c, n, g]) => [a, c, n, null, g]);
+const span = (L) => Math.max(...L.mats.map((m) => m.durSec));
+function check(s, count) {
+  s.matPlan = { count, extra: 60 };
+  const groups = M.matGroups(s);
+  s.matPlan.assign = M.distribute(groups, count);
+  const L = M.apply(s);
+  const mixedPlan = { count, extra: 60, assign: {} };
+  const mixed = M.layout(groups, M.planOf({ matPlan: mixedPlan }));
+  return { L, mixedSpan: span(mixed) };
+}
+
+test('Nach Geschlecht getrennt: ausgeglichen → jede Matte nur ein Geschlecht', () => {
+  const s = tournament(
+    sexed([['U11', '-28 kg', 4, 'w'], ['U11', '-31 kg', 5, 'w'], ['U13', '-34 kg', 4, 'w'], ['U13', '-40 kg', 5, 'w'], ['U11', '-28 kg', 4, 'm'], ['U11', '-31 kg', 5, 'm'], ['U13', '-34 kg', 4, 'm'], ['U13', '-40 kg', 5, 'm']])
+  );
+  const { L } = check(s, 4);
+  L.mats.forEach((m) => {
+    assert.ok(!m.mixed, m.name + ' gemischt');
+    assert.ok(m.groups.every((g) => g.gender === m.gender));
+  });
+  assert.deepStrictEqual(L.mats.map((m) => m.gender).sort(), ['m', 'm', 'w', 'w']);
+  // die Kampfliste jeder Matte hat nur ein Geschlecht
+  L.mats.forEach((m) => assert.strictEqual(new Set(s.queue.filter((e) => e.mat === m.name).map((e) => e.gender)).size, 1));
+});
+
+test('Nach Geschlecht getrennt: wenige Mädchen → höchstens ein Wechsel je Matte, kaum länger', () => {
+  const s = tournament(
+    sexed([['U13', '-40 kg', 3, 'w'], ['U11', '-28 kg', 5, 'm'], ['U11', '-31 kg', 5, 'm'], ['U13', '-34 kg', 5, 'm'], ['U13', '-40 kg', 4, 'm'], ['U15', '-46 kg', 5, 'm'], ['U15', '-50 kg', 4, 'm']])
+  );
+  const { L, mixedSpan } = check(s, 3);
+  assert.ok(span(L) <= mixedSpan * 1.15 + 1, `zu lang: ${span(L)} statt ${mixedSpan}`);
+  L.mats.forEach((m) => {
+    // erst das eigene Geschlecht, dann höchstens einmal wechseln
+    const seq = s.queue.filter((e) => e.mat === m.name && e.status !== 'skipped').map((e) => e.gender);
+    const switches = seq.filter((g, i) => i && g !== seq[i - 1]).length;
+    assert.ok(switches <= 1, m.name + ': ' + seq.join(''));
+    if (seq.length) assert.strictEqual(seq[0], m.gender);
+  });
+  // die Mädchen-Gruppe teilt sich keine Matte mit Jungen davor
+  const wMat = L.mats.find((m) => m.groups.some((g) => g.gender === 'w'));
+  assert.strictEqual(wMat.groups[0].gender, 'w');
+});
+
+test('Neue Gruppe nach der Verteilung landet auf einer Matte ihres Geschlechts', () => {
+  const s = tournament(sexed([['U11', '-28 kg', 4, 'w'], ['U13', '-34 kg', 4, 'w'], ['U11', '-28 kg', 4, 'm'], ['U13', '-34 kg', 4, 'm']]));
+  check(s, 2);
+  const extra = tournament(sexed([['U15', '-50 kg', 3, 'w']]));
+  s.queue = s.queue.concat(extra.queue);
+  s.brackets = s.brackets.concat(extra.brackets);
+  const L = M.apply(s);
+  const m = L.mats.find((x) => x.groups.some((g) => g.label === 'U15 w -50 kg'));
+  assert.strictEqual(m.gender, 'w');
+  assert.ok(!m.mixed);
 });
 
 console.log(`\n${passed} Tests bestanden`);

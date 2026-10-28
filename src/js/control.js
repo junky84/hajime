@@ -58,31 +58,6 @@
   const bracketOf = (key) => (state.brackets || []).find((b) => b.key === key) || null;
   const hasTree = (b) => !!b && (b.system === 'ko' || b.system === 'pool2');
 
-  // Aufrufbildschirm: laufender Kampf, dann „bereitmachen“, dann „in n Kämpfen“
-  function callView() {
-    const f = state.fight;
-    const max = Math.max(3, Math.min(10, Number(state.settings.callRows) || 6));
-    const pick = (p) => ({ name: (p && p.name) || '', club: (p && p.club) || '' });
-    const rows = [];
-    const cur = f.queueId && state.queue.find((q) => q.id === f.queueId);
-    const showCur = !!cur && f.status !== 'finished';
-    if (showCur) rows.push({ no: f.no, cls: C.classLabel(f), white: pick(f.white), blue: pick(f.blue), state: 'running', label: f.started ? 'läuft' : 'auf die Matte' });
-    let ready = false;
-    upcoming(true).forEach((e, i) => {
-      if (rows.length >= max) return;
-      const before = i + (showCur ? 1 : 0);
-      let st = 'later';
-      let label;
-      if (!ready && !e.pending) {
-        ready = true;
-        st = 'ready';
-        label = 'bereitmachen';
-      } else label = before === 0 ? 'als Nächstes' : before === 1 ? 'in 1 Kampf' : `in ${before} Kämpfen`;
-      rows.push({ no: e.no || String(state.queue.indexOf(e) + 1), cls: C.classLabel(e), white: pick(e.white), blue: pick(e.blue), whiteFrom: e.whiteFrom || '', blueFrom: e.blueFrom || '', state: st, label });
-    });
-    return { rows, rowsMax: max, message: state.callMessage || '' };
-  }
-
   // Gruppe für die Gruppentabelle: gewählte, sonst die des aktuellen Kampfes, sonst die erste
   function tableGroupKey() {
     const keys = C.poolGroups(state.queue).map((g) => g.key);
@@ -109,7 +84,7 @@
       screen: state.screen,
       table,
       next: nextEntries(6).map((e) => ({ white: e.white, blue: e.blue, ageClass: e.ageClass, category: e.category, gender: e.gender || '', no: e.no })),
-      call: callView(),
+      call: state.callMessage ? { message: state.callMessage } : null,
     };
   }
 
@@ -254,6 +229,9 @@
   function loadEntry(e) {
     const idx = e ? state.queue.indexOf(e) : -1;
     C.loadFight(state, e ? Object.assign({}, e, { no: e.no || String(idx + 1) }) : null, Date.now());
+    // alter Aufruf soll beim neuen Kampf nicht stehen bleiben
+    state.callMessage = '';
+    state.callPicks = [];
     history = [];
     commit();
   }
@@ -534,6 +512,7 @@
     else if (k === 'KeyN') nextFight();
     else if (k === 'KeyB') toggleIdle();
     else if (k === 'KeyG') toggleTable();
+    else if (k === 'KeyK') callKey();
     else handled = false;
     if (handled) e.preventDefault();
   });
@@ -1341,6 +1320,7 @@
         .map(
           (m) => `<div class="mat-col" data-mat="${m.index}">
             <div class="mat-head"><b>${esc(m.name)}</b><span>${m.fights} ${fightWord(m.fights)} · ca. ${minText(m.durSec)} · bis ${esc(m.end)}</span></div>
+            ${m.gender ? `<div class="mat-sex sex-${m.gender}">${esc(C.GENDER_LABEL[m.gender])}${m.then ? `, danach ${esc(C.GENDER_LABEL[m.then])}` : ''}</div>` : ''}
             <div class="mat-bar"><i style="width:${Math.round(m.share * 100)}%"></i></div>
             ${m.groups
               .map(
@@ -1472,83 +1452,114 @@
     printDoc(`Hajime-Aushang-Matten.pdf`, N.html({ tournament: state.settings.tournament, mats, size }), size, true);
   });
 
-  /* ================= Aufrufbildschirm ================= */
+  /* ================= Aufruf (Zeile oben auf der Anzeige) ================= */
 
-  function renderCallDlg() {
-    $('#btnCall').classList.toggle('on', !!state.callMessage || state.screen === 'call');
-    const dlg = $('#dlgCall');
-    if (!dlg.open) return;
-    setVal($('#callMsg'), state.callMessage || '');
-    $('#callOnBoard').checked = state.screen === 'call';
-    setVal($('#sCallRows'), String(state.settings.callRows || 6));
-    // Schnellaufruf: Kämpfer der nächsten Kämpfe
-    const names = [];
-    callView().rows.forEach((r) => ['white', 'blue'].forEach((k) => r[k].name && !names.includes(r[k].name) && names.length < 10 && names.push(r[k].name)));
-    const html = names.map((n) => `<button class="btn" data-call="${esc(n)}">${esc(n)}</button>`).join('') || '<span class="muted">Keine Kämpfer in den nächsten Kämpfen.</span>';
-    const box = $('#callQuick');
+  const personLabel = (p) => (p.club ? `${p.name} (${p.club})` : p.name);
+  function callText(picks) {
+    if (!picks.length) return '';
+    const who = picks.length === 1 ? picks[0] : picks.slice(0, -1).join(', ') + ' und ' + picks[picks.length - 1];
+    return `${who} bitte zur ${state.settings.mat || 'Matte'}`;
+  }
+  // Kämpfer zur Auswahl: aktueller Kampf (bzw. der nächste, wenn keiner läuft), dann die nächsten
+  function callGroups() {
+    const f = state.fight;
+    const named = (x) => (x.white && x.white.name) || (x.blue && x.blue.name);
+    const groups = [];
+    const loaded = named(f) && f.status !== 'finished';
+    if (loaded) groups.push({ title: 'Aktueller Kampf', cls: C.classLabel(f), fights: [f], cur: true });
+    const next = upcoming(false).filter(named).slice(0, 3);
+    if (next.length) groups.push({ title: loaded ? 'Nächster Kampf · bereitmachen' : 'Als Nächstes auf die Matte', cls: C.classLabel(next[0]), fights: [next[0]], cur: !loaded });
+    if (next.length > 1) groups.push({ title: 'Danach', cls: '', fights: next.slice(1), cur: false });
+    return groups;
+  }
+  function renderCall() {
+    const msg = state.callMessage || '';
+    $('#btnCall').classList.toggle('on', !!msg);
+    const pop = $('#callPop');
+    if (pop.hidden) return;
+    const picks = state.callPicks || [];
+    const chip = (p, side, cur) => {
+      if (!p || !p.name) return '';
+      const lbl = personLabel(p);
+      const on = picks.includes(lbl);
+      return `<button type="button" class="call-chip${cur ? ' cur' : ''}${on ? ' on' : ''}" data-pick="${esc(lbl)}" title="${esc(lbl)}"><i class="dot ${side}"></i>${esc(p.name)}</button>`;
+    };
+    const groups = callGroups();
+    // jeden Kämpfer nur einmal anbieten (z. B. Best of Three: dieselben zwei mehrmals)
+    const seen = new Set();
+    const once = (p) => {
+      const k = p && p.name ? C.norm(p.name) : '';
+      if (!k || seen.has(k)) return null;
+      seen.add(k);
+      return p;
+    };
+    groups.forEach((g) => (g.people = g.fights.map((x) => [once(x.white), once(x.blue)]).filter((x) => x[0] || x[1])));
+    const html = groups.some((g) => g.people.length)
+      ? groups
+          .filter((g) => g.people.length)
+          .map(
+            (g) =>
+              `<div class="call-grp"><div class="call-gt">${esc(g.title)}${g.cls ? ` · ${esc(g.cls)}` : ''}</div><div class="call-chips">${g.people
+                .map((x) => chip(x[0], 'w', g.cur) + chip(x[1], 'b', g.cur))
+                .join('')}</div></div>`
+          )
+          .join('')
+      : '<p class="muted">Keine Namen in der Kampfliste – einfach freien Text eingeben.</p>';
+    const box = $('#callGroups');
     if (box.dataset.h !== html) {
       box.innerHTML = html;
       box.dataset.h = html;
     }
+    // freier Text nur zeigen, wenn er nicht aus der Auswahl stammt
+    setVal($('#callMsg'), picks.length ? '' : msg);
+    $('#btnCallClear').disabled = !msg;
   }
-  $('#btnCall').addEventListener('click', () => {
-    $('#dlgCall').showModal();
-    renderCallDlg();
-    refreshCallDisplays();
-  });
-  $('#callMsg').addEventListener('input', (e) => {
-    state.callMessage = e.target.value;
+  function setCall(picks, text) {
+    state.callPicks = picks;
+    state.callMessage = text != null ? text : callText(picks);
     commit();
+  }
+  function openCall(open) {
+    const pop = $('#callPop');
+    pop.hidden = !open;
+    $('#btnCall').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) renderCall();
+  }
+  // Taste K: Zeile ausblenden; ist keine da, Auswahl öffnen bzw. schließen
+  function callKey() {
+    if (state.callMessage) {
+      setCall([], '');
+      openCall(false);
+    } else openCall($('#callPop').hidden);
+  }
+  $('#btnCall').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCall($('#callPop').hidden);
   });
-  $('#callQuick').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-call]');
+  $('#callGroups').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pick]');
     if (!b) return;
-    state.callMessage = `${b.dataset.call} bitte zur ${state.settings.mat || 'Matte'}`;
-    $('#callMsg').value = state.callMessage;
-    commit();
+    const lbl = b.dataset.pick;
+    const picks = (state.callPicks || []).slice();
+    const i = picks.indexOf(lbl);
+    if (i >= 0) picks.splice(i, 1);
+    else picks.push(lbl);
+    setCall(picks);
+    b.blur(); // Tastenkürzel (Leertaste) sollen wieder für den Kampf gelten
   });
-  $('#btnCallClear').addEventListener('click', () => {
-    state.callMessage = '';
-    $('#callMsg').value = '';
-    commit();
+  $('#callMsg').addEventListener('input', (e) => setCall([], e.target.value));
+  $('#callMsg').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') openCall(false);
   });
-  $('#callOnBoard').addEventListener('change', (e) => {
-    state.screen = e.target.checked ? 'call' : 'board';
-    commit();
+  $('#btnCallClear').addEventListener('click', () => setCall([], ''));
+  $('#btnCallDone').addEventListener('click', () => openCall(false));
+  document.addEventListener('mousedown', (e) => {
+    const pop = $('#callPop');
+    if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('#btnCall')) openCall(false);
   });
-  $('#sCallRows').addEventListener('change', (e) => {
-    state.settings.callRows = Number(e.target.value) || 6;
-    commit();
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('#callPop').hidden) openCall(false);
   });
-
-  // eigenes Fenster für den Aufruf (dritter Bildschirm oder anderer Platz)
-  async function refreshCallDisplays() {
-    const sel = $('#callDisplay');
-    if (!T.isElectron) {
-      sel.style.display = 'none';
-      return;
-    }
-    const list = await T.bridge.getDisplays();
-    const prev = sel.value;
-    sel.innerHTML = list.map((d) => `<option value="${d.id}">${esc(d.label)}</option>`).join('');
-    const pick = list.find((d) => String(d.id) === prev) || list.find((d) => !d.isControl && !d.isBoard) || list.find((d) => !d.isControl) || list[0];
-    if (pick) sel.value = String(pick.id);
-  }
-  function setCallState(open) {
-    const el = $('#callState');
-    el.textContent = open ? '● Aufruf-Fenster offen' : '○ Aufruf-Fenster geschlossen';
-    el.classList.toggle('on', !!open);
-    $('#btnCallClose').disabled = !open;
-  }
-  $('#btnCallShow').addEventListener('click', () => {
-    if (T.isElectron) T.bridge.showCall({ displayId: Number($('#callDisplay').value) });
-    else if (!T.openCallBrowser()) alert('Das Aufruf-Fenster wurde vom Browser blockiert. Bitte Pop-ups für diese Seite erlauben.');
-    else setTimeout(publish, 300);
-  });
-  $('#btnCallClose').addEventListener('click', () => (T.isElectron ? T.bridge.closeCall() : T.closeCallBrowser()));
-  if (T.isElectron && T.bridge.onCallStatus) T.bridge.onCallStatus((st) => setCallState(st.open));
-  else setInterval(() => setCallState(T.callOpen()), 1000);
-  setCallState(false);
 
   /* ================= Protokoll ================= */
 
@@ -1860,7 +1871,7 @@
     renderQueue();
     renderParticipants();
     renderMats();
-    renderCallDlg();
+    renderCall();
     renderEval();
     renderLog();
     renderSettings();

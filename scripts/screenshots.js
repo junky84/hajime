@@ -203,7 +203,7 @@ module.exports = async function run({ getControl, getBoard, quit }) {
     __judo.commit();
   `);
 
-  /* ---------- v1.4.0: Turniersysteme, Matten, Aufruf ---------- */
+  /* ---------- ab v1.4: Turniersysteme, Matten, Aufruf ---------- */
   await js(`
     window.confirm = () => true;
     const C = JudoCore;
@@ -270,19 +270,21 @@ module.exports = async function run({ getControl, getBoard, quit }) {
   await shot(ctl, 'bedienung-turnierbaum');
   await shot(brd, 'anzeige-turnierbaum');
 
-  // Aufrufbildschirm mit Aufrufzeile
+  // Aufruf: Auswahl im Bedienfenster, Zeile oben auf der normalen Anzeige
   await js(`
     const s = __judo.state;
-    s.screen = 'call';
-    const next = s.queue.filter((q) => q.mat === s.settings.mat && q.status === 'open' && !q.pending && q.id !== s.fight.queueId);
-    s.callMessage = (next[2] ? next[2].white.name : 'Erik Haslinger') + ' bitte zur ' + s.settings.mat;
+    s.screen = 'board';
     __judo.commit();
+    document.querySelector('.tabs button[data-tab="fight"]').click();
+    document.getElementById('btnCall').click();
+    const chips = document.querySelectorAll('#callGroups .call-chip.cur');
+    chips[chips.length - 1].click();
   `);
+  await shot(ctl, 'bedienung-aufruf');
   await shot(brd, 'anzeige-aufruf');
   await js(`
-    __judo.state.screen = 'board';
-    __judo.state.callMessage = '';
-    __judo.commit();
+    document.getElementById('btnCallClear').click();
+    document.getElementById('btnCallDone').click();
   `);
 
   // Einstellungen / Regelprofile (U11)

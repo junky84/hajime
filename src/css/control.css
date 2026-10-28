@@ -1028,6 +1028,20 @@ input.w-time {
 .mat-head b {
   font-size: 17px;
 }
+.mat-sex {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.mat-sex.sex-w {
+  color: #ffb3d1;
+}
+.mat-sex.sex-m {
+  color: #9cc2ff;
+}
 .mat-head span {
   color: var(--muted);
   font-size: 12px;
@@ -1106,52 +1120,93 @@ input.w-time {
 }
 
 /* ---------- Aufruf-Dialog ---------- */
-dialog.call-dlg {
-  width: min(620px, 94vw);
+/* Aufruf: Auswahlfeld unter dem Button oben rechts */
+.topbar {
+  position: relative;
 }
-.call-dlg form {
+.call-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 12px;
+  z-index: 50;
+  width: min(460px, calc(100vw - 24px));
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 14px 16px;
+  background: var(--panel, #1b2130);
+  border: 1px solid var(--line, #2c3446);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
-.call-dlg h3,
-.call-dlg p {
-  margin: 0;
+.call-pop[hidden] {
+  display: none;
 }
-.call-dlg input#callMsg {
-  font-size: 16px;
-  width: 100%;
-  margin: 0;
+.call-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.call-grp {
+  margin-top: 4px;
+}
+.call-gt {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+.call-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.call-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line, #3a4459);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.call-chip:hover {
+  border-color: #ffc400;
+}
+.call-chip.cur {
+  border: 2px solid #ffc400;
+  background: rgba(255, 196, 0, 0.14);
+}
+.call-chip.on {
+  background: #ffc400;
+  border-color: #ffc400;
+  color: #1d1600;
+  font-weight: 700;
+}
+.call-chip .dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.call-chip .dot.w {
+  background: #f3f3ef;
+}
+.call-chip .dot.b {
+  background: #1243b8;
 }
 .call-lbl {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: var(--muted);
   font-size: 13px;
 }
-.call-lbl select {
-  width: 90px;
-  color: var(--ink);
-}
-.call-win {
-  align-items: center;
-}
-.call-win select {
-  max-width: 260px;
-}
-.call-quick {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.call-quick .btn {
-  font-size: 13px;
-  padding: 5px 10px;
-}
-.call-foot {
-  margin-top: 6px;
-  align-items: center;
+.call-lbl input {
+  width: 100%;
 }
 .import-msg.info {
   color: var(--muted);
