@@ -652,3 +652,391 @@
   color: var(--jb-gold);
   font-size: 1.3em;
 }
+
+/* ---------- Turnierbaum (Bedienung, Anzeige, Druck) ---------- */
+.bk {
+  --bk-box: #1b2230;
+  --bk-line: rgba(255, 255, 255, 0.12);
+  --bk-ink: #f1f4f9;
+  --bk-muted: #8b95a8;
+  --bk-win: #ffffff;
+  --bk-live: #22c55e;
+  --bk-head: #9aa6bd;
+  --bk-extra: #f5a524;
+  --bk-blue: #5b8cff;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2em;
+  color: var(--bk-ink);
+  min-width: 0;
+}
+.bk-print .bk {
+  --bk-box: #fff;
+  --bk-line: #b9bec8;
+  --bk-ink: #111;
+  --bk-muted: #6b7280;
+  --bk-win: #000;
+  --bk-live: #15803d;
+  --bk-head: #444;
+  --bk-extra: #b45309;
+  --bk-blue: #1d4fd1;
+}
+.bk-main,
+.bk-extra {
+  display: flex;
+  gap: 1.6em;
+  min-width: 0;
+}
+.bk-extra {
+  border-top: 1px dashed var(--bk-line);
+  padding-top: 1em;
+}
+.bk-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.bk-extra .bk-col.two {
+  flex: 1 1 0;
+}
+.bk-h {
+  font-size: 0.78em;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bk-head);
+  margin-bottom: 0.6em;
+  white-space: nowrap;
+}
+.bk-extra .bk-h {
+  color: var(--bk-extra);
+}
+.bk-h em {
+  font-style: normal;
+  color: var(--bk-muted);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.bk-ms {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 0.7em;
+}
+.bk-extra .bk-ms {
+  justify-content: flex-start;
+}
+.bk-m {
+  background: var(--bk-box);
+  border: 1px solid var(--bk-line);
+  border-radius: 0.45em;
+  overflow: hidden;
+}
+.bk-m.live {
+  border-color: var(--bk-live);
+  box-shadow: 0 0 0 1px var(--bk-live);
+}
+.bk-m.empty {
+  opacity: 0.35;
+}
+.bk-s {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  padding: 0.42em 0.7em;
+  border-left: 0.3em solid #f3f3ef;
+  min-width: 0;
+}
+.bk-print .bk-s {
+  border-left-color: #c9ccd2;
+}
+.bk-s + .bk-s {
+  border-top: 1px solid var(--bk-line);
+}
+.bk-s.b {
+  border-left-color: var(--bk-blue);
+}
+.bk-s .nm {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #c9d1de;
+}
+.bk-print .bk-s .nm {
+  color: #333;
+}
+.bk-s .nm small {
+  margin-left: 0.5em;
+  font-size: 0.78em;
+  color: var(--bk-muted);
+}
+.bk-s .nm.from {
+  font-style: italic;
+  color: var(--bk-muted);
+}
+.bk-s.win .nm {
+  color: var(--bk-win);
+  font-weight: 800;
+}
+.bk-m.done .bk-s:not(.win) .nm,
+.bk-m.walkover .bk-s:not(.win) .nm {
+  opacity: 0.7;
+}
+.bk-s .nt {
+  font-size: 0.75em;
+  font-weight: 700;
+  color: var(--bk-muted);
+  white-space: nowrap;
+}
+.bk-m.live .bk-s .nt {
+  color: var(--bk-live);
+}
+.bk-places .bk-ms {
+  justify-content: center;
+}
+.bk-podium {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+}
+.bk-pod {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  min-width: 0;
+}
+.bk-pod span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+.bk-pod span.from {
+  font-weight: 400;
+  color: var(--bk-muted);
+}
+.bk-pod i {
+  flex: none;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-weight: 800;
+  font-size: 0.85em;
+  color: #111;
+}
+.bk-pod i.p1 {
+  background: #ffc400;
+}
+.bk-pod i.p2 {
+  background: #d9dee8;
+}
+.bk-pod i.p3 {
+  background: #d58a45;
+}
+.bk-pools {
+  display: flex;
+  gap: 1.6em;
+}
+.bk-pool {
+  flex: 1;
+  min-width: 0;
+}
+.bk-pool table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.bk-pool td {
+  padding: 0.3em 0.5em;
+  border-bottom: 1px solid var(--bk-line);
+  white-space: nowrap;
+}
+.bk-pool td.pn {
+  width: 100%;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bk-pool td.pn small {
+  margin-left: 0.5em;
+  color: var(--bk-muted);
+  font-size: 0.8em;
+}
+.bk-pool td.pl {
+  font-weight: 800;
+  width: 2em;
+}
+.bk-pool tr.tie td {
+  background: rgba(255, 196, 0, 0.1);
+}
+/* Auf der Anzeige: Schriftgröße setzt render.js (passt den Baum in den Bildschirm ein) */
+.jb-table.is-tree {
+  padding: 4cqh 3cqw 3cqh;
+}
+.jb-table.is-tree .jb-tb-title {
+  font-size: 4.6cqh;
+  margin-bottom: 2cqh;
+}
+.jb-table.is-tree .jb-tb-foot {
+  font-size: 2cqh;
+  padding-top: 1cqh;
+}
+.jb-tb-grid .bk-pools {
+  font-size: 0.9em;
+}
+
+/* ---------- Aufrufbildschirm ---------- */
+.jb-call {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  background: #07090d;
+  --rows: 6;
+}
+.jb.is-call .jb-call {
+  display: flex;
+}
+.jb-call-top {
+  height: 11cqh;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3cqw;
+  padding: 0 3cqw;
+  background: var(--jb-bar);
+}
+.jb-call-title {
+  font-size: 5.2cqh;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jb-call-mat {
+  font-size: 5.2cqh;
+  font-weight: 800;
+  color: var(--jb-gold);
+  white-space: nowrap;
+}
+.jb-call-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.jb-call-row {
+  height: calc(76cqh / var(--rows));
+  max-height: 13cqh;
+  display: grid;
+  grid-template-columns: 8cqw 16cqw 1fr 4cqw 1fr 18cqw;
+  align-items: center;
+  padding: 0 3cqw;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: min(4.6cqh, calc(30cqh / var(--rows)));
+}
+.jb-call-row.running {
+  background: rgba(23, 184, 86, 0.14);
+}
+.jb-call-row.ready {
+  background: rgba(255, 196, 0, 0.12);
+}
+.jb-call-no,
+.jb-call-cls {
+  color: #9aa6bd;
+  font-weight: 700;
+  font-size: 0.8em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jb-call-p {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.jb-call-p b {
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jb-call-p.b b {
+  color: var(--jb-blue-light);
+}
+.jb-call-p b.from {
+  font-weight: 500;
+  font-style: italic;
+  color: #7b8599;
+}
+.jb-call-p small {
+  font-size: 0.55em;
+  color: #9aa6bd;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jb-call-vs {
+  text-align: center;
+  color: #5d6678;
+  font-weight: 800;
+}
+.jb-call-st {
+  justify-self: end;
+  font-size: 0.62em;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.35em 0.8em;
+  border-radius: 0.35em;
+  background: #1b2230;
+  color: #9aa6bd;
+  white-space: nowrap;
+}
+.jb-call-row.running .jb-call-st {
+  background: var(--jb-win);
+  color: #fff;
+}
+.jb-call-row.ready .jb-call-st {
+  background: var(--jb-gold);
+  color: #111;
+}
+.jb-call-empty {
+  font-size: 4cqh;
+  color: #9aa6bd;
+  padding: 8cqh 3cqw;
+}
+.jb-call-msg {
+  display: none;
+  align-items: center;
+  gap: 3cqw;
+  min-height: 11cqh;
+  padding: 1.5cqh 3cqw;
+  background: #b3261e;
+}
+.jb-call-msg.on {
+  display: flex;
+}
+.jb-call-msg span {
+  font-size: 2.6cqh;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.75);
+}
+.jb-call-msg b {
+  font-size: 4.8cqh;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.jb-table.is-tree .jb-tb-grid {
+  overflow: hidden;
+  padding-top: 1cqh;
+}

@@ -59,6 +59,7 @@
       no: entry.no || '',
       category: entry.category || '',
       ageClass: entry.ageClass || '',
+      gender: entry.gender || '',
       white: newCompetitor(entry.white),
       blue: newCompetitor(entry.blue),
       regularMs: ms,
@@ -104,6 +105,11 @@
         certSign2: 'Kampfrichterobmann',
         certPlaces: '3', // '3' = Plätze 1–3, 'all' = alle Platzierten
         awardsDoneOnly: true, // Siegerliste / alle Urkunden nur mit fertigen Gruppen
+        // Turniersysteme: Vorschlag nach Gruppengröße
+        systems: { bo3: true, rrMax: 5, poolMax: 8 },
+        splitGender: false, // Gruppen nach Geschlecht trennen
+        // Aufrufbildschirm
+        callRows: 6,
       },
       profiles,
       activeProfileId: active.id,
@@ -112,6 +118,10 @@
       fight: newFight(active),
       queue: [],
       participants: [],
+      brackets: [], // Turniersysteme je Gruppe (siehe brackets.js)
+      groupSystems: {}, // gewähltes System je Teilnehmergruppe, bevor die Kampfliste erzeugt ist
+      matPlan: { active: false, count: 2, start: '09:00', extra: 60, assign: {} },
+      callMessage: '', // Aufrufzeile auf dem Aufrufbildschirm
       log: [],
       savedAt: 0,
     };
@@ -474,6 +484,11 @@
     const s = Object.assign(base, saved || {});
     s.settings = Object.assign(createState().settings, (saved && saved.settings) || {});
     s.settings.winPoints = Object.assign({}, DEFAULT_WIN_POINTS, s.settings.winPoints);
+    s.settings.systems = Object.assign({}, base.settings.systems, s.settings.systems);
+    if (!Array.isArray(s.brackets)) s.brackets = [];
+    if (!s.groupSystems || typeof s.groupSystems !== 'object') s.groupSystems = {};
+    s.matPlan = Object.assign({}, base.matPlan, s.matPlan);
+    if (typeof s.callMessage !== 'string') s.callMessage = '';
     if (!Array.isArray(s.profiles) || !s.profiles.length) s.profiles = clone(DEFAULT_PROFILES);
     // Profile aus älteren Versionen: fehlende Felder ergänzen, Ruhezeit der Standardprofile übernehmen
     s.profiles = s.profiles.map((p) => {
@@ -577,15 +592,34 @@
     return 'decision';
   }
 
-  const groupLabel = (e) => [e.ageClass, e.category].map((x) => String(x || '').trim()).filter(Boolean).join(' ') || 'Ohne Klasse';
-  const groupKey = (e) => norm(e.ageClass) + '|' + norm(e.category);
+  /* ---------- Geschlecht (optional, Einstellung „nach Geschlecht trennen“) ---------- */
+
+  const GENDER_LABEL = { m: 'männlich', w: 'weiblich', d: 'divers' };
+  // m / w / d aus freiem Text (Excel): männlich, Junge, Herren, weiblich, Mädchen, Damen …
+  function normGender(v) {
+    const s = norm(v).replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u');
+    if (!s) return '';
+    if (/^(w|f|weiblich|female|frau|frauen|damen|dame|madchen|maedchen|girl|girls|weibl)$/.test(s) || /^(weib|frau|dame|madch|maedch|girl)/.test(s)) return 'w';
+    if (/^(m|mannlich|maennlich|male|mann|manner|maenner|herren|herr|junge|jungen|jungs|boy|boys|mannl)$/.test(s) || /^(mann|maenn|herr|jung|boy)/.test(s)) return 'm';
+    if (/^(d|x|divers|diverse|div)$/.test(s)) return 'd';
+    return '';
+  }
+
+  // Klassenbezeichnung „U13 w -34 kg“ (leer, wenn nichts bekannt)
+  const classLabel = (e) =>
+    [e && e.ageClass, e && e.gender, e && e.category]
+      .map((x) => String(x || '').trim())
+      .filter(Boolean)
+      .join(' ');
+  const groupLabel = (e) => classLabel(e) || 'Ohne Klasse';
+  const groupKey = (e) => norm(e.ageClass) + '|' + norm(e.category) + (e.gender ? '|' + e.gender : '');
 
   // Kampfliste nach Alters-/Gewichtsklasse gruppieren (Reihenfolge wie in der Kampfliste)
   function poolGroups(queue) {
     const m = new Map();
     (queue || []).forEach((e) => {
       const key = groupKey(e);
-      if (!m.has(key)) m.set(key, { key, ageClass: e.ageClass || '', category: e.category || '', label: groupLabel(e), entries: [] });
+      if (!m.has(key)) m.set(key, { key, ageClass: e.ageClass || '', category: e.category || '', gender: e.gender || '', label: groupLabel(e), entries: [] });
       m.get(key).entries.push(e);
     });
     return Array.from(m.values());
@@ -695,6 +729,7 @@
       label: group.label,
       ageClass: group.ageClass,
       category: group.category,
+      gender: group.gender || '',
       total,
       done,
       complete,
@@ -839,6 +874,9 @@
     displayName,
     roundRobin,
     winKind,
+    GENDER_LABEL,
+    normGender,
+    classLabel,
     groupKey,
     groupLabel,
     poolGroups,

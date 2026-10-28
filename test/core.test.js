@@ -416,4 +416,12 @@ test('Wiederherstellen: alte Profile bekommen die Standard-Ruhezeit, eigene blei
   assert.deepStrictEqual(s.settings.winPoints, C.DEFAULT_WIN_POINTS);
 });
 
+test('Geschlecht: Erkennung und eigene Gruppen', () => {
+  assert.deepStrictEqual(['m', 'W', 'männlich', 'Mädchen', 'Damen', 'Herren', 'Jungen', 'divers', 'x', '', 'U13'].map(C.normGender), ['m', 'w', 'm', 'w', 'w', 'm', 'm', 'd', 'd', '', '']);
+  const e = (gender) => ({ ageClass: 'U13', category: '-34 kg', gender, white: { name: 'A' }, blue: { name: 'B' } });
+  const gs = C.poolGroups([e('w'), e('m'), e('w'), e('')]);
+  assert.deepStrictEqual(gs.map((g) => [g.label, g.entries.length]), [['U13 w -34 kg', 2], ['U13 m -34 kg', 1], ['U13 -34 kg', 1]]);
+  assert.strictEqual(C.classLabel({}), '');
+});
+
 console.log(`\n${passed} Tests bestanden`);

@@ -9,7 +9,12 @@
   const isElectron = !!E;
 
   /* ----- Anzeige-Seite ----- */
-  function boardListen(cb) {
+  // mode: 'board' (Anzeige) oder 'call' (Aufrufbildschirm)
+  function boardListen(mode, cb) {
+    if (typeof mode === 'function') {
+      cb = mode;
+      mode = 'board';
+    }
     if (isElectron) {
       E.onView(cb);
       E.boardReady();
@@ -24,7 +29,7 @@
     });
     const hello = () => {
       try {
-        if (root.opener && !root.opener.closed) root.opener.postMessage({ type: 'judo-board-hello', needView: !received }, '*');
+        if (root.opener && !root.opener.closed) root.opener.postMessage({ type: 'judo-board-hello', mode, needView: !received }, '*');
       } catch (err) {
         /* Bedienfenster weg */
       }
@@ -41,25 +46,51 @@
 
   /* ----- Bedien-Seite ----- */
   let boardWin = null;
+  let callWin = null;
   let onNeedView = null;
   if (!isElectron) {
     root.addEventListener('message', (e) => {
       if (!e.data || e.data.type !== 'judo-board-hello') return;
-      const isNew = boardWin !== e.source;
-      boardWin = e.source;
+      let isNew;
+      if (e.data.mode === 'call') {
+        isNew = callWin !== e.source;
+        callWin = e.source;
+      } else {
+        isNew = boardWin !== e.source;
+        boardWin = e.source;
+      }
       if ((isNew || e.data.needView) && onNeedView) onNeedView();
     });
   }
 
+  function post(w, view) {
+    if (!w || w.closed) return false;
+    try {
+      w.postMessage({ type: 'judo-view', view }, '*');
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
   function send(view) {
     if (isElectron) return E.sendView(view);
-    if (boardWin && !boardWin.closed) {
-      try {
-        boardWin.postMessage({ type: 'judo-view', view }, '*');
-      } catch (err) {
-        boardWin = null;
-      }
+    if (!post(boardWin, view)) boardWin = null;
+    if (!post(callWin, view)) callWin = null;
+  }
+
+  // Aufrufbildschirm als eigenes Pop-up (muss direkt im Klick passieren)
+  function openCallBrowser() {
+    if (callWin && !callWin.closed) {
+      callWin.focus();
+      return true;
     }
+    const w = root.open('board.html?mode=call', 'judoCall', 'popup=yes,width=1280,height=720');
+    if (w) callWin = w;
+    return !!w;
+  }
+  function closeCallBrowser() {
+    if (callWin && !callWin.closed) callWin.close();
+    callWin = null;
   }
 
   /*
@@ -124,6 +155,16 @@
     }
   }
 
+  // Mehrere Dateien: App fragt einmal nach dem Ordner, Browser lädt nacheinander herunter
+  async function saveFiles(files) {
+    if (isElectron && E.saveFiles) return E.saveFiles(files.map((f) => ({ name: f.name, bytes: f.bytes })));
+    for (const f of files) {
+      await saveFile(f.name, f.bytes);
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    return true;
+  }
+
   async function saveFile(name, bytes, mime) {
     if (isElectron) return E.saveFile(name, bytes);
     const blob = new Blob([bytes], { type: mime || 'application/octet-stream' });
@@ -150,7 +191,11 @@
     browserScreens,
     onScreensChanged,
     boardOpen: () => !!(boardWin && !boardWin.closed),
+    callOpen: () => !!(callWin && !callWin.closed),
+    openCallBrowser,
+    closeCallBrowser,
     setOnNeedView: (fn) => (onNeedView = fn),
     saveFile,
+    saveFiles,
   };
 })(typeof self !== 'undefined' ? self : this);

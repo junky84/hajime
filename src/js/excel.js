@@ -25,6 +25,11 @@
 
   function fieldOf(h) {
     if (!h) return null;
+    if (/\b(geschlecht|gender|sex|m w|m w d)\b/.test(h)) return 'gender';
+    if (/^(matte|mat|tatami)( nr)?$/.test(h)) return 'mat';
+    if (/^(ca|ca uhrzeit|uhrzeit|zeit|geplant|beginn)$/.test(h)) return 'at';
+    if (/^(slot|paarung id|system platz)$/.test(h)) return 'slot';
+    if (/^(runde|phase)$/.test(h)) return 'round';
     if (/\bvorname\b|\bfirst ?name\b|\bgiven\b/.test(h)) return 'first';
     if (/\bnachname\b|\bfamilienname\b|\blast ?name\b|\bsurname\b/.test(h)) return 'last';
     if (/\b(verein|club|klub|team|nation|land|mannschaft|ort)\b/.test(h)) return 'club';
@@ -59,6 +64,17 @@
 
   const cellStr = (v) => (v == null ? '' : String(v).trim());
 
+  // m / w / d aus freiem Text (gleiche Regeln wie JudoCore.normGender)
+  function genderOf(v) {
+    const C = root.JudoCore;
+    if (C && C.normGender) return C.normGender(v);
+    const s = cellStr(v).toLowerCase();
+    if (/^(w|weiblich|f|female|mädchen|damen|frauen)/.test(s)) return 'w';
+    if (/^(m|männlich|male|jungen?|herren|männer)/.test(s)) return 'm';
+    if (/^(d|divers|x)$/.test(s)) return 'd';
+    return '';
+  }
+
   function personFrom(row, cols, prefix) {
     const get = (k) => (cols[prefix + k] != null ? cellStr(row[cols[prefix + k]]) : '');
     let name = get('name');
@@ -66,6 +82,12 @@
     const last = get('last');
     if (!name && (first || last)) name = [first, last].filter(Boolean).join(' ');
     return { name, club: get('club') };
+  }
+
+  // Platzhalter aus dem Mattenexport: „(Sieger VF 1)“
+  function placeholder(p) {
+    const m = p.name.match(/^\((.+)\)$/);
+    return m ? m[1] : '';
   }
 
   function parseSheet(rows) {
@@ -93,18 +115,63 @@
       const row = rows[r] || [];
       const ageClass = has('ageClass') ? cellStr(row[c.ageClass]) : '';
       const category = has('category') ? cellStr(row[c.category]) : '';
+      const gender = has('gender') ? genderOf(row[c.gender]) : '';
       if (isFights) {
         const white = personFrom(row, c, 'white.');
         const blue = personFrom(row, c, 'blue.');
-        if (!white.name && !blue.name) continue;
-        result.fights.push({ no: has('no') ? cellStr(row[c.no]) : '', ageClass, category, white, blue });
+        const slot = has('slot') ? cellStr(row[c.slot]) : '';
+        if (!white.name && !blue.name && !slot) continue;
+        const f = { no: has('no') ? cellStr(row[c.no]) : '', ageClass, category, white, blue };
+        if (gender) f.gender = gender;
+        if (has('mat') && cellStr(row[c.mat])) f.mat = cellStr(row[c.mat]);
+        if (has('at') && cellStr(row[c.at])) f.at = cellStr(row[c.at]);
+        if (slot) f.slot = slot;
+        ['white', 'blue'].forEach((s) => {
+          const from = placeholder(f[s]);
+          if (from) {
+            f[s] = { name: '', club: '' };
+            f[s + 'From'] = from;
+          }
+        });
+        result.fights.push(f);
       } else if (isPeople) {
         const p = personFrom(row, c, '');
         if (!p.name) continue;
-        result.participants.push({ ...p, ageClass, category });
+        const x = { ...p, ageClass, category };
+        if (gender) x.gender = gender;
+        result.participants.push(x);
       }
     }
     return result;
+  }
+
+  /*
+   * Blatt „Turniersystem“ aus dem Mattenexport: je Gruppe System und Setzliste.
+   * Liefert [{ ageClass, category, gender, system (Text), players: [{ name, club }] }].
+   */
+  function parseSystems(rows) {
+    const head = (rows[0] || []).map(normHeader);
+    const col = (re) => head.findIndex((h) => re.test(h));
+    const c = { age: col(/alter/), cat: col(/gewicht/), gender: col(/geschlecht/), sys: col(/^system$/), seed: col(/setz/), name: col(/^name$/), club: col(/verein/) };
+    if (c.sys < 0 || c.name < 0) return [];
+    const m = new Map();
+    rows.slice(1).forEach((row) => {
+      const name = cellStr(row[c.name]);
+      if (!name) return;
+      const g = {
+        ageClass: c.age >= 0 ? cellStr(row[c.age]) : '',
+        category: c.cat >= 0 ? cellStr(row[c.cat]) : '',
+        gender: c.gender >= 0 ? genderOf(row[c.gender]) : '',
+        system: cellStr(row[c.sys]),
+      };
+      const key = [g.ageClass, g.category, g.gender, g.system].join('\u0001');
+      if (!m.has(key)) m.set(key, Object.assign(g, { players: [] }));
+      m.get(key).players.push({ name, club: c.club >= 0 ? cellStr(row[c.club]) : '', seed: c.seed >= 0 ? Number(row[c.seed]) || 0 : 0 });
+    });
+    return Array.from(m.values()).map((g) => {
+      g.players = g.players.sort((a, b) => a.seed - b.seed).map((p) => ({ name: p.name, club: p.club }));
+      return g;
+    });
   }
 
   async function importFile(file) {
@@ -112,12 +179,20 @@
     if (!XLSX) throw new Error('Excel-Bibliothek nicht geladen');
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array', cellDates: false });
-    const out = { fights: [], participants: [], sheets: [] };
+    const out = { fights: [], participants: [], brackets: [], sheets: [] };
     wb.SheetNames.forEach((name) => {
       const ws = wb.Sheets[name];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '', blankrows: false });
       if (!rows.length) return;
       if (/hinweis|anleitung|info/i.test(name)) return;
+      if (/turniersystem/i.test(name)) {
+        const bs = parseSystems(rows);
+        if (bs.length) {
+          out.brackets.push(...bs);
+          out.sheets.push(`${name}: ${bs.length} Gruppen`);
+        }
+        return;
+      }
       const r = parseSheet(rows);
       if (r.fights.length || r.participants.length) {
         out.sheets.push(`${name}: ${r.fights.length ? r.fights.length + ' Kämpfe' : r.participants.length + ' Teilnehmer'}`);
@@ -141,11 +216,11 @@
       wb,
       sheetFrom(
         [
-          ['Nr', 'Altersklasse', 'Gewichtsklasse', 'Weiß Name', 'Weiß Verein', 'Blau Name', 'Blau Verein'],
-          ['1', 'U13', '-34 kg', 'Max Mustermann', 'JC Musterstadt', 'Erik Beispiel', 'TSV Beispielhausen'],
-          ['2', 'U13', '-34 kg', 'Lena Muster', 'JC Musterstadt', 'Sophie Probe', 'SV Probedorf'],
+          ['Nr', 'Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Weiß Name', 'Weiß Verein', 'Blau Name', 'Blau Verein'],
+          ['1', 'U13', 'm', '-34 kg', 'Max Mustermann', 'JC Musterstadt', 'Erik Beispiel', 'TSV Beispielhausen'],
+          ['2', 'U13', 'w', '-34 kg', 'Lena Muster', 'JC Musterstadt', 'Sophie Probe', 'SV Probedorf'],
         ],
-        [5, 13, 15, 24, 24, 24, 24]
+        [5, 13, 11, 15, 24, 24, 24, 24]
       ),
       'Kampfliste'
     );
@@ -153,12 +228,12 @@
       wb,
       sheetFrom(
         [
-          ['Vorname', 'Nachname', 'Verein', 'Altersklasse', 'Gewichtsklasse'],
-          ['Max', 'Mustermann', 'JC Musterstadt', 'U13', '-34 kg'],
-          ['Erik', 'Beispiel', 'TSV Beispielhausen', 'U13', '-34 kg'],
-          ['Jonas', 'Probe', 'SV Probedorf', 'U13', '-34 kg'],
+          ['Vorname', 'Nachname', 'Verein', 'Altersklasse', 'Geschlecht', 'Gewichtsklasse'],
+          ['Max', 'Mustermann', 'JC Musterstadt', 'U13', 'm', '-34 kg'],
+          ['Erik', 'Beispiel', 'TSV Beispielhausen', 'U13', 'm', '-34 kg'],
+          ['Jonas', 'Probe', 'SV Probedorf', 'U13', 'm', '-34 kg'],
         ],
-        [16, 18, 24, 13, 15]
+        [16, 18, 24, 13, 11, 15]
       ),
       'Teilnehmer'
     );
@@ -173,6 +248,7 @@
           ['Es reicht, eines der beiden Blätter auszufüllen. Beispielzeilen bitte löschen.'],
           ['Statt Vorname/Nachname geht auch eine Spalte "Name". Verein, Alters- und Gewichtsklasse sind optional.'],
           ['Die Altersklasse (z. B. U11, U13) wählt automatisch das passende Regelprofil (Kampfzeit usw.).'],
+          ['Geschlecht (m / w / d) ist optional. Mit der Einstellung „Nach Geschlecht trennen“ bildet Hajime getrennte Gruppen.'],
           ['CSV-Dateien mit denselben Spaltenüberschriften werden ebenfalls erkannt.'],
         ],
         [110]
@@ -189,6 +265,7 @@
       t.rows.forEach((r) =>
         rows.push([
           t.ageClass,
+          t.gender || '',
           t.category,
           r.place,
           r.name,
@@ -207,15 +284,15 @@
     );
     return rows;
   }
-  const TABLE_HEAD = ['Altersklasse', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Kämpfe', 'Siege', 'Niederlagen', 'Unentschieden', 'Wertungspunkte', 'Ippon', 'Waza-ari', 'Yuko', 'Hinweis'];
-  const TABLE_WIDTHS = [12, 14, 6, 24, 22, 7, 6, 11, 13, 14, 6, 9, 6, 20];
+  const TABLE_HEAD = ['Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Kämpfe', 'Siege', 'Niederlagen', 'Unentschieden', 'Wertungspunkte', 'Ippon', 'Waza-ari', 'Yuko', 'Hinweis'];
+  const TABLE_WIDTHS = [12, 10, 14, 6, 24, 22, 7, 6, 11, 13, 14, 6, 9, 6, 20];
 
   function protocolBytes(log, tables) {
     const XLSX = root.XLSX;
-    const head = ['Nr', 'Uhrzeit', 'Matte', 'Altersklasse', 'Gewichtsklasse', 'Weiß', 'Verein Weiß', 'Wertung Weiß', 'Blau', 'Verein Blau', 'Wertung Blau', 'Sieger', 'Entscheidung', 'Kampfzeit'];
-    const rows = log.map((l) => [l.no, l.time, l.mat, l.ageClass, l.category, l.white.name, l.white.club, l.whiteScore, l.blue.name, l.blue.club, l.blueScore, l.winnerName, l.reason, l.duration]);
+    const head = ['Nr', 'Uhrzeit', 'Matte', 'Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Weiß', 'Verein Weiß', 'Wertung Weiß', 'Blau', 'Verein Blau', 'Wertung Blau', 'Sieger', 'Entscheidung', 'Kampfzeit'];
+    const rows = log.map((l) => [l.no, l.time, l.mat, l.ageClass, l.gender || '', l.category, l.white.name, l.white.club, l.whiteScore, l.blue.name, l.blue.club, l.blueScore, l.winnerName, l.reason, l.duration]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheetFrom([head].concat(rows), [5, 9, 10, 12, 14, 24, 22, 16, 24, 22, 16, 24, 26, 10]), 'Protokoll');
+    XLSX.utils.book_append_sheet(wb, sheetFrom([head].concat(rows), [5, 9, 10, 12, 10, 14, 24, 22, 16, 24, 22, 16, 24, 26, 10]), 'Protokoll');
     // Ereignisprotokoll: jede Aktion mit Uhrzeit und Kampfzeit
     const two = (n) => String(n).padStart(2, '0');
     const clock = (ts) => {
@@ -239,14 +316,60 @@
     const rows = [];
     tables.forEach((t) =>
       awardRows(t, places).forEach((r) =>
-        rows.push([t.ageClass, t.category, r.place, r.name, r.club, r.tie ? 'Stichkampf nötig' : t.complete ? '' : `vorläufig (${t.done}/${t.total})`])
+        rows.push([t.ageClass, t.gender || '', t.category, r.place, r.name, r.club, r.tie ? 'Stichkampf nötig' : t.complete ? '' : `vorläufig (${t.done}/${t.total})`])
       )
     );
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheetFrom([['Altersklasse', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Hinweis']].concat(rows), [12, 14, 6, 26, 24, 20]), 'Siegerliste');
+    XLSX.utils.book_append_sheet(wb, sheetFrom([['Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Hinweis']].concat(rows), [12, 10, 14, 6, 26, 24, 20]), 'Siegerliste');
     XLSX.utils.book_append_sheet(wb, sheetFrom([TABLE_HEAD].concat(tableRows(tables)), TABLE_WIDTHS), 'Gruppentabellen');
     return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   }
 
-  root.JudoExcel = { importFile, templateBytes, protocolBytes, winnersBytes, _parseSheet: parseSheet };
+  /*
+   * Kampfliste einer Matte (Matte-1.xlsx …) im Import-Format, dazu das Blatt
+   * „Turniersystem“, damit der Mattenrechner Sieger automatisch weiterrücken lässt.
+   * entries: Kämpfe dieser Matte in Reihenfolge; brackets: Turniersysteme ihrer Gruppen.
+   */
+  function matBytes(opts) {
+    const XLSX = root.XLSX;
+    const ph = (p, from) => (p && p.name ? p.name : from ? `(${from})` : '');
+    const head = ['Nr', 'Matte', 'ca.', 'Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Runde', 'Weiß Name', 'Weiß Verein', 'Blau Name', 'Blau Verein', 'Slot'];
+    const rows = opts.entries.map((e, i) => [
+      e.no || String(i + 1),
+      opts.mat,
+      e.at || '',
+      e.ageClass || '',
+      e.gender || '',
+      e.category || '',
+      e.round || '',
+      ph(e.white, e.whiteFrom),
+      (e.white && e.white.club) || '',
+      ph(e.blue, e.blueFrom),
+      (e.blue && e.blue.club) || '',
+      e.slot || '',
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheetFrom([head].concat(rows), [5, 9, 7, 12, 10, 14, 22, 24, 22, 24, 22, 6]), 'Kampfliste');
+    const sys = [['Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'System', 'Setzplatz', 'Name', 'Verein']];
+    (opts.brackets || []).forEach((b) => b.players.forEach((p, i) => sys.push([b.ageClass, b.gender || '', b.category, opts.systemLabel(b.system), i + 1, p.name, p.club || ''])));
+    if (sys.length > 1) XLSX.utils.book_append_sheet(wb, sheetFrom(sys, [12, 10, 14, 22, 9, 24, 22]), 'Turniersystem');
+    XLSX.utils.book_append_sheet(
+      wb,
+      sheetFrom(
+        [
+          [`Kampfliste ${opts.mat}${opts.tournament ? ' – ' + opts.tournament : ''}`],
+          [''],
+          ['Diese Datei am Rechner der Matte in Hajime importieren (Kampfliste → Excel / CSV importieren).'],
+          ['Die Matte wird dabei automatisch eingestellt.'],
+          ['Namen in Klammern, z. B. „(Sieger VF 1)“, sind Platzhalter – Hajime trägt die Kämpfer ein, sobald sie feststehen.'],
+          ['Blatt „Turniersystem“ bitte nicht ändern: daraus berechnet Hajime, wer weiterkommt.'],
+        ],
+        [110]
+      ),
+      'Hinweise'
+    );
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  }
+
+  root.JudoExcel = { importFile, templateBytes, protocolBytes, winnersBytes, matBytes, _parseSheet: parseSheet };
 })(typeof self !== 'undefined' ? self : this);

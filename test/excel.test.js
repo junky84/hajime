@@ -50,12 +50,37 @@ function fileFrom(sheets) {
   const tables = C.poolGroups([fight('A', 'B', 'white', 'Ippon'), fight('B', 'C', 'white', 'Waza-ari'), fight('A', 'C', 'white', 'Yuko')]).map((g) => C.standings(g));
   const sheet = (bytes, name) => XLSX.utils.sheet_to_json(XLSX.read(bytes, { type: 'array' }).Sheets[name], { header: 1 });
   const wl = sheet(X.winnersBytes(tables, '3', C.awardRows), 'Siegerliste');
-  assert.deepStrictEqual(wl[0], ['Altersklasse', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Hinweis']);
-  assert.deepStrictEqual(wl.slice(1).map((r) => [r[2], r[3]]), [[1, 'A'], [2, 'B'], [3, 'C']]);
+  assert.deepStrictEqual(wl[0], ['Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Hinweis']);
+  assert.deepStrictEqual(wl.slice(1).map((r) => [r[3], r[4]]), [[1, 'A'], [2, 'B'], [3, 'C']]);
   const gt = sheet(X.protocolBytes([], tables), 'Gruppentabellen');
   assert.strictEqual(gt.length, 4);
-  assert.strictEqual(gt[1][3], 'A');
-  assert.strictEqual(gt[1][9], 15); // Ippon 10 + Yuko 5
+  assert.strictEqual(gt[1][4], 'A');
+  assert.strictEqual(gt[1][10], 15); // Ippon 10 + Yuko 5
+
+  // Geschlecht in Teilnehmer- und Kampfliste
+  const gl = await X.importFile(fileFrom({ T: [['Name', 'Verein', 'AK', 'm/w', 'Gewicht'], ['Mia', 'TSV', 'U13', 'weiblich', '-34'], ['Ben', 'TSV', 'U13', 'Junge', '-34'], ['Kim', 'TSV', 'U13', '', '-34']] }));
+  assert.deepStrictEqual(gl.participants.map((p) => p.gender), ['w', 'm', undefined]);
+
+  // Export je Matte → Import am Mattenrechner: Matte, Uhrzeit, Platzhalter, Turniersystem
+  const B = require('../src/js/brackets.js');
+  const st = C.createState();
+  const ps = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((n, i) => ({ name: 'K' + n, club: 'V' + (i % 3) }));
+  st.brackets.push(B.newBracket({ ageClass: 'U15', category: '-50 kg', gender: 'm' }, 'ko', ps));
+  B.sync(st);
+  st.queue.forEach((e, i) => Object.assign(e, { mat: 'Matte 2', no: String(i + 1), at: '10:0' + (i % 10) }));
+  const bytes = X.matBytes({ mat: 'Matte 2', entries: st.queue, brackets: st.brackets, systemLabel: (id) => B.SYSTEMS[id] });
+  const back = await X.importFile({ arrayBuffer: async () => bytes });
+  assert.strictEqual(back.fights.length, 11);
+  assert.strictEqual(back.fights[0].mat, 'Matte 2');
+  assert.strictEqual(back.fights[0].at, '10:00');
+  assert.strictEqual(back.fights[0].gender, 'm');
+  const hf = back.fights.find((f) => f.slot === 'HF1');
+  assert.strictEqual(hf.white.name, '');
+  assert.strictEqual(hf.whiteFrom, 'Sieger VF 1');
+  assert.strictEqual(back.brackets.length, 1);
+  assert.strictEqual(B.systemFromText(back.brackets[0].system), 'ko');
+  assert.deepStrictEqual(back.brackets[0].players.map((p) => p.name), st.brackets[0].players.map((p) => p.name));
+  assert.strictEqual(back.brackets[0].gender, 'm');
 
   console.log('Excel-Import: alle Tests bestanden');
 })().catch((e) => { console.error(e); process.exit(1); });

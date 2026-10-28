@@ -56,6 +56,11 @@
       <div class="jb-tb-grid"></div>
       <div class="jb-tb-foot"></div>
     </div>
+    <div class="jb-call">
+      <div class="jb-call-top"><div class="jb-call-title"></div><div class="jb-call-mat"></div></div>
+      <div class="jb-call-list"></div>
+      <div class="jb-call-msg"><span>AUFRUF</span><b></b></div>
+    </div>
   </div>`;
 
   function esc(s) {
@@ -96,6 +101,19 @@
         fitText(rows[s].querySelector('.jb-club'), 0.045, 0.022);
       });
       fitText($('.jb-title'), 0.048, 0.022);
+      // Turnierbaum auf der Anzeige: Schrift so groß, dass alles in den Bildschirm passt
+      const bk = container.querySelector('.jb-tb-grid .bk');
+      if (bk && container.classList.contains('is-table')) {
+        const grid = bk.parentElement;
+        const H = container.clientHeight || 1;
+        let size = H * 0.032;
+        bk.style.fontSize = size + 'px';
+        let guard = 60;
+        while (guard-- > 0 && bk.scrollHeight > grid.clientHeight + 1 && size > H * 0.008) {
+          size *= 0.94;
+          bk.style.fontSize = size + 'px';
+        }
+      }
       const size = (view && view.settings.nextSize) || 'large';
       if (size === 'small') fitText($('.jb-next'), 0.033, 0.018);
       else {
@@ -165,6 +183,8 @@
       container.classList.toggle('no-yuko', !r.yuko && !f.white.yuko && !f.blue.yuko);
       container.classList.toggle('is-idle', view.screen === 'idle');
       container.classList.toggle('is-table', view.screen === 'table');
+      const callMode = opts.mode === 'call' || view.screen === 'call';
+      container.classList.toggle('is-call', callMode);
       container.classList.toggle('golden', f.clock.mode === 'golden');
 
       const logo = $('.jb-logo');
@@ -173,7 +193,7 @@
         logo.style.display = '';
       } else logo.style.display = 'none';
       $('.jb-title').textContent = s.tournament || 'Judo';
-      const meta = [s.mat, f.ageClass, f.category, f.no ? 'Kampf ' + f.no : ''].filter(Boolean);
+      const meta = [s.mat, f.ageClass, f.gender, f.category, f.no ? 'Kampf ' + f.no : ''].filter(Boolean);
       $('.jb-meta').innerHTML = meta.map((m) => `<span>${esc(m)}</span>`).join('');
 
       renderRow('white', f, r, s);
@@ -190,7 +210,7 @@
       container.classList.toggle('next-large', !!(s.showNext && next) && nextSize === 'large');
       container.classList.toggle('next-xlarge', !!(s.showNext && next) && nextSize === 'xlarge');
       if (s.showNext && next) {
-        const cat = [next.ageClass, next.category].filter(Boolean).join(' ');
+        const cat = C.classLabel(next);
         let html;
         if (nextSize === 'small') {
           const fmt = (p) => esc(p.name || '?') + (s.showClub && p.club ? ` <small>(${esc(p.club)})</small>` : '');
@@ -224,7 +244,7 @@
           list
             .map(
               (n) =>
-                `<div class="it"><span class="cat">${esc([n.ageClass, n.category].filter(Boolean).join(' '))}</span><span class="w">${esc(
+                `<div class="it"><span class="cat">${esc(C.classLabel(n))}</span><span class="w">${esc(
                   n.white.name || '?'
                 )}</span><span class="vs">–</span><span class="b">${esc(n.blue.name || '?')}</span></div>`
             )
@@ -232,13 +252,14 @@
         : '';
 
       renderTable(view.table, s);
+      renderCall(view.call, s);
 
       // Wertungs-Einblendung
       const fl = f.flash;
       const flKey = fl ? f.id + ':' + fl.id : null;
       if (fl && flKey !== lastFlashId) {
         lastFlashId = flKey;
-        if (s.flashScores && Date.now() - fl.at < 2500) showFlash(fl);
+        if (s.flashScores && !callMode && Date.now() - fl.at < 2500) showFlash(fl);
       }
       // Ton (nur im Publikumsfenster, wenn so eingestellt)
       const snd = f.sound;
@@ -246,7 +267,7 @@
       if (snd && sndKey !== lastSoundId) {
         lastSoundId = sndKey;
         const wanted = s.soundOn && (s.soundTarget === 'board' || s.soundTarget === 'both');
-        if (opts.sound && wanted && Date.now() - snd.at < 2500 && root.JudoSound) root.JudoSound.play(snd.kind);
+        if (opts.sound && opts.mode !== 'call' && wanted && Date.now() - snd.at < 2500 && root.JudoSound) root.JudoSound.play(snd.kind);
       }
 
       fitPending = true;
@@ -264,9 +285,18 @@
         box.querySelector('.jb-tb-foot').textContent = '';
         return;
       }
-      const sub = ['Gruppentabelle', t.label, t.complete ? `nach ${t.done} von ${t.total} Kämpfen` : `Zwischenstand nach ${t.done} von ${t.total} Kämpfen`];
+      const tree = t.tree && root.JudoBracketView;
+      const sub = [tree ? t.tree.systemLabel : 'Gruppentabelle', t.label, t.complete ? `nach ${t.done} von ${t.total} Kämpfen` : `Zwischenstand nach ${t.done} von ${t.total} Kämpfen`];
       box.querySelector('.jb-tb-sub').textContent = sub.join(' · ');
       box.querySelector('.jb-tb-title').textContent = s.tournament || 'Judo';
+      box.classList.toggle('is-tree', !!tree);
+      if (tree) {
+        const grid = box.querySelector('.jb-tb-grid');
+        const html = root.JudoBracketView.treeHtml(t.tree, { club: s.showClub });
+        if (grid.innerHTML !== html) grid.innerHTML = html;
+        box.querySelector('.jb-tb-foot').textContent = 'Sieger rücken automatisch weiter, sobald ein Kampf beendet ist.';
+        return;
+      }
       const head =
         '<div class="jb-tb-row jb-tb-head"><span>Platz</span><span>Name</span><span>Siege</span><span>Wertungen</span><span>Ippon · Waza-ari · Yuko</span></div>';
       const rows = t.rows
@@ -292,6 +322,34 @@
       } else {
         foot.textContent = `Wertungspunkte je Sieg: Ippon ${p.ippon} · Waza-ari ${p.wazaari} · Yuko ${p.yuko} · Entscheidung ${p.decision} · ${order}`;
       }
+    }
+
+    // Aufrufbildschirm: laufender Kampf, Bereitmachen, „in n Kämpfen“, Aufrufzeile
+    function renderCall(c, s) {
+      const box = $('.jb-call');
+      if (!c) return;
+      box.querySelector('.jb-call-title').textContent = s.tournament || 'Judo';
+      box.querySelector('.jb-call-mat').textContent = s.mat || '';
+      box.style.setProperty('--rows', Math.max(4, c.rowsMax || 6));
+      const person = (p, from, cls) =>
+        `<div class="jb-call-p ${cls}">${p && p.name ? `<b>${esc(p.name)}</b>${s.showClub && p.club ? `<small>${esc(p.club)}</small>` : ''}` : `<b class="from">${esc(from || '?')}</b>`}</div>`;
+      const html = c.rows.length
+        ? c.rows
+            .map(
+              (r) =>
+                `<div class="jb-call-row ${r.state}"><span class="jb-call-no">${r.no ? 'Nr. ' + esc(r.no) : ''}</span><span class="jb-call-cls">${esc(r.cls)}</span>${person(
+                  r.white,
+                  r.whiteFrom,
+                  'w'
+                )}<span class="jb-call-vs">–</span>${person(r.blue, r.blueFrom, 'b')}<span class="jb-call-st">${esc(r.label)}</span></div>`
+            )
+            .join('')
+        : '<div class="jb-call-empty">Keine weiteren Kämpfe auf dieser Matte</div>';
+      const list = box.querySelector('.jb-call-list');
+      if (list.innerHTML !== html) list.innerHTML = html;
+      const msg = box.querySelector('.jb-call-msg');
+      msg.classList.toggle('on', !!c.message);
+      msg.querySelector('b').textContent = c.message || '';
     }
 
     function showFlash(fl) {

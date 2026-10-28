@@ -13,6 +13,7 @@
   function mats(queue, defaultMat, onlyOpen) {
     const m = new Map();
     queue.forEach((e, i) => {
+      if (e.status === 'skipped') return;
       if (onlyOpen && e.status === 'done') return;
       const mat = e.mat || defaultMat || 'Matte 1';
       if (!m.has(mat)) m.set(mat, []);
@@ -21,9 +22,11 @@
     return Array.from(m, ([name, fights]) => ({ name, fights }));
   }
 
-  function person(p) {
+  function person(p, from) {
+    if (!(p && p.name) && from) return `<span class="n ph">${esc(from)}</span>`;
     return `<span class="n">${esc((p && p.name) || '–')}</span>${p && p.club ? `<span class="c">${esc(p.club)}</span>` : ''}`;
   }
+  const cls = (f) => [f.ageClass, f.gender, f.category].filter(Boolean).join(' ');
 
   function html(opts) {
     const size = opts.size === 'A3' ? 'A3' : 'A4';
@@ -44,9 +47,10 @@
     <tbody>
       ${mat.fights
         .map(
-          (f) => `<tr><td class="no">${esc(f.no)}</td><td class="cls">${esc([f.ageClass, f.category].filter(Boolean).join(' '))}</td><td>${person(
-            f.white
-          )}</td><td>${person(f.blue)}</td></tr>`
+          (f) => `<tr><td class="no">${esc(f.no)}</td><td class="cls">${esc(cls(f))}${f.round ? `<span class="rd">${esc(f.round)}</span>` : ''}</td><td>${person(
+            f.white,
+            f.whiteFrom
+          )}</td><td>${person(f.blue, f.blueFrom)}</td></tr>`
         )
         .join('\n      ')}
     </tbody>
@@ -79,6 +83,8 @@
   .cls { width: 14%; white-space: nowrap; }
   .n { font-size: ${15 * scale}pt; }
   .c { color: #555; font-size: ${10 * scale}pt; margin-left: 0.7em; }
+  .ph { font-style: italic; color: #666; font-size: ${12 * scale}pt; }
+  .rd { display: block; color: #555; font-size: ${9 * scale}pt; }
   .empty { font-size: ${14 * scale}pt; color: #555; padding: 10mm 0; }
 </style></head>
 <body>

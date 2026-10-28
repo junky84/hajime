@@ -45,7 +45,8 @@ module.exports = async function run({ getControl, getBoard, quit }) {
     __judo.state = s;
     __judo.commit();
     document.querySelector('.tabs button[data-tab="list"]').click();
-    document.querySelector('[data-rr="*"]').click();
+    window.confirm = () => true;
+    document.querySelector('[data-gen="*"]').click();
   `);
   await shot(ctl, 'bedienung-kampfliste');
 
@@ -194,11 +195,93 @@ module.exports = async function run({ getControl, getBoard, quit }) {
     s.settings.logo = cv.toDataURL('image/png');
     __judo.commit();
   `);
-  const tables = `JudoCore.allStandings(__judo.state).filter((t) => t.done)`;
+  const tables = `JudoBrackets.allTables(__judo.state).filter((t) => t.done)`;
   await page(`return JudoAwards.certHtml({ tables: ${tables}.filter((t) => t.complete), places: '3', settings: __judo.state.settings });`, 'urkunde', 'urkunden.pdf');
   await page(`return JudoAwards.listHtml({ tables: ${tables}, places: '3', settings: __judo.state.settings });`, 'siegerliste', 'siegerliste.pdf');
   await js(`
     __judo.state.settings.logo = null;
+    __judo.commit();
+  `);
+
+  /* ---------- v1.4.0: Turniersysteme, Matten, Aufruf ---------- */
+  await js(`
+    window.confirm = () => true;
+    const C = JudoCore;
+    const s = __judo.state;
+    s.settings.splitGender = true;
+    s.screen = 'board';
+    s.queue = [];
+    s.brackets = [];
+    s.log = [];
+    s.fight = C.newFight(C.getRules(s));
+    const ko = [['Jakob Wendling', 'JC Mittelstadt'], ['Tim Sauter', 'TSV Lindenau'], ['Nico Brandauer', 'SV Bergheim'], ['Luis Kerschbaum', 'Judoteam Talheim'],
+      ['David Ortlieb', 'JC Kirchdorf'], ['Samuel Fink', 'JC Mittelstadt'], ['Moritz Gerlach', 'TSV Lindenau'], ['Erik Haslinger', 'SV Bergheim']];
+    const pool = [['Lena Achterberg', 'SV Bergheim'], ['Sophie Wolters', 'JC Mittelstadt'], ['Clara Steinhoff', 'TSV Lindenau'], ['Ida Grimmel', 'JC Kirchdorf'],
+      ['Nele Fischbach', 'Judoteam Talheim'], ['Greta Rothmund', 'JC Mittelstadt'], ['Marie Brenner', 'SV Bergheim']];
+    s.participants = s.participants
+      .concat([['Leo Brandt', 'JC Kirchdorf'], ['Karl Mertens', 'Judoteam Talheim'], ['Ella Vogt', 'SV Bergheim']].map(([name, club]) => ({ name, club, ageClass: 'U11', category: '-28 kg' })))
+      .map((p) => Object.assign({}, p, { gender: /^(Mia|Emma|Lina|Hannah|Lea|Marie|Sophie|Clara|Ella) /.test(p.name) ? 'w' : 'm' }))
+      .concat(ko.map(([name, club]) => ({ name, club, ageClass: 'U15', category: '-50 kg', gender: 'm' })))
+      .concat(pool.map(([name, club]) => ({ name, club, ageClass: 'U15', category: '-48 kg', gender: 'w' })));
+    s.groupSystems = {};
+    s.groupSystems[C.groupKey({ ageClass: 'U15', category: '-50 kg', gender: 'm' })] = 'ko';
+    __judo.commit();
+    document.querySelector('.tabs button[data-tab="list"]').click();
+    document.querySelector('[data-gen="*"]').click();
+  `);
+  await shot(ctl, 'bedienung-turniersysteme');
+
+  await js(`
+    document.querySelector('.tabs button[data-tab="mats"]').click();
+    const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); };
+    set('mpCount', '3');
+    set('mpStart', '09:30');
+    document.getElementById('btnMpDistribute').click();
+  `);
+  await shot(ctl, 'bedienung-matten');
+
+  // K.-o.: Viertelfinale entschieden, Halbfinale 1 läuft
+  await js(`
+    const s = __judo.state, C = JudoCore, now = Date.now();
+    s.settings.mat = 'Matte 1';
+    const ko = s.brackets.find((b) => b.system === 'ko');
+    const fin = (slot, side, reason, kind) => {
+      const e = s.queue.find((q) => q.bracket === ko.key && q.slot === slot);
+      e.status = 'done';
+      e.result = { fightId: 'demo-' + slot, winner: side, reason, kind, finishedAt: now - 60000, white: '', blue: '' };
+      JudoBrackets.sync(s);
+    };
+    fin('VF1', 'white', 'Ippon', 'ippon');
+    fin('VF2', 'blue', 'Waza-ari', 'wazaari');
+    fin('VF3', 'white', 'Yuko', 'yuko');
+    fin('VF4', 'blue', 'Ippon', 'ippon');
+    const hf = s.queue.find((q) => q.bracket === ko.key && q.slot === 'HF1');
+    s.settings.mat = hf.mat || 'Matte 1';
+    C.loadFight(s, Object.assign({}, hf), now);
+    s.fight.queueId = hf.id;
+    C.hajimeMate(s, now - 50000);
+    s.boardGroup = ko.key;
+    s.screen = 'table';
+    __judo.commit();
+    document.querySelector('.tabs button[data-tab="eval"]').click();
+    const card = [...document.querySelectorAll('.eval-card')].find((c) => c.querySelector('.bk-ko'));
+    document.querySelector('main').scrollTop = card.offsetTop - 70;
+  `);
+  await shot(ctl, 'bedienung-turnierbaum');
+  await shot(brd, 'anzeige-turnierbaum');
+
+  // Aufrufbildschirm mit Aufrufzeile
+  await js(`
+    const s = __judo.state;
+    s.screen = 'call';
+    const next = s.queue.filter((q) => q.mat === s.settings.mat && q.status === 'open' && !q.pending && q.id !== s.fight.queueId);
+    s.callMessage = (next[2] ? next[2].white.name : 'Erik Haslinger') + ' bitte zur ' + s.settings.mat;
+    __judo.commit();
+  `);
+  await shot(brd, 'anzeige-aufruf');
+  await js(`
+    __judo.state.screen = 'board';
+    __judo.state.callMessage = '';
     __judo.commit();
   `);
 
@@ -210,6 +293,7 @@ module.exports = async function run({ getControl, getBoard, quit }) {
     JudoCore.applyProfile(s, 'p-u11', Date.now());
     __judo.commit();
     document.querySelector('.tabs button[data-tab="settings"]').click();
+    document.querySelector('main').scrollTop = 0;
   `);
   await shot(ctl, 'bedienung-einstellungen');
 
