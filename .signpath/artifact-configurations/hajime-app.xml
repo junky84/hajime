@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath-Artefaktkonfiguration „hajime-app“: signiert die Programmdatei Hajime.exe.
+  GitHub Actions lädt Hajime.exe als Artefakt (ZIP mit der Datei im Hauptordner) hoch.
+  Der Workflow übergibt die Version als Parameter „version“ (z. B. 1.5.0).
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file path="Hajime.exe" product-name="Hajime" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

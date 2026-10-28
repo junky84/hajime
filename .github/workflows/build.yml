@@ -1,10 +1,11 @@
 # Testet die Logik und baut die Versionen ohne Installation:
 #  - macOS:   .app im .zip (Universal: Apple Silicon + Intel)
+#  - Windows: .zip und portable .exe, signiert über SignPath (freie Code-Signatur für Open Source)
 #  - Web:     .zip mit HTML-Version für Chrome/Edge (keine Programmdatei)
-# Bei einem Tag "v1.2.3" werden Mac- und Webversion als GitHub-Release veröffentlicht.
-# Windows wird nicht mehr gebaut: Die unsignierte .exe löst Virenwarnungen aus
-# (Defender). Wieder aufnehmen: Matrix-Eintrag mit os: windows-latest,
-# script: dist:win, name: Windows ergänzen und dist/*.exe hochladen.
+# Bei einem Tag "v1.2.3" werden die Versionen als GitHub-Release veröffentlicht.
+# Windows kommt nur signiert ins Release: Unsigniert löst die .exe Virenwarnungen aus (Defender).
+# Solange SignPath nicht eingerichtet ist, entsteht nur ein unsigniertes Testpaket unter Actions.
+# Einrichtung: docs/code-signing.md
 name: Build
 
 on:
@@ -70,6 +71,129 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
+  windows:
+    needs: test
+    runs-on: windows-latest
+    # SignPath verlangt eine Freigabe von Hand für jedes Release – so lange wartet der Job
+    timeout-minutes: 180
+    env:
+      SIGN: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+    outputs:
+      signed: ${{ steps.done.outputs.signed }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Version aus Tag übernehmen
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+      - name: Version merken
+        shell: bash
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+      - name: App bauen (Ordner win-unpacked)
+        run: npx electron-builder --win dir --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # 1. Hajime.exe signieren (die eigentliche Programmdatei)
+      - name: Hajime.exe zum Signieren hochladen
+        id: up-app
+        if: env.SIGN == 'true' && vars.SIGNPATH_SIGN_APP != 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigniert-app
+          path: dist/win-unpacked/Hajime.exe
+          if-no-files-found: error
+      - name: Hajime.exe signieren (SignPath, wartet auf Freigabe)
+        if: steps.up-app.outcome == 'success'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'hajime' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: hajime-app
+          github-artifact-id: ${{ steps.up-app.outputs.artifact-id }}
+          parameters: |
+            version: "${{ env.VERSION }}"
+          wait-for-completion-timeout-in-seconds: 10200
+          output-artifact-directory: dist/signiert-app
+      - name: Signierte Hajime.exe übernehmen
+        if: steps.up-app.outcome == 'success'
+        shell: bash
+        run: cp -f dist/signiert-app/Hajime.exe dist/win-unpacked/Hajime.exe
+
+      # 2. Pakete aus dem (signierten) Ordner bauen
+      - name: Pakete bauen (zip und portable .exe)
+        run: npx electron-builder --win zip portable --x64 --prepackaged dist/win-unpacked --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # 3. Die portable .exe signieren (die Datei, die man herunterlädt und startet)
+      - name: Portable .exe zum Signieren hochladen
+        id: up-portable
+        if: env.SIGN == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigniert-portable
+          path: dist/Hajime-${{ env.VERSION }}-Windows-portable.exe
+          if-no-files-found: error
+      - name: Portable .exe signieren (SignPath, wartet auf Freigabe)
+        if: steps.up-portable.outcome == 'success'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'hajime' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: hajime-portable
+          github-artifact-id: ${{ steps.up-portable.outputs.artifact-id }}
+          parameters: |
+            version: "${{ env.VERSION }}"
+          wait-for-completion-timeout-in-seconds: 10200
+          output-artifact-directory: dist/signiert-portable
+      - name: Signierte portable .exe übernehmen
+        if: steps.up-portable.outcome == 'success'
+        shell: bash
+        run: cp -f "dist/signiert-portable/Hajime-$VERSION-Windows-portable.exe" dist/
+
+      - name: Signaturen prüfen
+        if: env.SIGN == 'true'
+        shell: pwsh
+        run: |
+          $files = @("dist/Hajime-$env:VERSION-Windows-portable.exe")
+          if ("${{ vars.SIGNPATH_SIGN_APP }}" -ne "false") { $files += "dist/win-unpacked/Hajime.exe" }
+          foreach ($f in $files) {
+            $s = Get-AuthenticodeSignature $f
+            Write-Host "$f : $($s.Status) $($s.SignerCertificate.Subject)"
+            if ($s.Status -ne 'Valid') { throw "$f ist nicht gültig signiert" }
+          }
+      - name: Starttest der fertigen Pakete
+        run: node scripts/smoketest.js
+      - name: Starttest-Ergebnisse hochladen
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Starttest-Windows
+          path: selftest/
+          if-no-files-found: ignore
+      # ins Release nur signiert; unsigniert nur zum Testen unter Actions
+      - name: Windows-Pakete hochladen
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.SIGN == 'true' && 'Hajime-Windows' || 'Test-Windows-unsigniert' }}
+          path: |
+            dist/*-Windows.zip
+            dist/*-Windows-portable.exe
+          if-no-files-found: error
+      - id: done
+        shell: bash
+        run: echo "signed=$SIGN" >> "$GITHUB_OUTPUT"
+
   web:
     needs: test
     runs-on: ubuntu-latest
@@ -93,18 +217,29 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, web]
+    # Windows ist optional: Wird die Signatur nicht freigegeben, erscheint das Release ohne Windows
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.build.result == 'success' && needs.web.result == 'success'
+    needs: [build, web, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
+          pattern: Hajime-*
           merge-multiple: true
+      - name: Dateien prüfen
+        run: |
+          ls -la artifacts
+          ls artifacts/*-Mac.zip artifacts/*-Web.zip
       - uses: softprops/action-gh-release@v3
         with:
           files: |
             artifacts/*-Mac.zip
             artifacts/*-Web.zip
-          fail_on_unmatched_files: true
+            artifacts/*-Windows.zip
+            artifacts/*-Windows-portable.exe
+          fail_on_unmatched_files: false
           generate_release_notes: true
+          body: |
+            **Download:** `Hajime-…-Web.zip` (Chrome/Edge, jeder Rechner), `Hajime-…-Mac.zip` (macOS) und – sofern signiert – `Hajime-…-Windows-portable.exe` / `Hajime-…-Windows.zip`.
+            Windows: Free code signing provided by SignPath.io, certificate by SignPath Foundation – [Code signing policy](https://github.com/junky84/hajime#code-signing-policy).

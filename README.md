@@ -1,6 +1,6 @@
 # <img src="docs/img/logo.png" alt="" height="32"> Hajime
 
-**Judo-Anzeigetafel** für Training, Vereinsmeisterschaft und Turnier – **ohne Installation**: als **Webversion** für jeden Rechner mit Chrome oder Edge (läuft offline, keine Programmdatei) und als **App für macOS**.
+**Judo-Anzeigetafel** für Training, Vereinsmeisterschaft und Turnier – **ohne Installation**: als **Webversion** für jeden Rechner mit Chrome oder Edge (läuft offline, keine Programmdatei) und als **App für macOS** und **Windows** (signiert, siehe [Code signing policy](#code-signing-policy)).
 
 > **Du musst nicht alles nutzen.** Hajime ist zuerst eine ganz normale Anzeigetafel: Uhr, Wertungen, Shido, Osaekomi. Namen, Excel-Listen und Turnierfunktionen sind Zusatzangebote. Wer sie nicht braucht, lässt sie einfach weg – die Tafel funktioniert auch ganz ohne Namen.
 
@@ -107,6 +107,9 @@ Die fertigen Dateien liegen unter **Releases**.
 |---|---|---|
 | **Webversion** – jeder Rechner mit Chrome oder Edge | `Hajime-x.y.z-Web.zip` | Entpacken, `Hajime starten.html` öffnen. |
 | **macOS-App** (Apple Silicon + Intel) | `Hajime-x.y.z-Mac.zip` | Entpacken, `Hajime.app` starten. |
+| **Windows-App** (Windows 10/11, 64 Bit) | `Hajime-x.y.z-Windows-portable.exe` oder `Hajime-x.y.z-Windows.zip` | `.exe` direkt starten bzw. ZIP entpacken und `Hajime.exe` starten. |
+
+Die Windows-App erscheint im Release, sobald sie über SignPath signiert ist ([Code signing policy](#code-signing-policy)). Unsignierte Windows-Programme lösen auf vielen Rechnern Virenwarnungen aus; bis dahin ist die Webversion der Weg für Windows.
 
 ### Webversion
 
@@ -233,11 +236,15 @@ Fehlt ein Kämpfer an der Matte, *Aufruf* oben rechts klicken (oder Taste `K`):
 |---|
 | ![Aufruf im Bedienfenster](docs/screenshots/bedienung-aufruf.png) |
 
+### Windows-App
+
+Wie die macOS-App: Die Anzeige öffnet sich selbst im Vollbild auf dem zweiten Bildschirm, und der Rechner kann **Zentrale** für [Matten im Netz](#matten-im-netz) sein. Die portable `.exe` braucht keine Installation; Einstellungen und Protokoll liegen im Ordner `Hajime-Daten` neben der Datei (falls dort schreibbar). Beim ersten Start als Zentrale fragt die Windows-Firewall nach der Freigabe für das private Netzwerk – erlauben.
+
 ### Matten im Netz
 
 Bei mehreren Matten können sich die Hajime-Rechner im selben (W)LAN verbinden. Dann laufen Ergebnisse ohne Excel-Umweg zurück, und die Turnierleitung sieht alle Matten auf einen Blick. Nur lokales Netz, kein Internet nötig.
 
-1. **Zentrale** (z. B. der Rechner der Turnierleitung, macOS-App): *Einstellungen → Matten im Netz → Dieser Rechner: Zentrale*. Hajime zeigt einen **Turniercode** (4 Ziffern) und die Adresse.
+1. **Zentrale** (z. B. der Rechner der Turnierleitung, macOS- oder Windows-App): *Einstellungen → Matten im Netz → Dieser Rechner: Zentrale*. Hajime zeigt einen **Turniercode** (4 Ziffern) und die Adresse.
 2. **Mattenrechner:** Hajime findet die Zentrale von selbst und fragt *„Zentrale gefunden – diese Matte verbinden?“*. Turniercode und Mattenname eingeben, fertig. Klappt die Suche nicht, unter *Einstellungen → Matten im Netz* die Adresse von Hand eintragen (z. B. `192.168.1.20`).
 3. In der Zentrale im Reiter *Matten* bei jeder Matte *Kampfliste senden* – oder wie bisher per *Excel je Matte*.
 
@@ -349,6 +356,25 @@ GitHub Actions baut dann die Mac- und die Webversion, startet die App zur Probe 
 ## Geplante Funktionen
 
 Ideen und Wünsche stehen unter [Issues](https://github.com/junky84/hajime/issues), die Zuordnung zu den nächsten Versionen unter [Meilensteine](https://github.com/junky84/hajime/milestones).
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+Die Windows-Programme (`Hajime.exe` und `Hajime-x.y.z-Windows-portable.exe`) werden in GitHub Actions direkt aus diesem Repository gebaut und anschließend über SignPath signiert; jede Signatur wird von Hand freigegeben. Signiert wird nur, was aus dem Quellcode dieses Repositorys gebaut wurde.
+
+**Rollen**
+
+- Committers and reviewers: [junky84](https://github.com/junky84)
+- Approvers: [junky84](https://github.com/junky84)
+
+Änderungen von anderen (Pull Requests) werden vor dem Übernehmen geprüft.
+
+**Privacy policy**
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+Hajime braucht kein Internet und sendet keine Daten an Dritte. Netzwerkverbindungen gibt es nur, wenn sie ausdrücklich eingeschaltet werden: *Matten im Netz* verbindet Hajime-Rechner im selben lokalen Netz miteinander, der Link im Fenster *Über Hajime* öffnet GitHub im Browser.
 
 ## Hinweis
 
