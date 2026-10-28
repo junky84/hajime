@@ -9,6 +9,9 @@
 - **Nächster Kampf** gut lesbar unten auf der Anzeige, in drei Größen
 - **Ereignisprotokoll** jedes Kampfes und Ergebnis-Export nach Excel
 - **Aushang** der Kampfreihenfolge pro Matte zum Ausdrucken (A4/A3)
+- **Gruppentabellen** für „Jeder gegen jeden“ mit automatischer Platzierung, auch groß auf der Anzeige
+- **Siegerliste und Urkunden** als PDF (Siegerliste auch als Excel)
+- **Ruhezeit-Warnung**, wenn ein Kämpfer seine Mindestpause noch nicht hatte
 
 ## Screenshots
 
@@ -19,6 +22,8 @@
 | ![Anzeige während Osaekomi](docs/screenshots/anzeige-osaekomi.png) | ![Anzeige mit Sieger](docs/screenshots/anzeige-sieger.png) |
 | **Golden Score** | **Pausenbild mit den nächsten Kämpfen** |
 | ![Anzeige Golden Score](docs/screenshots/anzeige-golden-score.png) | ![Pausenbild](docs/screenshots/anzeige-pausenbild.png) |
+| **Gruppentabelle** (Taste `G`) | |
+| ![Gruppentabelle](docs/screenshots/anzeige-gruppentabelle.png) | |
 
 **Bedienfenster** (Laptop)
 
@@ -27,6 +32,14 @@
 | Kampfliste & Teilnehmer (Excel-Import, Jeder gegen jeden) | Einstellungen & Regelprofile |
 |---|---|
 | ![Kampfliste](docs/screenshots/bedienung-kampfliste.png) | ![Einstellungen](docs/screenshots/bedienung-einstellungen.png) |
+| **Auswertung** (Gruppentabellen, Siegerliste, Urkunden) | **Ruhezeit-Warnung** beim Laden eines Kampfes |
+| ![Auswertung](docs/screenshots/bedienung-auswertung.png) | ![Ruhezeit-Warnung](docs/screenshots/bedienung-ruhezeit.png) |
+
+**Ausdrucke** (PDF)
+
+| Urkunde | Siegerliste |
+|---|---|
+| ![Urkunde](docs/screenshots/urkunde.png) | ![Siegerliste](docs/screenshots/siegerliste.png) |
 
 Alle Namen in den Screenshots sind erfunden (aus der [Beispiel-Excel](beispiel/Beispiel-Teilnehmer-20.xlsx)).
 
@@ -81,6 +94,7 @@ Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
 | `Strg/⌘ + Z` | Rückgängig |
 | `N` | Nächster Kampf |
 | `B` | Pausenbild (Turniername, Logo, nächste Kämpfe) an/aus |
+| `G` | Gruppentabelle der aktuellen Klasse an/aus |
 
 Im Anzeigefenster: Doppelklick oder `F` = Vollbild an/aus.
 
@@ -100,6 +114,20 @@ Im Anzeigefenster: Doppelklick oder `F` = Vollbild an/aus.
 - **Ereignisprotokoll pro Kampf:** Jede Aktion wird mit Uhrzeit und Kampfzeit gespeichert – Hajime/Mate, Wertungen, Shido, Osaekomi und Toketa, Korrekturen, Rückgängig, Entscheidung. Im Reiter *Protokoll* pro Kampf über *Ereignisse* aufklappen; der Excel-Export enthält dafür ein eigenes Blatt „Ereignisse“.
 - **Aushang:** Im Reiter *Kampfliste* erzeugt *Aushang drucken …* die Kampfreihenfolge pro Matte zum Aushängen (A4 oder A3 quer, auf Wunsch nur offene Kämpfe) – bewusst ohne Uhrzeiten und ohne Ergebnisse. Die macOS-App speichert direkt ein PDF, die Webversion öffnet den Druckdialog (dort *Als PDF sichern* wählen).
 - **Über Hajime:** im Menü, unter *Einstellungen* oder mit einem Dreifachklick auf „Hajime“ oben links.
+
+### Auswertung und Siegerehrung
+
+- **Gruppentabellen:** Der Reiter *Auswertung* rechnet für jede Alters-/Gewichtsklasse der Kampfliste („Jeder gegen jeden“) die Platzierung selbst aus: Siege, Wertungspunkte und wie gewonnen wurde (Ippon · Waza-ari · Yuko). Wertungspunkte je Sieg: Ippon 10, Waza-ari 7, Yuko 5, Entscheidung (Hantei, Shido) 1 – änderbar unter *Einstellungen → Auswertung*. Bei gleich vielen Siegen entscheiden die Wertungspunkte und dann der direkte Vergleich (oder umgekehrt, je nach Ausschreibung).
+- **Stichkampf:** Bleibt ein Gleichstand (z. B. drei Kämpfer im Kreis), markiert Hajime „Stichkampf nötig“. *Stichkampf anlegen* setzt die nötigen Kämpfe als nächste in die Kampfliste; sie entscheiden nur den Gleichstand und zählen nicht als Siege.
+- **Auf der Anzeige:** *Gruppentabelle* oben rechts (Taste `G`) zeigt die Tabelle der aktuellen Klasse groß für Kämpfer und Eltern, *Auf Anzeige* in der Auswertung eine bestimmte Gruppe.
+- **Siegerliste** (Plätze 1–3 je Gruppe) als PDF oder Excel; der Protokoll-Export enthält zusätzlich ein Blatt „Gruppentabellen“.
+- **Urkunden** als PDF, eine A4-Seite pro Platzierung – pro Gruppe, sobald sie fertig ist, oder alle auf einmal. Mit Turniername, Datum, Ort, Name, Verein, Klasse und Platz, Vereinslogo aus *Anzeige* und zwei Unterschriftsfeldern; ein eigenes Hintergrundbild ersetzt den goldenen Rahmen. Wahlweise für Plätze 1–3 oder alle Platzierten.
+
+### Ruhezeit
+
+- Im Regelprofil steht eine **Mindestpause** zwischen zwei Kämpfen eines Kämpfers (Vorschlag: U11/U13 5 Minuten, ab U15 10 Minuten; 0 = keine Warnung).
+- Wird ein Kampf geladen, dessen Kämpfer die Pause noch nicht hatte, zeigt Hajime die Restzeit („noch 2:40, bereit ab 09:49“) und schlägt Kämpfe vor, deren Kämpfer schon bereit sind – *Vorziehen* setzt diesen Kampf in der Kampfliste davor und lädt ihn. *Trotzdem laden* geht natürlich auch.
+- In der Kampfliste steht bei jedem Kämpfer, der noch Pause hat, die verbleibende Zeit.
 
 ## Excel-Import
 
@@ -138,6 +166,7 @@ Aufbau:
 - `src/js/control.js` – Bedienfenster
 - `src/js/excel.js` – Import/Export (SheetJS liegt lokal in `src/vendor/`, funktioniert offline)
 - `src/js/notice.js` – Aushang (Kampfreihenfolge pro Matte als Druckseite)
+- `src/js/awards.js` – Siegerliste und Urkunden als Druckseiten
 - `src/js/credits.js` + `src/css/credits.css` – Fenster *Über Hajime*
 - `src/js/transport.js` – Verbindung der Fenster: Electron-IPC oder im Browser Pop-up + `postMessage`
 - `scripts/build-web.js` – Webversion (Startseite, Web-App-Manifest, Offline-Speicher)

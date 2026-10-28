@@ -50,6 +50,12 @@
       <div class="jb-idle-mat"></div>
       <div class="jb-idle-list"></div>
     </div>
+    <div class="jb-table">
+      <div class="jb-tb-sub"></div>
+      <div class="jb-tb-title"></div>
+      <div class="jb-tb-grid"></div>
+      <div class="jb-tb-foot"></div>
+    </div>
   </div>`;
 
   function esc(s) {
@@ -158,6 +164,7 @@
       container.classList.toggle('swap', !!s.swap);
       container.classList.toggle('no-yuko', !r.yuko && !f.white.yuko && !f.blue.yuko);
       container.classList.toggle('is-idle', view.screen === 'idle');
+      container.classList.toggle('is-table', view.screen === 'table');
       container.classList.toggle('golden', f.clock.mode === 'golden');
 
       const logo = $('.jb-logo');
@@ -224,6 +231,8 @@
             .join('')
         : '';
 
+      renderTable(view.table, s);
+
       // Wertungs-Einblendung
       const fl = f.flash;
       const flKey = fl ? f.id + ':' + fl.id : null;
@@ -243,6 +252,46 @@
       fitPending = true;
       requestAnimationFrame(() => fitPending && fitAll());
       if (!raf) loop();
+    }
+
+    // Gruppentabelle („Jeder gegen jeden“) als eigener Bildschirm
+    function renderTable(t, s) {
+      const box = $('.jb-table');
+      if (!t) {
+        box.querySelector('.jb-tb-sub').textContent = 'Gruppentabelle';
+        box.querySelector('.jb-tb-title').textContent = s.tournament || 'Judo';
+        box.querySelector('.jb-tb-grid').innerHTML = '<div class="jb-tb-empty">Noch keine Gruppe in der Kampfliste</div>';
+        box.querySelector('.jb-tb-foot').textContent = '';
+        return;
+      }
+      const sub = ['Gruppentabelle', t.label, t.complete ? `nach ${t.done} von ${t.total} Kämpfen` : `Zwischenstand nach ${t.done} von ${t.total} Kämpfen`];
+      box.querySelector('.jb-tb-sub').textContent = sub.join(' · ');
+      box.querySelector('.jb-tb-title').textContent = s.tournament || 'Judo';
+      const head =
+        '<div class="jb-tb-row jb-tb-head"><span>Platz</span><span>Name</span><span>Siege</span><span>Wertungen</span><span>Ippon · Waza-ari · Yuko</span></div>';
+      const rows = t.rows
+        .map(
+          (r) =>
+            `<div class="jb-tb-row${r.tie ? ' tie' : ''}"><span class="pl p${r.place}">${r.place == null ? '–' : r.place}</span><span class="nm"><b>${esc(r.name)}</b>${
+              s.showClub && r.club ? `<small>${esc(r.club)}</small>` : ''
+            }${r.tie ? '<em>Stichkampf</em>' : ''}</span><span>${r.wins}</span><span>${r.points}</span><span class="iwy">${r.ippon} · ${r.wazaari} · ${r.yuko}</span></div>`
+        )
+        .join('');
+      const grid = box.querySelector('.jb-tb-grid');
+      grid.style.setProperty('--rows', Math.max(4, t.rows.length));
+      const html = head + rows;
+      if (grid.innerHTML !== html) grid.innerHTML = html;
+      const p = t.winPoints || {};
+      const order =
+        t.rankOrder === 'direct'
+          ? 'bei gleichen Siegen entscheidet der direkte Vergleich, dann die Wertungspunkte'
+          : 'bei gleichen Siegen entscheiden die Wertungspunkte, dann der direkte Vergleich';
+      const foot = box.querySelector('.jb-tb-foot');
+      if (t.ties && t.ties.length) {
+        foot.innerHTML = `<b>Gleichstand: ${t.ties.map((x) => esc(x.join(', '))).join(' / ')} – Stichkampf nötig</b>`;
+      } else {
+        foot.textContent = `Wertungspunkte je Sieg: Ippon ${p.ippon} · Waza-ari ${p.wazaari} · Yuko ${p.yuko} · Entscheidung ${p.decision} · ${order}`;
+      }
     }
 
     function showFlash(fl) {

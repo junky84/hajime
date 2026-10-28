@@ -20,6 +20,13 @@ module.exports = async function run({ getControl, getBoard, quit }) {
   const js = (code) => ctl.webContents.executeJavaScript(`(async () => { ${code} })()`);
   const shot = async (win, name) => {
     await wait(700);
+    // echte Monitornamen des Rechners nicht in die öffentlichen Bilder übernehmen
+    if (win === ctl) {
+      await ctl.webContents.executeJavaScript(
+        `document.querySelectorAll('#displaySelect option').forEach((o, i) => (o.textContent = 'Bildschirm ' + (i + 1) + ': 1920×1080' + (i ? ' (Anzeige)' : ' (Haupt, Bedienung)')))`
+      );
+      await wait(300);
+    }
     const img = await win.webContents.capturePage();
     fs.writeFileSync(path.join(out, name + '.png'), img.toPNG());
     console.log('Screenshot', name);
@@ -96,6 +103,104 @@ module.exports = async function run({ getControl, getBoard, quit }) {
     __judo.commit();
   `);
   await shot(brd, 'anzeige-pausenbild');
+
+  // Gruppentabelle U11 -28 kg (Ergebnisse wie im Beispiel aus Issue #3)
+  await js(`
+    const s = __judo.state, C = JudoCore, now = Date.now();
+    s.screen = 'board';
+    const res = {
+      'Kaltenbach|Fischbach': ['Mia Kaltenbach', 'Waza-ari'],
+      'Brenner|Kaltenbach': ['Mia Kaltenbach', 'Ippon'],
+      'Kaltenbach|Rothmund': ['Mia Kaltenbach', 'Ippon'],
+      'Brenner|Fischbach': ['Lukas Brenner', 'Waza-ari'],
+      'Brenner|Rothmund': ['Lukas Brenner', 'Ippon'],
+      'Fischbach|Rothmund': ['Noah Fischbach', 'Ippon'],
+    };
+    const last = (n) => n.split(' ').pop();
+    let t = now - 30 * 60000;
+    s.queue.forEach((e, i) => {
+      if (e.ageClass !== 'U11' || e.category !== '-28 kg') return;
+      const k = [last(e.white.name), last(e.blue.name)];
+      const r = res[k.join('|')] || res[k.reverse().join('|')];
+      const winner = e.white.name === r[0] ? 'white' : 'blue';
+      t += 4 * 60000;
+      e.status = 'done';
+      e.result = { fightId: 'demo' + i, winner, reason: r[1], kind: C.winKind(winner, r[1]), finishedAt: t, white: '', blue: '' };
+      s.log.push({ fightId: 'demo' + i, no: String(i + 1), time: '', mat: 'Matte 1', ageClass: e.ageClass, category: e.category, white: e.white, blue: e.blue,
+        whiteScore: '', blueScore: '', winner, winnerName: r[0], reason: r[1], duration: '2:00', finishedAt: t, events: [] });
+    });
+    s.boardGroup = C.groupKey({ ageClass: 'U11', category: '-28 kg' });
+    s.screen = 'table';
+    __judo.commit();
+  `);
+  await shot(brd, 'anzeige-gruppentabelle');
+
+  await js(`
+    __judo.state.screen = 'board';
+    __judo.commit();
+    document.querySelector('.tabs button[data-tab="eval"]').click();
+  `);
+  await shot(ctl, 'bedienung-auswertung');
+
+  // Ruhezeit: Kämpfer des nächsten offenen Kampfes hat vor 2:20 gekämpft
+  await js(`
+    const s = __judo.state, C = JudoCore, now = Date.now();
+    s.fight = C.newFight(C.getRules(s)); // kein laufender Kampf, sonst fragt „Laden“ nach
+    const e = s.queue.find((q) => q.status !== 'done' && q.ageClass === 'U11');
+    s.log.push({ fightId: 'demo-rest', no: '4', time: '', mat: 'Matte 1', ageClass: 'U11', category: e.category, white: e.blue, blue: { name: 'Emma Rothmund' },
+      whiteScore: '', blueScore: '', winner: 'white', winnerName: e.blue.name, reason: 'Ippon', duration: '2:00', finishedAt: now - 140000, events: [] });
+    __judo.commit();
+    document.querySelector('.tabs button[data-tab="list"]').click();
+    document.querySelector('#queueTable tr[data-id="' + e.id + '"] [data-a="load"]').click();
+  `);
+  await shot(ctl, 'bedienung-ruhezeit');
+  await js(`document.querySelector('#dlgRest [data-r="cancel"]').click();`);
+
+  // Urkunde und Siegerliste: Seite in einem unsichtbaren Fenster abfotografieren
+  const { BrowserWindow } = require('electron');
+  const page = async (code, name, pdfName) => {
+    const html = await js(code);
+    const tmp = path.join(require('os').tmpdir(), 'hajime-' + name + '.html');
+    fs.writeFileSync(tmp, html);
+    const win = new BrowserWindow({ show: false, width: 794, height: 1123, useContentSize: true, webPreferences: { javascript: false } });
+    await win.loadFile(tmp);
+    await win.webContents.insertCSS('html { overflow: hidden; }');
+    await wait(500);
+    const img = await win.webContents.capturePage();
+    fs.writeFileSync(path.join(out, name + '.png'), img.toPNG());
+    console.log('Screenshot', name);
+    if (process.env.HAJIME_PDF_OUT) {
+      const pdf = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, landscape: false });
+      fs.writeFileSync(path.join(process.env.HAJIME_PDF_OUT, pdfName), pdf);
+    }
+    win.destroy();
+  };
+  await js(`
+    const s = __judo.state;
+    Object.assign(s.settings, { tournamentDate: '2026-11-15', tournamentPlace: 'Mittelstadt' });
+    // Beispiel-Vereinslogo
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 300;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#c62828';
+    g.beginPath();
+    g.arc(150, 150, 150, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#fff';
+    g.font = '900 96px Arial, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('JCM', 150, 156);
+    s.settings.logo = cv.toDataURL('image/png');
+    __judo.commit();
+  `);
+  const tables = `JudoCore.allStandings(__judo.state).filter((t) => t.done)`;
+  await page(`return JudoAwards.certHtml({ tables: ${tables}.filter((t) => t.complete), places: '3', settings: __judo.state.settings });`, 'urkunde', 'urkunden.pdf');
+  await page(`return JudoAwards.listHtml({ tables: ${tables}, places: '3', settings: __judo.state.settings });`, 'siegerliste', 'siegerliste.pdf');
+  await js(`
+    __judo.state.settings.logo = null;
+    __judo.commit();
+  `);
 
   // Einstellungen / Regelprofile (U11)
   await js(`

@@ -44,5 +44,18 @@ function fileFrom(sheets) {
   assert.strictEqual(raw.participants.length, 2);
   assert.strictEqual(raw.participants[1].club, 'Club F');
 
+  // Siegerliste und Gruppentabellen im Export
+  const C = require('../src/js/core.js');
+  const fight = (a, b, winner, reason) => ({ ageClass: 'U11', category: '-28 kg', white: { name: a, club: 'V' + a }, blue: { name: b }, status: 'done', result: { winner, reason } });
+  const tables = C.poolGroups([fight('A', 'B', 'white', 'Ippon'), fight('B', 'C', 'white', 'Waza-ari'), fight('A', 'C', 'white', 'Yuko')]).map((g) => C.standings(g));
+  const sheet = (bytes, name) => XLSX.utils.sheet_to_json(XLSX.read(bytes, { type: 'array' }).Sheets[name], { header: 1 });
+  const wl = sheet(X.winnersBytes(tables, '3', C.awardRows), 'Siegerliste');
+  assert.deepStrictEqual(wl[0], ['Altersklasse', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Hinweis']);
+  assert.deepStrictEqual(wl.slice(1).map((r) => [r[2], r[3]]), [[1, 'A'], [2, 'B'], [3, 'C']]);
+  const gt = sheet(X.protocolBytes([], tables), 'Gruppentabellen');
+  assert.strictEqual(gt.length, 4);
+  assert.strictEqual(gt[1][3], 'A');
+  assert.strictEqual(gt[1][9], 15); // Ippon 10 + Yuko 5
+
   console.log('Excel-Import: alle Tests bestanden');
 })().catch((e) => { console.error(e); process.exit(1); });

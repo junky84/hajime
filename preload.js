@@ -19,6 +19,6 @@ contextBridge.exposeInMainWorld('judoBridge', {
   saveFile: (name, bytes) => ipcRenderer.invoke('save-file', { name, bytes }),
   // Versionsnummer für „Über Hajime“
   appVersion: () => ipcRenderer.invoke('app-version'),
-  // Aushang als PDF speichern
-  savePdf: (name, html, size) => ipcRenderer.invoke('save-pdf', { name, html, size }),
+  // Aushang, Siegerliste, Urkunden als PDF speichern
+  savePdf: (name, html, size, landscape) => ipcRenderer.invoke('save-pdf', { name, html, size, landscape }),
 });

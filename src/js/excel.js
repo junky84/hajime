@@ -182,7 +182,35 @@
     return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   }
 
-  function protocolBytes(log) {
+  // Gruppentabellen als Zeilen (für Protokoll-Export)
+  function tableRows(tables) {
+    const rows = [];
+    (tables || []).forEach((t) =>
+      t.rows.forEach((r) =>
+        rows.push([
+          t.ageClass,
+          t.category,
+          r.place,
+          r.name,
+          r.club,
+          r.fights,
+          r.wins,
+          r.losses,
+          r.draws,
+          r.points,
+          r.ippon,
+          r.wazaari,
+          r.yuko,
+          r.tie ? 'Stichkampf nötig' : t.complete ? '' : `vorläufig (${t.done}/${t.total})`,
+        ])
+      )
+    );
+    return rows;
+  }
+  const TABLE_HEAD = ['Altersklasse', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Kämpfe', 'Siege', 'Niederlagen', 'Unentschieden', 'Wertungspunkte', 'Ippon', 'Waza-ari', 'Yuko', 'Hinweis'];
+  const TABLE_WIDTHS = [12, 14, 6, 24, 22, 7, 6, 11, 13, 14, 6, 9, 6, 20];
+
+  function protocolBytes(log, tables) {
     const XLSX = root.XLSX;
     const head = ['Nr', 'Uhrzeit', 'Matte', 'Altersklasse', 'Gewichtsklasse', 'Weiß', 'Verein Weiß', 'Wertung Weiß', 'Blau', 'Verein Blau', 'Wertung Blau', 'Sieger', 'Entscheidung', 'Kampfzeit'];
     const rows = log.map((l) => [l.no, l.time, l.mat, l.ageClass, l.category, l.white.name, l.white.club, l.whiteScore, l.blue.name, l.blue.club, l.blueScore, l.winnerName, l.reason, l.duration]);
@@ -200,8 +228,25 @@
       (l.events || []).forEach((e) => evRows.push([l.no, l.ageClass, l.category, l.white.name, l.blue.name, clock(e.at), e.clock, e.text]))
     );
     if (evRows.length) XLSX.utils.book_append_sheet(wb, sheetFrom([evHead].concat(evRows), [5, 12, 14, 24, 24, 10, 11, 60]), 'Ereignisse');
+    const tRows = tableRows(tables);
+    if (tRows.length) XLSX.utils.book_append_sheet(wb, sheetFrom([TABLE_HEAD].concat(tRows), TABLE_WIDTHS), 'Gruppentabellen');
     return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   }
 
-  root.JudoExcel = { importFile, templateBytes, protocolBytes, _parseSheet: parseSheet };
+  // Siegerliste: Platzierte je Gruppe, dazu die vollständigen Gruppentabellen
+  function winnersBytes(tables, places, awardRows) {
+    const XLSX = root.XLSX;
+    const rows = [];
+    tables.forEach((t) =>
+      awardRows(t, places).forEach((r) =>
+        rows.push([t.ageClass, t.category, r.place, r.name, r.club, r.tie ? 'Stichkampf nötig' : t.complete ? '' : `vorläufig (${t.done}/${t.total})`])
+      )
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheetFrom([['Altersklasse', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Hinweis']].concat(rows), [12, 14, 6, 26, 24, 20]), 'Siegerliste');
+    XLSX.utils.book_append_sheet(wb, sheetFrom([TABLE_HEAD].concat(tableRows(tables)), TABLE_WIDTHS), 'Gruppentabellen');
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  }
+
+  root.JudoExcel = { importFile, templateBytes, protocolBytes, winnersBytes, _parseSheet: parseSheet };
 })(typeof self !== 'undefined' ? self : this);

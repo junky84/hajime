@@ -15,6 +15,7 @@
       <nav class="tabs">
         <button data-tab="fight" class="active">Kampf</button>
         <button data-tab="list">Kampfliste <span class="pill" id="queueCount"></span></button>
+        <button data-tab="eval">Auswertung</button>
         <button data-tab="log">Protokoll <span class="pill" id="logCount"></span></button>
         <button data-tab="settings">Einstellungen</button>
       </nav>
@@ -23,6 +24,7 @@
         <select id="displaySelect" title="Bildschirm für die Anzeige"></select>
         <button id="btnBoardShow" class="btn">Anzeige öffnen</button>
         <button id="btnBoardFs" class="btn">Vollbild</button>
+        <button id="btnTable" class="btn toggle" title="Gruppentabelle der aktuellen Klasse auf der Anzeige (Taste G)">Gruppentabelle</button>
         <button id="btnIdle" class="btn toggle" title="Pausenbild mit Turniername und nächsten Kämpfen (Taste B)">Pausenbild</button>
       </div>
     </header>
@@ -117,7 +119,7 @@
             <div>Blau: <kbd>U</kbd> Ippon <kbd>I</kbd> Waza-ari <kbd>O</kbd> Yuko <kbd>P</kbd> Shido</div>
             <div><kbd>Shift</kbd> + Wertungstaste = Wertung abziehen</div>
             <div><kbd>↑</kbd> / <kbd>↓</kbd> Uhr ±1 s &nbsp; <kbd>Strg/⌘+Z</kbd> Rückgängig</div>
-            <div><kbd>N</kbd> Nächster Kampf &nbsp; <kbd>B</kbd> Pausenbild an/aus</div>
+            <div><kbd>N</kbd> Nächster Kampf &nbsp; <kbd>B</kbd> Pausenbild an/aus &nbsp; <kbd>G</kbd> Gruppentabelle an/aus</div>
             <div>Osaekomi-Taste erneut drücken = Toketa</div>
           </div>
         </details>
@@ -168,6 +170,23 @@
             <div class="empty" id="partEmpty">Keine Teilnehmer geladen. Namen kommen aus dem Excel-Blatt „Teilnehmer“ (oder einer Liste mit Spalte „Name“).</div>
           </div>
         </div>
+      </section>
+
+      <!-- ============ AUSWERTUNG ============ -->
+      <section class="tab" id="tab-eval">
+        <div class="toolbar">
+          <button class="btn primary" id="btnWinnersPdf" title="Platzierte pro Klasse als PDF">Siegerliste drucken …</button>
+          <button class="btn" id="btnWinnersXlsx">Siegerliste als Excel …</button>
+          <button class="btn" id="btnCertsAll" title="Urkunden aller Gruppen als PDF">Alle Urkunden …</button>
+          <span class="tool-sep"></span>
+          <label>Urkunden für <select id="sCertPlaces"><option value="3">Plätze 1–3</option><option value="all">alle Platzierten</option></select></label>
+          <label class="chk" title="Siegerliste und „Alle Urkunden“ nur mit Gruppen, deren Kämpfe alle beendet sind"><input type="checkbox" id="sAwardsDoneOnly" /> nur fertige Gruppen</label>
+          <span class="grow"></span>
+          <span class="muted" id="evalInfo"></span>
+        </div>
+        <div class="import-msg" id="evalMsg"></div>
+        <div class="eval-grid" id="evalGroups"></div>
+        <div class="empty" id="evalEmpty">Noch keine Gruppen. Die Auswertung entsteht aus der Kampfliste – je Alters- und Gewichtsklasse eine Gruppe („Jeder gegen jeden“).</div>
       </section>
 
       <!-- ============ PROTOKOLL ============ -->
@@ -248,6 +267,7 @@
             </div>
           </div>
 
+          <div class="col">
           <div class="card">
             <h2>Regelprofile</h2>
             <p class="muted">Ein Profil pro Altersklasse. Beim Laden eines Kampfes wird das Profil anhand der Altersklasse (Name oder Alias) automatisch gewählt.</p>
@@ -269,6 +289,7 @@
               <label class="chk"><input type="checkbox" data-p="yuko" /> Yuko-Wertung verwenden</label>
               <label>Shido bis Hansoku-make (0 = nie) <input data-p="shidoLimit" type="number" min="0" max="9" class="w-s" /></label>
               <label class="chk"><input type="checkbox" data-p="shidoDecides" /> bei Gleichstand gewinnt, wer weniger Shido hat</label>
+              <label>Mindestpause zwischen zwei Kämpfen eines Kämpfers (m:ss, 0 = keine Warnung) <input data-p="restTime" data-time class="w-s" /></label>
               <label class="chk"><input type="checkbox" data-p="autoOsae" /> Osaekomi automatisch werten</label>
               <div class="osae-fields">
                 <label>Yuko ab (s) <input data-p="osaeYuko" type="number" min="1" max="60" class="w-s" /></label>
@@ -277,6 +298,46 @@
               </div>
               <p class="muted">Kampfzeiten sind Vorschläge – bitte mit der Ausschreibung abgleichen.</p>
             </div>
+          </div>
+
+          <div class="card">
+            <h2>Auswertung</h2>
+            <div class="form">
+              <div class="wp-fields">
+                <span>Wertungspunkte je Sieg</span>
+                <label>Ippon <input data-wp="ippon" type="number" min="0" max="99" class="w-xs" /></label>
+                <label>Waza-ari <input data-wp="wazaari" type="number" min="0" max="99" class="w-xs" /></label>
+                <label>Yuko <input data-wp="yuko" type="number" min="0" max="99" class="w-xs" /></label>
+                <label title="Hantei, Shido oder andere Entscheidung ohne höhere Wertung">Entscheidung <input data-wp="decision" type="number" min="0" max="99" class="w-xs" /></label>
+              </div>
+              <label>Bei gleich vielen Siegen entscheidet
+                <select id="sRankOrder">
+                  <option value="points">zuerst die Wertungspunkte, dann der direkte Vergleich</option>
+                  <option value="direct">zuerst der direkte Vergleich, dann die Wertungspunkte</option>
+                </select>
+              </label>
+              <p class="muted">Bleibt es gleich (z. B. drei Kämpfer im Kreis), markiert Hajime „Stichkampf nötig“. Stichkämpfe legt die Auswertung an; sie zählen nicht als Siege.</p>
+            </div>
+            <h2>Urkunden</h2>
+            <div class="form">
+              <div class="row2">
+                <label>Datum <input id="sDate" type="date" /></label>
+                <label>Ort <input id="sPlace" placeholder="z. B. Mittelstadt" /></label>
+              </div>
+              <div class="row2">
+                <label>Unterschrift links <input id="sSign1" placeholder="Turnierleitung" /></label>
+                <label>Unterschrift rechts <input id="sSign2" placeholder="Kampfrichterobmann" /></label>
+              </div>
+              <div class="logo-row">
+                <span>Hintergrund</span>
+                <img id="sCertBgPreview" class="cert-bg" alt="" />
+                <button class="btn" id="btnCertBg">Bild wählen …</button>
+                <button class="btn" id="btnCertBgRemove">Entfernen</button>
+                <input type="file" id="fileCertBg" accept="image/*" hidden />
+              </div>
+              <p class="muted">Turniername und Logo kommen aus „Anzeige“. Ein Hintergrundbild (A4 hoch) ersetzt den goldenen Rahmen.</p>
+            </div>
+          </div>
           </div>
         </div>
       </section>
@@ -291,6 +352,23 @@
       </form>
     </dialog>
 
+    <!-- Ruhezeit-Warnung -->
+    <dialog id="dlgRest" class="rest-dlg">
+      <div class="rest-head"></div>
+      <div class="rest-body">
+        <div class="rest-fight"></div>
+        <div class="rest-waits"></div>
+        <div class="rest-sugg-wrap">
+          <div class="muted">Vorschlag: einen anderen Kampf vorziehen, dessen Kämpfer schon bereit sind:</div>
+          <div class="rest-sugg"></div>
+        </div>
+      </div>
+      <div class="rest-foot">
+        <button class="btn" data-r="cancel">Abbrechen</button>
+        <button class="btn warn" data-r="load">Trotzdem laden</button>
+      </div>
+    </dialog>
+
     <datalist id="dlNames"></datalist>
     <datalist id="dlClubs"></datalist>
     <datalist id="dlAge"></datalist>
@@ -303,6 +381,7 @@
     <script src="js/transport.js"></script>
     <script src="js/excel.js"></script>
     <script src="js/notice.js"></script>
+    <script src="js/awards.js"></script>
     <script src="js/control.js"></script>
     <script src="js/credits.js"></script>
   </body>

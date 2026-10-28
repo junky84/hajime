@@ -25,17 +25,21 @@
     osaeYuko: 5,
     osaeWazaari: 10,
     osaeIppon: 20,
+    restTime: 0, // Mindestpause zwischen zwei Kämpfen eines Kämpfers in Sekunden, 0 = aus
   };
 
   // Vorschläge – in den Einstellungen frei änderbar.
   const DEFAULT_PROFILES = [
-    { ...BASE_RULES, id: 'p-u11', name: 'U11', aliases: 'U10, U11', duration: 120, goldenLimit: 60, ipponEnds: false },
-    { ...BASE_RULES, id: 'p-u13', name: 'U13', aliases: 'U12, U13', duration: 180, goldenLimit: 60, ipponEnds: false },
-    { ...BASE_RULES, id: 'p-u15', name: 'U15', aliases: 'U14, U15', duration: 180 },
-    { ...BASE_RULES, id: 'p-u18', name: 'U18', aliases: 'U16, U17, U18', duration: 240 },
-    { ...BASE_RULES, id: 'p-adult', name: 'Erwachsene', aliases: 'U21, Männer, Frauen, Senioren, Aktive', duration: 240 },
-    { ...BASE_RULES, id: 'p-masters', name: 'Masters', aliases: 'Ü30, Veteranen, Masters', duration: 180 },
+    { ...BASE_RULES, id: 'p-u11', name: 'U11', aliases: 'U10, U11', duration: 120, goldenLimit: 60, ipponEnds: false, restTime: 300 },
+    { ...BASE_RULES, id: 'p-u13', name: 'U13', aliases: 'U12, U13', duration: 180, goldenLimit: 60, ipponEnds: false, restTime: 300 },
+    { ...BASE_RULES, id: 'p-u15', name: 'U15', aliases: 'U14, U15', duration: 180, restTime: 600 },
+    { ...BASE_RULES, id: 'p-u18', name: 'U18', aliases: 'U16, U17, U18', duration: 240, restTime: 600 },
+    { ...BASE_RULES, id: 'p-adult', name: 'Erwachsene', aliases: 'U21, Männer, Frauen, Senioren, Aktive', duration: 240, restTime: 600 },
+    { ...BASE_RULES, id: 'p-masters', name: 'Masters', aliases: 'Ü30, Veteranen, Masters', duration: 180, restTime: 600 },
   ];
+
+  // Wertungspunkte je Sieg für Gruppentabellen (in den Einstellungen änderbar)
+  const DEFAULT_WIN_POINTS = { ippon: 10, wazaari: 7, yuko: 5, decision: 1 };
 
   function uid() {
     return Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -89,10 +93,22 @@
         soundOn: true,
         soundTarget: 'control', // control | board | both
         swap: false, // Blau oben anzeigen
+        // Auswertung
+        winPoints: { ...DEFAULT_WIN_POINTS },
+        rankOrder: 'points', // points: Siege → Wertungspunkte → direkter Vergleich | direct: Siege → direkter Vergleich → Wertungspunkte
+        // Urkunden
+        tournamentDate: '',
+        tournamentPlace: '',
+        certBg: null,
+        certSign1: 'Turnierleitung',
+        certSign2: 'Kampfrichterobmann',
+        certPlaces: '3', // '3' = Plätze 1–3, 'all' = alle Platzierten
+        awardsDoneOnly: true, // Siegerliste / alle Urkunden nur mit fertigen Gruppen
       },
       profiles,
       activeProfileId: active.id,
-      screen: 'board', // board | idle
+      screen: 'board', // board | idle | table
+      boardGroup: null, // Gruppe für die Gruppentabelle auf der Anzeige
       fight: newFight(active),
       queue: [],
       participants: [],
@@ -457,8 +473,13 @@
     const base = createState();
     const s = Object.assign(base, saved || {});
     s.settings = Object.assign(createState().settings, (saved && saved.settings) || {});
+    s.settings.winPoints = Object.assign({}, DEFAULT_WIN_POINTS, s.settings.winPoints);
     if (!Array.isArray(s.profiles) || !s.profiles.length) s.profiles = clone(DEFAULT_PROFILES);
-    s.profiles = s.profiles.map((p) => Object.assign({}, BASE_RULES, p));
+    // Profile aus älteren Versionen: fehlende Felder ergänzen, Ruhezeit der Standardprofile übernehmen
+    s.profiles = s.profiles.map((p) => {
+      const def = DEFAULT_PROFILES.find((d) => d.id === p.id);
+      return Object.assign({}, BASE_RULES, def && p.restTime == null ? { restTime: def.restTime } : {}, p);
+    });
     if (!s.profiles.some((p) => p.id === s.activeProfileId)) s.activeProfileId = s.profiles[0].id;
     if (!s.fight || !s.fight.clock) s.fight = newFight(getRules(s));
     const f = s.fight;
@@ -537,6 +558,198 @@
     return changed;
   }
 
+  /* ---------- Auswertung: Gruppentabellen ---------- */
+
+  // Wie wurde der Kampf gewonnen? ippon | wazaari | yuko | decision (Hantei, Shido …)
+  function winKind(winner, reason, scores) {
+    if (winner !== 'white' && winner !== 'blue') return null;
+    const r = String(reason || '');
+    if (/hantei/i.test(r)) return 'decision';
+    if (/ippon|hansoku|kiken|fusen|disqual|verletzung/i.test(r)) return 'ippon';
+    if (scores && scores.white && scores.blue) {
+      const w = scores[winner];
+      const l = scores[other(winner)];
+      for (const k of ['ippon', 'wazaari', 'yuko']) if ((w[k] || 0) > (l[k] || 0)) return k;
+      return 'decision';
+    }
+    if (/waza-ari/i.test(r)) return 'wazaari';
+    if (/yuko/i.test(r)) return 'yuko';
+    return 'decision';
+  }
+
+  const groupLabel = (e) => [e.ageClass, e.category].map((x) => String(x || '').trim()).filter(Boolean).join(' ') || 'Ohne Klasse';
+  const groupKey = (e) => norm(e.ageClass) + '|' + norm(e.category);
+
+  // Kampfliste nach Alters-/Gewichtsklasse gruppieren (Reihenfolge wie in der Kampfliste)
+  function poolGroups(queue) {
+    const m = new Map();
+    (queue || []).forEach((e) => {
+      const key = groupKey(e);
+      if (!m.has(key)) m.set(key, { key, ageClass: e.ageClass || '', category: e.category || '', label: groupLabel(e), entries: [] });
+      m.get(key).entries.push(e);
+    });
+    return Array.from(m.values());
+  }
+
+  /*
+   * Tabelle einer „Jeder gegen jeden“-Gruppe.
+   * Reihenfolge: Siege → Wertungspunkte → direkter Vergleich (rankOrder 'points')
+   *          oder Siege → direkter Vergleich → Wertungspunkte (rankOrder 'direct').
+   * Danach entscheiden Stichkämpfe (Einträge mit tiebreak: true, zählen nicht als Siege).
+   * Was dann noch gleich ist, bekommt denselben Platz und tie: true.
+   */
+  function standings(group, opts) {
+    opts = opts || {};
+    const pts = Object.assign({}, DEFAULT_WIN_POINTS, opts.winPoints);
+    const players = new Map();
+    const person = (p) => {
+      const id = norm(p && p.name);
+      if (!id) return null;
+      if (!players.has(id)) {
+        players.set(id, { id, name: String(p.name).trim(), club: p.club || '', wins: 0, losses: 0, draws: 0, fights: 0, points: 0, ippon: 0, wazaari: 0, yuko: 0, decision: 0 });
+      }
+      const pl = players.get(id);
+      if (!pl.club && p.club) pl.club = p.club;
+      return pl;
+    };
+    const regular = [];
+    const extra = [];
+    let total = 0;
+    let done = 0;
+    let tiebreakOpen = 0;
+    group.entries.forEach((e) => {
+      const a = person(e.white);
+      const b = person(e.blue);
+      if (!a || !b || a === b) return;
+      const finished = e.status === 'done' && e.result && e.result.winner;
+      if (e.tiebreak) {
+        if (finished) extra.push({ a, b, winner: e.result.winner });
+        else tiebreakOpen++;
+        return;
+      }
+      total++;
+      if (!finished) return;
+      done++;
+      const res = e.result;
+      regular.push({ a, b, winner: res.winner });
+      a.fights++;
+      b.fights++;
+      if (res.winner === 'draw') {
+        a.draws++;
+        b.draws++;
+        return;
+      }
+      const win = res.winner === 'white' ? a : b;
+      const lose = win === a ? b : a;
+      const kind = res.kind || winKind(res.winner, res.reason, res.scores) || 'decision';
+      win.wins++;
+      lose.losses++;
+      win[kind]++;
+      win.points += Number(pts[kind]) || 0;
+    });
+
+    const winnerOf = (f) => (f.winner === 'white' ? f.a : f.winner === 'blue' ? f.b : null);
+    function split(list, crit) {
+      let val;
+      if (crit === 'wins') val = (p) => p.wins;
+      else if (crit === 'points') val = (p) => p.points;
+      else {
+        // direkter Vergleich / Stichkampf: Siege gegen die anderen Gleichplatzierten
+        const fights = crit === 'tiebreak' ? extra : regular;
+        const ids = new Set(list.map((p) => p.id));
+        val = (p) => fights.filter((f) => ids.has(f.a.id) && ids.has(f.b.id) && winnerOf(f) === p).length;
+      }
+      const sorted = list.map((p) => ({ p, v: val(p) })).sort((x, y) => y.v - x.v);
+      const parts = [];
+      sorted.forEach((x, i) => {
+        if (i && x.v === sorted[i - 1].v) parts[parts.length - 1].push(x.p);
+        else parts.push([x.p]);
+      });
+      return parts;
+    }
+    // nach den Punkten nochmal direkter Vergleich für die verbliebenen Gleichen, zuletzt Stichkämpfe
+    const crits = opts.rankOrder === 'direct' ? ['wins', 'direct', 'points', 'direct', 'tiebreak'] : ['wins', 'points', 'direct', 'tiebreak'];
+    function rank(list, cs) {
+      if (list.length < 2 || !cs.length) return [list];
+      const parts = split(list, cs[0]);
+      if (parts.length === 1) return rank(list, cs.slice(1));
+      const headToHead = cs[0] === 'direct' || cs[0] === 'tiebreak';
+      // beim direkten Vergleich die kleinere Restgruppe erneut nur untereinander vergleichen
+      return parts.flatMap((part) => rank(part, headToHead ? cs : cs.slice(1)));
+    }
+
+    const complete = total > 0 && done === total;
+    const rows = [];
+    const ties = [];
+    rank(Array.from(players.values()), crits).forEach((tier) => {
+      const place = rows.length + 1;
+      const tie = tier.length > 1 && complete;
+      if (tie) ties.push(tier.map((p) => p.name).sort((x, y) => x.localeCompare(y, 'de')));
+      tier
+        .slice()
+        .sort((x, y) => x.name.localeCompare(y.name, 'de'))
+        .forEach((p) => rows.push(Object.assign({}, p, { place: done ? place : null, tie })));
+    });
+    return {
+      key: group.key,
+      label: group.label,
+      ageClass: group.ageClass,
+      category: group.category,
+      total,
+      done,
+      complete,
+      tiebreakOpen,
+      rows,
+      ties,
+      winPoints: pts,
+      rankOrder: opts.rankOrder === 'direct' ? 'direct' : 'points',
+    };
+  }
+
+  function allStandings(state) {
+    const opts = { winPoints: state.settings.winPoints, rankOrder: state.settings.rankOrder };
+    return poolGroups(state.queue).map((g) => standings(g, opts));
+  }
+
+  // Platzierte für Siegerliste und Urkunden: Plätze 1–3 oder alle
+  function awardRows(table, places) {
+    const max = places === 'all' ? Infinity : Number(places) || 3;
+    return table.rows.filter((r) => r.place != null && r.place <= max && (r.fights > 0 || table.complete));
+  }
+
+  /* ---------- Ruhezeit zwischen zwei Kämpfen ---------- */
+
+  // Ende des letzten Kampfes eines Kämpfers laut Protokoll
+  function lastFightEnd(state, name, exceptFightId) {
+    const id = norm(name);
+    if (!id) return null;
+    let best = null;
+    (state.log || []).forEach((l) => {
+      if (!l.finishedAt || l.fightId === exceptFightId) return;
+      SIDES.forEach((s) => {
+        if (norm(l[s] && l[s].name) === id && (!best || l.finishedAt > best.at)) best = { at: l.finishedAt, no: l.no, ageClass: l.ageClass };
+      });
+    });
+    return best;
+  }
+
+  // Wer aus diesem Kampf hat seine Mindestpause noch nicht gehabt?
+  function restCheck(state, entry, now) {
+    const prof = findProfileFor(state, entry && entry.ageClass) || getRules(state);
+    const restMs = (Number(prof.restTime) || 0) * 1000;
+    const res = { restMs, profile: prof.name, waits: [] };
+    if (!restMs || !entry) return res;
+    const own = entry.result && entry.result.fightId;
+    SIDES.forEach((side) => {
+      const p = entry[side];
+      const last = lastFightEnd(state, p && p.name, own);
+      if (!last) return;
+      const readyAt = last.at + restMs;
+      if (readyAt > now) res.waits.push({ side, name: p.name, lastNo: last.no, lastEnd: last.at, readyAt, remainingMs: readyAt - now });
+    });
+    return res;
+  }
+
   /* ---------- Hilfen ---------- */
 
   function formatClock(ms, mode) {
@@ -592,6 +805,7 @@
     SCORE_LABEL,
     BASE_RULES,
     DEFAULT_PROFILES,
+    DEFAULT_WIN_POINTS,
     uid,
     clone,
     norm,
@@ -624,6 +838,15 @@
     scoreText,
     displayName,
     roundRobin,
+    winKind,
+    groupKey,
+    groupLabel,
+    poolGroups,
+    standings,
+    allStandings,
+    awardRows,
+    lastFightEnd,
+    restCheck,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

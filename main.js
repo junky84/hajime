@@ -294,13 +294,16 @@ ipcMain.on('board-ready', (e) => {
 });
 ipcMain.handle('displays', () => displayList());
 ipcMain.handle('app-version', () => app.getVersion());
-// Aushang: HTML in einem unsichtbaren Fenster als PDF ausgeben, speichern und öffnen
-ipcMain.handle('save-pdf', async (_e, { name, html, size }) => {
+// Aushang, Siegerliste, Urkunden: HTML in einem unsichtbaren Fenster als PDF ausgeben, speichern und öffnen.
+// Über eine temporäre Datei statt data:-URL, weil Urkunden mit Hintergrundbild zu groß für eine URL werden.
+ipcMain.handle('save-pdf', async (_e, { name, html, size, landscape }) => {
   const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } });
+  const tmp = path.join(app.getPath('temp'), `hajime-druck-${process.pid}-${Date.now()}.html`);
   try {
-    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    fs.writeFileSync(tmp, html, 'utf8');
+    await win.loadFile(tmp);
     const pdf = await win.webContents.printToPDF({
-      landscape: true,
+      landscape: landscape !== false,
       pageSize: size === 'A3' ? 'A3' : 'A4',
       printBackground: true,
       preferCSSPageSize: true,
@@ -315,6 +318,7 @@ ipcMain.handle('save-pdf', async (_e, { name, html, size }) => {
     return true;
   } finally {
     win.destroy();
+    fs.rm(tmp, { force: true }, () => {});
   }
 });
 ipcMain.handle('board-show', (_e, opts) => createBoard(opts && opts.displayId));

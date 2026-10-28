@@ -49,12 +49,29 @@
     return order.filter((e) => e.status !== 'done' && e.id !== state.fight.queueId).slice(0, max);
   }
 
+  // Gruppe für die Gruppentabelle: gewählte, sonst die des aktuellen Kampfes, sonst die erste
+  function tableGroupKey() {
+    const keys = C.poolGroups(state.queue).map((g) => g.key);
+    const own = C.groupKey(state.fight);
+    if (state.boardGroup && keys.includes(state.boardGroup)) return state.boardGroup;
+    return keys.includes(own) ? own : keys[0] || null;
+  }
+
   function view() {
+    // Urkunden-Hintergrund nicht bei jeder Änderung an die Anzeige schicken
+    const settings = Object.assign({}, state.settings);
+    delete settings.certBg;
+    let table = null;
+    if (state.screen === 'table') {
+      const key = tableGroupKey();
+      table = C.allStandings(state).find((t) => t.key === key) || null;
+    }
     return {
       fight: state.fight,
       rules: C.getRules(state),
-      settings: state.settings,
+      settings,
       screen: state.screen,
+      table,
       next: nextEntries(6).map((e) => ({ white: e.white, blue: e.blue, ageClass: e.ageClass, category: e.category, no: e.no })),
     };
   }
@@ -148,7 +165,15 @@
     if (e) {
       if (done) {
         e.status = 'done';
-        e.result = { fightId: f.id, winner: f.winner, reason: f.reason, white: C.scoreText(f.white, r), blue: C.scoreText(f.blue, r) };
+        e.result = {
+          fightId: f.id,
+          winner: f.winner,
+          reason: f.reason,
+          white: C.scoreText(f.white, r),
+          blue: C.scoreText(f.blue, r),
+          kind: C.winKind(f.winner, f.reason, { white: f.white, blue: f.blue }),
+          finishedAt: f.finishedAt,
+        };
       } else if (e.status === 'done' && e.result && e.result.fightId === f.id) {
         e.status = 'open';
         e.result = null;
@@ -171,6 +196,8 @@
         winnerName: f.winner === 'draw' ? 'Unentschieden' : C.displayName(f[f.winner], f.winner),
         reason: f.reason,
         duration: C.formatClock(C.fightTimeMs(f, f.finishedAt), 'golden'),
+        finishedAt: f.finishedAt,
+        kind: C.winKind(f.winner, f.reason, { white: f.white, blue: f.blue }),
         events: (f.events || []).slice(),
       };
       if (i >= 0) state.log[i] = entry;
@@ -194,8 +221,118 @@
 
   function nextFight() {
     if (fightBusy() && !confirm('Der aktuelle Kampf ist noch nicht beendet. Trotzdem zum nächsten Kampf wechseln?')) return;
-    loadEntry(nextEntries(1)[0] || null);
+    const e = nextEntries(1)[0];
+    if (e) requestLoad(e);
+    else loadEntry(null);
   }
+
+  /* ================= Ruhezeit ================= */
+
+  function loadQueued(e) {
+    if (e.status === 'done') {
+      e.status = 'open';
+      e.result = null;
+    }
+    loadEntry(e);
+  }
+
+  // Kampf aus der Kampfliste laden – vorher prüfen, ob alle Kämpfer ihre Mindestpause hatten
+  let restPending = null;
+  function requestLoad(entry, onLoaded) {
+    if (!C.restCheck(state, entry, Date.now()).waits.length) {
+      loadQueued(entry);
+      if (onLoaded) onLoaded();
+      return;
+    }
+    restPending = { id: entry.id, onLoaded };
+    renderRest();
+    $('#dlgRest').showModal();
+  }
+
+  const entryTitle = (e) => {
+    const no = e.no || String(state.queue.indexOf(e) + 1);
+    const cls = [e.ageClass, e.category].filter(Boolean).join(' ');
+    return `Nr. ${esc(no)}${cls ? ' · ' + esc(cls) : ''}`;
+  };
+  const entryNames = (e) => `${esc(e.white.name || 'Weiß')} – ${esc(e.blue.name || 'Blau')}`;
+
+  // Kämpfe, deren Kämpfer schon bereit sind – in Kampflisten-Reihenfolge ab dem gewünschten Kampf
+  function restSuggestions(entry, now) {
+    const q = state.queue;
+    const i = q.indexOf(entry);
+    const order = q.slice(i + 1).concat(q.slice(0, Math.max(0, i)));
+    return order
+      .filter((e) => e !== entry && e.status !== 'done' && e.id !== state.fight.queueId && (e.white.name || e.blue.name))
+      .filter((e) => !C.restCheck(state, e, now).waits.length)
+      .slice(0, 3);
+  }
+
+  function renderRest() {
+    const dlg = $('#dlgRest');
+    const entry = restPending && state.queue.find((q) => q.id === restPending.id);
+    if (!entry) {
+      if (dlg.open) dlg.close();
+      return;
+    }
+    const now = Date.now();
+    const rc = C.restCheck(state, entry, now);
+    const ready = !rc.waits.length;
+    dlg.classList.toggle('ready', ready);
+    $('.rest-head', dlg).textContent = ready ? '✓ Ruhezeit vorbei – alle Kämpfer bereit' : '⚠ Ruhezeit noch nicht vorbei';
+    $('.rest-fight', dlg).innerHTML = `Kampf <b>${entryTitle(entry)}</b>: ${entryNames(entry)}`;
+    $('.rest-waits', dlg).innerHTML = rc.waits
+      .map(
+        (w) => `<div class="rest-wait"><div><b>${esc(w.name)}</b><small>letzter Kampf${w.lastNo ? ` (Nr. ${esc(w.lastNo)})` : ''} endete um ${fmtClock(w.lastEnd)} · Mindestpause ${esc(
+          rc.profile
+        )}: ${fmtSec(rc.restMs / 1000)}</small></div><div class="rest-left"><b>noch ${C.formatClock(w.remainingMs, 'regular')}</b><small>bereit ab ${fmtClock(w.readyAt)}</small></div></div>`
+      )
+      .join('');
+    const sugg = ready ? [] : restSuggestions(entry, now);
+    $('.rest-sugg-wrap', dlg).style.display = sugg.length ? '' : 'none';
+    const box = $('.rest-sugg', dlg);
+    const html = sugg
+      .map((e) => `<div class="rest-s"><span><b>${entryTitle(e)}</b> · ${entryNames(e)}</span><button class="btn" data-pull="${esc(e.id)}">Vorziehen</button></div>`)
+      .join('');
+    if (box.dataset.h !== html) {
+      box.innerHTML = html;
+      box.dataset.h = html;
+    }
+    const lb = $('[data-r="load"]', dlg);
+    lb.textContent = ready ? 'Laden' : 'Trotzdem laden';
+    lb.classList.toggle('primary', ready);
+    lb.classList.toggle('warn', !ready);
+  }
+
+  $('#dlgRest').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || !restPending) return;
+    const pending = restPending;
+    const entry = state.queue.find((q) => q.id === pending.id);
+    let load = null;
+    if (b.dataset.r === 'load') load = entry;
+    else if (b.dataset.pull) {
+      // vorgezogenen Kampf in der Kampfliste vor den gewünschten setzen
+      const pulled = state.queue.find((q) => q.id === b.dataset.pull);
+      if (pulled && entry) {
+        state.queue.splice(state.queue.indexOf(pulled), 1);
+        state.queue.splice(state.queue.indexOf(entry), 0, pulled);
+      }
+      load = pulled;
+    } else if (b.dataset.r !== 'cancel') return;
+    restPending = null;
+    $('#dlgRest').close();
+    if (load) {
+      loadQueued(load);
+      if (pending.onLoaded) pending.onLoaded();
+    }
+  });
+  $('#dlgRest').addEventListener('close', () => {
+    restPending = null;
+  });
+  setInterval(() => {
+    if (restPending) renderRest();
+    renderQueue();
+  }, 500);
 
   function resetFight() {
     if (fightBusy() && !confirm('Kampf wirklich zurücksetzen? Wertungen und Zeit gehen verloren.')) return;
@@ -268,6 +405,11 @@
     inp.value = C.formatClock(C.clockMs(state.fight.clock, Date.now()), state.fight.clock.mode);
     dlg.showModal();
     inp.select();
+  });
+  $('#dlgClockVal').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    $('#dlgClock').close('ok');
   });
   $('#dlgClock').addEventListener('close', () => {
     if ($('#dlgClock').returnValue !== 'ok') return;
@@ -343,6 +485,7 @@
     else if (k === 'ArrowDown') act((now) => C.adjustClock(state, -1000, now), false);
     else if (k === 'KeyN') nextFight();
     else if (k === 'KeyB') toggleIdle();
+    else if (k === 'KeyG') toggleTable();
     else handled = false;
     if (handled) e.preventDefault();
   });
@@ -490,6 +633,7 @@
     $('.dec.x').style.display = f.manual ? '' : 'none';
     $('#btnUndo').disabled = !history.length;
     $('#btnIdle').classList.toggle('on', state.screen === 'idle');
+    $('#btnTable').classList.toggle('on', state.screen === 'table');
     const nx = nextEntries(1)[0];
     $('#btnNext').title = nx ? `Nächster: ${nx.white.name || '?'} – ${nx.blue.name || '?'}` : 'Leerer neuer Kampf';
   }
@@ -501,6 +645,17 @@
     commit();
   }
   $('#btnIdle').addEventListener('click', toggleIdle);
+
+  // Gruppentabelle an/aus; mit key gezielt diese Gruppe zeigen
+  function toggleTable(key) {
+    if (state.screen === 'table' && (!key || key === tableGroupKey())) state.screen = 'board';
+    else {
+      state.boardGroup = key || (C.poolGroups(state.queue).some((g) => g.key === C.groupKey(state.fight)) ? C.groupKey(state.fight) : tableGroupKey());
+      state.screen = 'table';
+    }
+    commit();
+  }
+  $('#btnTable').addEventListener('click', () => toggleTable());
 
   const displaySelect = $('#displaySelect');
   async function refreshDisplays() {
@@ -616,15 +771,19 @@
     fillDatalist('dlCat', items.map((x) => x.category));
   }
 
-  function personCell(p) {
-    return `${esc(p.name || '–')}${p.club ? `<br><small>${esc(p.club)}</small>` : ''}`;
+  function personCell(p, wait) {
+    const tag = wait ? ` <span class="rest-tag" title="Mindestpause bis ${fmtClock(wait.readyAt)}">Pause ${C.formatClock(wait.remainingMs, 'regular')}</span>` : '';
+    return `${esc(p.name || '–')}${tag}${p.club ? `<br><small>${esc(p.club)}</small>` : ''}`;
   }
 
   function renderQueue() {
     const tb = $('#queueTable tbody');
+    const now = Date.now();
     const html = state.queue
       .map((e, i) => {
         const cur = e.id === state.fight.queueId;
+        const waits = e.status === 'done' || cur ? [] : C.restCheck(state, e, now).waits;
+        const wait = (side) => waits.find((w) => w.side === side);
         let res = '';
         if (e.result) {
           const wn = e.result.winner === 'draw' ? 'Unentschieden' : e.result.winner === 'white' ? e.white.name || 'Weiß' : e.blue.name || 'Blau';
@@ -632,9 +791,9 @@
         } else if (cur) res = '<small>läuft / geladen</small>';
         return `<tr class="${cur ? 'current' : ''} ${e.status === 'done' ? 'done' : ''}" data-id="${esc(e.id)}">
           <td>${esc(e.no || i + 1)}</td>
-          <td>${esc([e.ageClass, e.category].filter(Boolean).join(' '))}</td>
-          <td>${personCell(e.white)}</td>
-          <td>${personCell(e.blue)}</td>
+          <td>${esc([e.ageClass, e.category].filter(Boolean).join(' '))}${e.tiebreak ? '<br><span class="tb-tag">Stichkampf</span>' : ''}</td>
+          <td>${personCell(e.white, wait('white'))}</td>
+          <td>${personCell(e.blue, wait('blue'))}</td>
           <td>${res}</td>
           <td class="acts">
             <button class="load" data-a="load" title="In den Kampf laden">Laden</button>
@@ -663,10 +822,7 @@
       if (state.fight.queueId !== id && fightBusy() && !confirm('Der aktuelle Kampf ist noch nicht beendet. Trotzdem diesen Kampf laden?')) return;
       const entry = state.queue[i];
       if (entry.status === 'done' && !confirm('Dieser Kampf ist bereits beendet. Erneut laden (Ergebnis wird überschrieben)?')) return;
-      entry.status = 'open';
-      entry.result = null;
-      loadEntry(entry);
-      $('.tabs button[data-tab="fight"]').click();
+      requestLoad(entry, () => $('.tabs button[data-tab="fight"]').click());
       return;
     }
     if (a === 'up' && i > 0) state.queue.splice(i - 1, 0, state.queue.splice(i, 1)[0]);
@@ -799,10 +955,17 @@
       return;
     }
     const html = N.html({ tournament: state.settings.tournament, mats, size });
-    const name = `Hajime-Aushang-${(mats.length === 1 ? mats[0].name : 'Matten').replace(/[^\wäöüÄÖÜß-]+/g, '-')}.pdf`;
+    const name = `Hajime-Aushang-${fileSafe(mats.length === 1 ? mats[0].name : 'Matten')}.pdf`;
+    printDoc(name, html, size, true);
+  });
+
+  const fileSafe = (s) => String(s || '').replace(/[^\wäöüÄÖÜß-]+/g, '-').replace(/^-+|-+$/g, '') || 'Hajime';
+
+  // Druckseite ausgeben: App → PDF-Datei, Browser → Druckdialog („Als PDF sichern“)
+  async function printDoc(name, html, size, landscape) {
     if (T.isElectron && T.bridge.savePdf) {
       try {
-        await T.bridge.savePdf(name, html, size);
+        await T.bridge.savePdf(name, html, size, landscape);
       } catch (err) {
         alert('PDF konnte nicht erstellt werden: ' + err.message);
       }
@@ -817,7 +980,7 @@
       setTimeout(() => frame.remove(), 60000);
     };
     document.body.appendChild(frame);
-  });
+  }
   $('#btnClearQueue').addEventListener('click', () => {
     if (state.queue.length && confirm('Kampfliste komplett leeren?')) {
       state.queue = [];
@@ -829,6 +992,125 @@
       state.participants = [];
       commit();
     }
+  });
+
+  /* ================= Auswertung ================= */
+
+  function renderEval() {
+    const tables = C.allStandings(state);
+    const shown = state.screen === 'table' ? tableGroupKey() : null;
+    const html = tables
+      .map((t) => {
+        const status = t.complete ? '<span class="pill ok">fertig</span>' : `<span class="pill">${t.done} von ${t.total} Kämpfen</span>`;
+        const rows = t.rows
+          .map(
+            (r) => `<tr class="${r.tie ? 'tie' : ''}"><td class="pl p${r.place}">${r.place == null ? '–' : r.place}</td><td><b>${esc(r.name)}</b>${r.club ? ` <small>${esc(r.club)}</small>` : ''}${
+              r.tie ? ' <span class="tb-tag">Stichkampf</span>' : ''
+            }</td><td>${r.fights}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td><b>${r.points}</b></td><td>${r.ippon} · ${r.wazaari} · ${r.yuko}</td></tr>`
+          )
+          .join('');
+        const ties = t.ties
+          .map(
+            (names, i) =>
+              `<div class="eval-tie">Gleichstand: ${esc(names.join(', '))} – Stichkampf nötig <button class="btn" data-tb="${esc(t.key)}" data-tie="${i}">Stichkampf anlegen (${
+                (names.length * (names.length - 1)) / 2
+              })</button></div>`
+          )
+          .join('');
+        const open = t.tiebreakOpen ? `<div class="muted">${t.tiebreakOpen} ${t.tiebreakOpen === 1 ? 'Stichkampf' : 'Stichkämpfe'} offen</div>` : '';
+        return `<div class="card eval-card${t.complete ? ' done' : ''}">
+          <div class="eval-head"><h2>${esc(t.label)}</h2>${status}<span class="grow"></span>
+            <button class="btn toggle${shown === t.key ? ' on' : ''}" data-show="${esc(t.key)}" title="Diese Tabelle auf der Anzeige zeigen">Auf Anzeige</button>
+            <button class="btn" data-cert="${esc(t.key)}">Urkunden …</button></div>
+          <div class="table-wrap"><table class="tbl eval"><thead><tr><th>Platz</th><th>Name</th><th title="Kämpfe">K</th><th title="Siege">S</th><th title="Niederlagen">N</th><th title="Unentschieden">U</th><th>Punkte</th><th>I · W · Y</th></tr></thead><tbody>${rows}</tbody></table></div>
+          ${ties}${open}
+        </div>`;
+      })
+      .join('');
+    const box = $('#evalGroups');
+    if (box.dataset.h !== html) {
+      box.innerHTML = html;
+      box.dataset.h = html;
+    }
+    $('#evalEmpty').style.display = tables.length ? 'none' : '';
+    const done = tables.filter((t) => t.complete).length;
+    $('#evalInfo').textContent = tables.length ? `${done} von ${tables.length} Gruppen fertig` : '';
+  }
+
+  function awardTables(onlyKey) {
+    const all = C.allStandings(state);
+    if (onlyKey) return all.filter((t) => t.key === onlyKey);
+    return all.filter((t) => (state.settings.awardsDoneOnly ? t.complete : t.done > 0));
+  }
+  function awardWarnings(tables) {
+    const msgs = [];
+    const open = tables.filter((t) => !t.complete);
+    const ties = tables.filter((t) => t.ties.length);
+    if (open.length) msgs.push(`Noch nicht fertig: ${open.map((t) => `${t.label} (${t.done}/${t.total})`).join(', ')}`);
+    if (ties.length) msgs.push(`Gleichstand ohne Stichkampf: ${ties.map((t) => t.label).join(', ')}`);
+    return !msgs.length || confirm(msgs.join('\n') + '\n\nTrotzdem fortfahren?');
+  }
+  function noAwards() {
+    alert(state.settings.awardsDoneOnly ? 'Noch keine Gruppe ist fertig. Für vorläufige Ergebnisse „nur fertige Gruppen“ ausschalten.' : 'Es sind noch keine Kämpfe beendet.');
+  }
+
+  function printCerts(tables, label) {
+    const places = state.settings.certPlaces;
+    const n = window.JudoAwards.count(tables, places);
+    if (!n) return alert('Für diese Auswahl gibt es keine Platzierten.');
+    printDoc(`Hajime-Urkunden-${fileSafe(label)}.pdf`, window.JudoAwards.certHtml({ tables, places, settings: state.settings }), 'A4', false);
+  }
+
+  $('#evalGroups').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.show) return toggleTable(b.dataset.show);
+    if (b.dataset.cert) {
+      const tables = awardTables(b.dataset.cert);
+      if (!tables.length || !awardWarnings(tables)) return;
+      return printCerts(tables, tables[0].label);
+    }
+    if (b.dataset.tb) {
+      // Stichkampf: jeder gegen jeden unter den Gleichplatzierten, direkt nach dem aktuellen Kampf
+      const t = C.allStandings(state).find((x) => x.key === b.dataset.tb);
+      const names = t && t.ties[Number(b.dataset.tie)];
+      if (!names) return;
+      const people = names.map((n) => t.rows.find((r) => r.name === n));
+      const fights = C.roundRobin(people).map(([a, c]) => ({
+        id: C.uid(),
+        no: '',
+        ageClass: t.ageClass,
+        category: t.category,
+        white: { name: a.name, club: a.club || '' },
+        blue: { name: c.name, club: c.club || '' },
+        status: 'open',
+        result: null,
+        tiebreak: true,
+      }));
+      const cur = state.queue.findIndex((q) => q.id === state.fight.queueId);
+      state.queue.splice(cur >= 0 ? cur + 1 : state.queue.length, 0, ...fights);
+      commit();
+      $('#evalMsg').textContent = `${t.label}: ${fights.length} ${fights.length === 1 ? 'Stichkampf' : 'Stichkämpfe'} als nächste${fights.length === 1 ? 'r Kampf' : ' Kämpfe'} in die Kampfliste eingefügt.`;
+    }
+  });
+
+  $('#btnWinnersPdf').addEventListener('click', () => {
+    const tables = awardTables();
+    if (!tables.length) return noAwards();
+    const places = state.settings.certPlaces === 'all' ? 'all' : '3';
+    printDoc(`Hajime-Siegerliste-${fileSafe(state.settings.tournament)}.pdf`, window.JudoAwards.listHtml({ tables, places, settings: state.settings }), 'A4', false);
+  });
+  $('#btnWinnersXlsx').addEventListener('click', () => {
+    const tables = awardTables();
+    if (!tables.length) return noAwards();
+    const places = state.settings.certPlaces === 'all' ? 'all' : '3';
+    T.saveFile(`Hajime-Siegerliste-${fileSafe(state.settings.tournament)}.xlsx`, new Uint8Array(X.winnersBytes(tables, places, C.awardRows)));
+  });
+  $('#btnCertsAll').addEventListener('click', () => {
+    const tables = awardTables();
+    if (!tables.length) return noAwards();
+    if (!awardWarnings(tables)) return;
+    printCerts(tables, 'alle');
   });
 
   /* ================= Protokoll ================= */
@@ -880,7 +1162,7 @@
   $('#btnExportLog').addEventListener('click', () => {
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    T.saveFile(`Hajime-Protokoll-${stamp}.xlsx`, new Uint8Array(X.protocolBytes(state.log)));
+    T.saveFile(`Hajime-Protokoll-${stamp}.xlsx`, new Uint8Array(X.protocolBytes(state.log, C.allStandings(state).filter((t) => t.done))));
   });
   $('#btnClearLog').addEventListener('click', () => {
     if (state.log.length && confirm('Protokoll wirklich leeren? Vorher als Excel speichern!')) {
@@ -901,10 +1183,17 @@
     sSwap: ['swap', 'checked'],
     sSound: ['soundOn', 'checked'],
     sSoundTarget: ['soundTarget', 'value'],
+    sRankOrder: ['rankOrder', 'value'],
+    sDate: ['tournamentDate', 'value'],
+    sPlace: ['tournamentPlace', 'value'],
+    sSign1: ['certSign1', 'value'],
+    sSign2: ['certSign2', 'value'],
+    sCertPlaces: ['certPlaces', 'value'],
+    sAwardsDoneOnly: ['awardsDoneOnly', 'checked'],
   };
   Object.entries(SETTING_INPUTS).forEach(([id, [key, prop]]) => {
     const el = document.getElementById(id);
-    el.addEventListener(prop === 'checked' || el.tagName === 'SELECT' ? 'change' : 'input', () => {
+    el.addEventListener(prop === 'checked' || el.tagName === 'SELECT' || el.type === 'date' ? 'change' : 'input', () => {
       state.settings[key] = el[prop];
       commit();
     });
@@ -919,7 +1208,63 @@
     const img = $('#sLogoPreview');
     const src = state.settings.logo || '';
     if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+    const bg = $('#sCertBgPreview');
+    const bsrc = state.settings.certBg || '';
+    if (bg.getAttribute('src') !== bsrc) bg.setAttribute('src', bsrc);
+    $$('[data-wp]').forEach((el) => {
+      if (document.activeElement === el) return;
+      const v = String(state.settings.winPoints[el.dataset.wp]);
+      if (el.value !== v) el.value = v;
+    });
   }
+
+  $$('[data-wp]').forEach((el) =>
+    el.addEventListener('change', () => {
+      const v = Math.max(0, Math.round(Number(el.value) || 0));
+      state.settings.winPoints = Object.assign({}, state.settings.winPoints, { [el.dataset.wp]: v });
+      el.value = String(v);
+      commit();
+    })
+  );
+
+  // Bild laden und verkleinern (Logo, Urkunden-Hintergrund)
+  function readImage(file, max, type, cb) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * k);
+        cv.height = Math.round(img.height * k);
+        const ctx = cv.getContext('2d');
+        if (type === 'image/jpeg') {
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, cv.width, cv.height);
+        }
+        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        cb(cv.toDataURL(type, 0.85));
+      };
+      img.onerror = () => alert('Das Bild konnte nicht gelesen werden.');
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  $('#btnCertBg').addEventListener('click', () => $('#fileCertBg').click());
+  $('#btnCertBgRemove').addEventListener('click', () => {
+    state.settings.certBg = null;
+    commit();
+  });
+  $('#fileCertBg').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    // A4 mit rund 150 dpi reicht für den Druck und hält den Speicher klein
+    readImage(file, 1754, 'image/jpeg', (url) => {
+      state.settings.certBg = url;
+      commit();
+    });
+  });
 
   $('#btnTestSound').addEventListener('click', () => S.gong());
   $('#btnLogo').addEventListener('click', () => $('#fileLogo').click());
@@ -931,23 +1276,11 @@
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        // verkleinern, damit Speicher und Übertragung schlank bleiben
-        const max = 600;
-        const k = Math.min(1, max / Math.max(img.width, img.height));
-        const cv = document.createElement('canvas');
-        cv.width = Math.round(img.width * k);
-        cv.height = Math.round(img.height * k);
-        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-        state.settings.logo = cv.toDataURL('image/png');
-        commit();
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
+    // verkleinern, damit Speicher und Übertragung schlank bleiben
+    readImage(file, 600, 'image/png', (url) => {
+      state.settings.logo = url;
+      commit();
+    });
   });
 
   $('#btnBackup').addEventListener('click', () => {
@@ -1072,6 +1405,7 @@
     renderFight();
     renderQueue();
     renderParticipants();
+    renderEval();
     renderLog();
     renderSettings();
     renderProfiles();

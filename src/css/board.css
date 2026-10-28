@@ -530,3 +530,125 @@
   text-align: left;
   color: var(--jb-blue-light);
 }
+
+/* Gruppentabelle */
+.jb-table {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  padding: 6cqh 7cqw 5cqh;
+  background: radial-gradient(ellipse at 30% 0%, #1b2333 0%, #07090d 75%);
+}
+.jb.is-table .jb-table {
+  display: flex;
+}
+.jb-tb-sub {
+  color: var(--jb-gold);
+  font-weight: 800;
+  font-size: 3.4cqh;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jb-tb-title {
+  font-size: 7cqh;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 3cqh;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jb-tb-grid {
+  flex: 1;
+  min-height: 0;
+  --rows: 4;
+}
+.jb-tb-row {
+  display: grid;
+  grid-template-columns: 11% 1fr 10% 14% 22%;
+  align-items: center;
+  height: min(10cqh, calc(56cqh / var(--rows)));
+  font-size: min(4.4cqh, calc(26cqh / var(--rows)));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 1.2cqw;
+}
+.jb-tb-row > span:nth-child(n + 3) {
+  text-align: center;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.jb-tb-head {
+  height: 7cqh;
+  font-size: 2.4cqh;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9aa6bd;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.18);
+}
+.jb-tb-head > span {
+  font-weight: 800 !important;
+}
+.jb-tb-row .pl {
+  font-weight: 900;
+  font-size: 1.25em;
+}
+.jb-tb-row .pl.p1 {
+  color: var(--jb-gold);
+}
+.jb-tb-row .pl.p2 {
+  color: #d9dee8;
+}
+.jb-tb-row .pl.p3 {
+  color: #d58a45;
+}
+.jb-tb-row .nm {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.jb-tb-row .nm b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jb-tb-row .nm small {
+  color: #9aa6bd;
+  font-size: 0.7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jb-tb-row .nm em {
+  font-style: normal;
+  font-size: 0.55em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #111;
+  background: var(--jb-gold);
+  border-radius: 0.3em;
+  padding: 0.1em 0.45em;
+}
+.jb-tb-row.tie {
+  background: rgba(255, 196, 0, 0.08);
+}
+.jb-tb-empty {
+  font-size: 4cqh;
+  color: #9aa6bd;
+  padding-top: 8cqh;
+}
+.jb-tb-foot {
+  font-size: 2.4cqh;
+  color: #9aa6bd;
+}
+.jb-tb-foot b {
+  color: var(--jb-gold);
+  font-size: 1.3em;
+}
