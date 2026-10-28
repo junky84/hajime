@@ -1,14 +1,46 @@
 # Hajime
 
-**Judo-Anzeigetafel** für Wettkämpfe – **ohne Installation**: als **Webversion** für jeden Rechner mit Chrome oder Edge (läuft offline, keine Programmdatei) und als **App für macOS**.
+**Judo-Anzeigetafel** für Training, Vereinsmeisterschaft und Turnier – **ohne Installation**: als **Webversion** für jeden Rechner mit Chrome oder Edge (läuft offline, keine Programmdatei) und als **App für macOS**.
+
+> **Du musst nicht alles nutzen.** Hajime ist zuerst eine ganz normale Anzeigetafel: Uhr, Wertungen, Shido, Osaekomi. Namen, Excel-Listen und Turnierfunktionen sind Zusatzangebote. Wer sie nicht braucht, lässt sie einfach weg – die Tafel funktioniert auch ganz ohne Namen.
+
+## In 3 Schritten zur Anzeigetafel
+
+1. Unter [**Releases**](../../releases/latest) die Datei herunterladen und entpacken: `Hajime-x.y.z-Web.zip` für jeden Rechner mit Chrome oder Edge, `Hajime-x.y.z-Mac.zip` für den Mac (Einzelheiten unter [Download & Start](#download--start)).
+2. Starten. Die Anzeige erscheint auf dem Beamer oder zweiten Bildschirm (in der Webversion *Anzeige öffnen* klicken).
+3. **Leertaste** drücken = *Hajime*. Wertungen mit der Maus oder per Taste geben, nach dem Kampf *Nächster Kampf*.
+
+Fertig. Keine Anmeldung, kein Internet, keine Namen nötig. Die Kampfzeit und die übrigen Regeln (z. B. für U11 oder U15) wählst du oben im Feld *Regelprofil*.
+
+## Was du zusätzlich nutzen kannst – wenn du willst
+
+| Du möchtest … | Dann nutze … |
+|---|---|
+| nur Uhr und Punkte zeigen | **nichts weiter** – siehe oben |
+| Namen und Vereine auf der Anzeige | die Namensfelder in der Ansicht *Kampf* (einfach hineinschreiben) |
+| eine vorbereitete Kampfliste abarbeiten | den Reiter *Kampfliste* mit **Excel-Import** ([Vorlage](#excel-import)) |
+| ein ganzes Turnier mit Platzierungen, Urkunden, mehreren Matten | *Auswertung*, *Matten*, Turniersysteme und Aufrufbildschirm ([ab hier](#auswertung-und-siegerehrung)) |
+
+Was du nicht brauchst, kannst du ignorieren – es stört den Kampf nicht. Ein einfacher Modus, der ungenutzte Bereiche ganz ausblendet, ist [geplant](https://github.com/junky84/hajime/issues/18).
+
+## Alle Funktionen im Überblick
+
+**Anzeigetafel**
 
 - **Publikumsanzeige** im Vollbild auf dem zweiten Bildschirm/Beamer (erweiterter Desktop)
 - **Bedienfenster** auf dem Laptop mit Live-Vorschau der Anzeige
-- Namen optional, manuell oder per **Excel-Import**
 - **Regelprofile** pro Altersklasse (Kampfzeit, Golden Score, „Ippon beendet den Kampf“ ja/nein, Yuko, Shido-Grenze, Osaekomi-Zeiten …)
+- Golden Score, Osaekomi-Uhr, 2× Waza-ari und 3. Shido werden automatisch ausgewertet
+
+**Optional: Namen und Kampfliste**
+
+- Namen von Hand oder per **Excel-Import**
 - **Nächster Kampf** gut lesbar unten auf der Anzeige, in drei Größen
 - **Ereignisprotokoll** jedes Kampfes und Ergebnis-Export nach Excel
 - **Aushang** der Kampfreihenfolge pro Matte zum Ausdrucken (A4/A3)
+
+**Optional: Turnier**
+
 - **Turniersysteme:** Best of Three, Jeder gegen jeden, Doppel-Pool und K.-o. mit Trostrunde – nach Gruppengröße vorgeschlagen, mit Vereinstrennung, Sieger rücken automatisch weiter
 - **Mehrere Matten:** Gruppen gleichmäßig verteilen und pro Matte als Excel exportieren
 - **Aufrufbildschirm** für Aufwärmbereich und Hallenrand mit freier Aufrufzeile
@@ -87,7 +119,7 @@ Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
 ## Bedienung
 
 1. Hajime starten. In der **macOS-App** öffnet sich die Anzeige automatisch im Vollbild auf dem zweiten Bildschirm (ist keiner angeschlossen: als Fenster). In der **Webversion** *Anzeige öffnen* klicken (siehe oben). Oben rechts kann der Bildschirm gewechselt werden.
-2. Namen eintragen (optional) oder Kampfliste laden, *Hajime* drücken.
+2. *Hajime* drücken (Leertaste). Namen sind optional: einfach in die Felder schreiben oder eine Kampfliste laden.
 3. Nach dem Kampf *Nächster Kampf* (Taste `N`) – das Ergebnis landet automatisch im Protokoll.
 
 ### Tastenkürzel
@@ -126,6 +158,8 @@ Im Anzeigefenster: Doppelklick oder `F` = Vollbild an/aus.
 - **Über Hajime:** im Menü, unter *Einstellungen* oder mit einem Dreifachklick auf „Hajime“ oben links.
 
 ### Auswertung und Siegerehrung
+
+> **Ab hier geht es um Turnierfunktionen.** Wer nur eine Anzeigetafel braucht, kann den Rest überspringen.
 
 - **Gruppentabellen:** Der Reiter *Auswertung* rechnet für jede Alters-/Gewichtsklasse der Kampfliste („Jeder gegen jeden“) die Platzierung selbst aus: Siege, Wertungspunkte und wie gewonnen wurde (Ippon · Waza-ari · Yuko). Wertungspunkte je Sieg: Ippon 10, Waza-ari 7, Yuko 5, Entscheidung (Hantei, Shido) 1 – änderbar unter *Einstellungen → Auswertung*. Bei gleich vielen Siegen entscheiden die Wertungspunkte und dann der direkte Vergleich (oder umgekehrt, je nach Ausschreibung).
 - **Stichkampf:** Bleibt ein Gleichstand (z. B. drei Kämpfer im Kreis), markiert Hajime „Stichkampf nötig“. *Stichkampf anlegen* setzt die nötigen Kämpfe als nächste in die Kampfliste; sie entscheiden nur den Gleichstand und zählen nicht als Siege.
