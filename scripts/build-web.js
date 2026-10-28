@@ -101,9 +101,8 @@ function patch(file, head, body) {
   if (body) html = html.replace('</body>', `${body}\n  </body>`);
   fs.writeFileSync(p, html);
 }
-const icon = '    <link rel="icon" href="icon-192.png" />';
-patch('control.html', `${icon}\n    <link rel="manifest" href="manifest.webmanifest" />\n    <meta name="theme-color" content="#0f1218" />`, '    <script src="js/version.js"></script>\n    <script src="js/webapp.js"></script>');
-patch('board.html', icon);
+// Favicon steht schon in src/*.html (img/favicon.png)
+patch('control.html', `    <link rel="apple-touch-icon" href="icon-192.png" />\n    <link rel="manifest" href="manifest.webmanifest" />\n    <meta name="theme-color" content="#0f1218" />`, '    <script src="js/version.js"></script>\n    <script src="js/webapp.js"></script>');
 
 // Startseiten im Hauptordner
 const redirect = `<!doctype html>
@@ -112,6 +111,7 @@ const redirect = `<!doctype html>
     <meta charset="utf-8" />
     <meta http-equiv="refresh" content="0; url=app/control.html" />
     <title>Hajime</title>
+    <link rel="icon" type="image/png" href="app/img/favicon.png" />
   </head>
   <body style="font-family: system-ui, sans-serif; padding: 2em">
     <p>Hajime wird gestartet … <a href="app/control.html">Falls nicht: hier klicken</a></p>
