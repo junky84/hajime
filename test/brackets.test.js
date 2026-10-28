@@ -242,4 +242,19 @@ test('Abhängigkeiten und mögliche Kämpfer eines Platzhalters', () => {
   assert.strictEqual(info.people.size, 4);
 });
 
+test('Yuko in der Gruppentabelle nur, wenn das Regelprofil Yuko verwendet', () => {
+  const s = setup('rr', 3);
+  const prof = C.findProfileFor(s, 'U15') || C.getRules(s);
+  prof.yuko = true;
+  assert.strictEqual(B.allTables(s)[0].yuko, true);
+  prof.yuko = false;
+  assert.strictEqual(B.allTables(s)[0].yuko, false);
+  // wurde trotzdem eine Yuko vergeben (vor dem Umstellen), bleibt die Spalte
+  const e = mine(s)[0];
+  e.status = 'done';
+  e.result = { winner: 'white', reason: 'Yuko', kind: 'yuko' };
+  B.sync(s);
+  assert.strictEqual(B.allTables(s)[0].yuko, true);
+});
+
 console.log(`\n${passed} Tests bestanden`);

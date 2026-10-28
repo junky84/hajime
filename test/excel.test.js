@@ -56,6 +56,11 @@ function fileFrom(sheets) {
   assert.strictEqual(gt.length, 4);
   assert.strictEqual(gt[1][4], 'A');
   assert.strictEqual(gt[1][10], 15); // Ippon 10 + Yuko 5
+  assert.ok(gt[0].includes('Yuko'));
+  // ohne Yuko im Regelprofil fällt die Spalte weg
+  const noY = sheet(X.protocolBytes([], tables.map((t) => Object.assign({}, t, { yuko: false }))), 'Gruppentabellen');
+  assert.ok(!noY[0].includes('Yuko') && noY[0].includes('Waza-ari') && noY[0].length === gt[0].length - 1);
+  assert.strictEqual(noY[1][noY[0].indexOf('Hinweis')], gt[1][gt[0].indexOf('Hinweis')]);
 
   // Geschlecht in Teilnehmer- und Kampfliste
   const gl = await X.importFile(fileFrom({ T: [['Name', 'Verein', 'AK', 'm/w', 'Gewicht'], ['Mia', 'TSV', 'U13', 'weiblich', '-34'], ['Ben', 'TSV', 'U13', 'Junge', '-34'], ['Kim', 'TSV', 'U13', '', '-34']] }));

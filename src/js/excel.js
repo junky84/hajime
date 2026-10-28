@@ -286,6 +286,14 @@
   }
   const TABLE_HEAD = ['Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Kämpfe', 'Siege', 'Niederlagen', 'Unentschieden', 'Wertungspunkte', 'Ippon', 'Waza-ari', 'Yuko', 'Hinweis'];
   const TABLE_WIDTHS = [12, 10, 14, 6, 24, 22, 7, 6, 11, 13, 14, 6, 9, 6, 20];
+  // Blatt „Gruppentabellen“; Spalte Yuko nur, wenn eine Klasse Yuko verwendet
+  function tableAoa(tables) {
+    const rows = tableRows(tables);
+    const yuko = (tables || []).some((t) => t.yuko !== false);
+    const iy = TABLE_HEAD.indexOf('Yuko');
+    const cut = (r) => (yuko ? r : r.filter((_, i) => i !== iy));
+    return { aoa: [cut(TABLE_HEAD)].concat(rows.map(cut)), widths: cut(TABLE_WIDTHS), rows: rows.length };
+  }
 
   function protocolBytes(log, tables) {
     const XLSX = root.XLSX;
@@ -305,8 +313,8 @@
       (l.events || []).forEach((e) => evRows.push([l.no, l.ageClass, l.category, l.white.name, l.blue.name, clock(e.at), e.clock, e.text]))
     );
     if (evRows.length) XLSX.utils.book_append_sheet(wb, sheetFrom([evHead].concat(evRows), [5, 12, 14, 24, 24, 10, 11, 60]), 'Ereignisse');
-    const tRows = tableRows(tables);
-    if (tRows.length) XLSX.utils.book_append_sheet(wb, sheetFrom([TABLE_HEAD].concat(tRows), TABLE_WIDTHS), 'Gruppentabellen');
+    const tt = tableAoa(tables);
+    if (tt.rows) XLSX.utils.book_append_sheet(wb, sheetFrom(tt.aoa, tt.widths), 'Gruppentabellen');
     return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   }
 
@@ -321,7 +329,8 @@
     );
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheetFrom([['Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Platz', 'Name', 'Verein', 'Hinweis']].concat(rows), [12, 10, 14, 6, 26, 24, 20]), 'Siegerliste');
-    XLSX.utils.book_append_sheet(wb, sheetFrom([TABLE_HEAD].concat(tableRows(tables)), TABLE_WIDTHS), 'Gruppentabellen');
+    const tt = tableAoa(tables);
+    XLSX.utils.book_append_sheet(wb, sheetFrom(tt.aoa, tt.widths), 'Gruppentabellen');
     return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   }
 

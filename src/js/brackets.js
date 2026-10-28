@@ -483,7 +483,13 @@
   function allTables(state) {
     const opts = { winPoints: state.settings.winPoints, rankOrder: state.settings.rankOrder };
     const brackets = new Map((state.brackets || []).map((b) => [b.key, b]));
-    return C.poolGroups(state.queue).map((g) => (brackets.has(g.key) ? table(brackets.get(g.key), g, opts) : C.standings(g, opts)));
+    return C.poolGroups(state.queue).map((g) => {
+      const t = brackets.has(g.key) ? table(brackets.get(g.key), g, opts) : C.standings(g, opts);
+      // Yuko nur zeigen, wenn das Regelprofil der Klasse Yuko verwendet (oder doch eine vergeben wurde)
+      const prof = C.findProfileFor(state, g.ageClass) || C.getRules(state);
+      t.yuko = !!(prof && prof.yuko) || t.rows.some((r) => r.yuko > 0);
+      return t;
+    });
   }
 
   /* ---------- Turnierbaum als Daten für die Darstellung ---------- */

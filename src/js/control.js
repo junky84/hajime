@@ -1159,7 +1159,7 @@
           .map(
             (r) => `<tr class="${r.tie ? 'tie' : ''}"><td class="pl p${r.place}">${r.place == null ? '–' : r.place}</td><td><b>${esc(r.name)}</b>${r.club ? ` <small>${esc(r.club)}</small>` : ''}${
               r.tie ? ' <span class="tb-tag">Stichkampf</span>' : ''
-            }</td><td>${r.fights}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td><b>${r.points}</b></td><td>${r.ippon} · ${r.wazaari} · ${r.yuko}</td></tr>`
+            }</td><td>${r.fights}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td><b>${r.points}</b></td><td>${r.ippon} · ${r.wazaari}${t.yuko !== false ? ` · ${r.yuko}` : ''}</td></tr>`
           )
           .join('');
         let ties = tieButtons(t, t.ties);
@@ -1174,7 +1174,7 @@
             <button class="btn" data-cert="${esc(t.key)}">Urkunden …</button></div>
           ${tree}
           ${ties}
-          <div class="table-wrap"><table class="tbl eval"><thead><tr><th>Platz</th><th>Name</th><th title="Kämpfe">K</th><th title="Siege">S</th><th title="Niederlagen">N</th><th title="Unentschieden">U</th><th>Punkte</th><th>I · W · Y</th></tr></thead><tbody>${rows}</tbody></table></div>
+          <div class="table-wrap"><table class="tbl eval"><thead><tr><th>Platz</th><th>Name</th><th title="Kämpfe">K</th><th title="Siege">S</th><th title="Niederlagen">N</th><th title="Unentschieden">U</th><th>Punkte</th><th title="Siege durch Ippon · Waza-ari${t.yuko !== false ? ' · Yuko' : ''}">${t.yuko !== false ? 'I · W · Y' : 'I · W'}</th></tr></thead><tbody>${rows}</tbody></table></div>
           ${open}
           ${tree ? '<p class="muted">Sieger rücken automatisch weiter, sobald ein Kampf beendet ist. Vereinstrennung: Kämpfer desselben Vereins treffen möglichst spät aufeinander.</p>' : ''}
         </div>`;
@@ -1683,6 +1683,8 @@
       const v = String(state.settings.winPoints[el.dataset.wp]);
       if (el.value !== v) el.value = v;
     });
+    // Yuko-Punkte nur zeigen, wenn ein Regelprofil Yuko verwendet
+    $('[data-wp="yuko"]').closest('label').style.display = state.profiles.some((p) => p.yuko) ? '' : 'none';
     $('.gender-in').style.display = state.settings.splitGender ? '' : 'none';
     const L = B.limitsOf(state.settings.systems);
     $$('[data-sl]').forEach((el) => {

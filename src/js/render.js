@@ -292,14 +292,14 @@
         box.querySelector('.jb-tb-foot').textContent = 'Sieger rücken automatisch weiter, sobald ein Kampf beendet ist.';
         return;
       }
-      const head =
-        '<div class="jb-tb-row jb-tb-head"><span>Platz</span><span>Name</span><span>Siege</span><span>Wertungen</span><span>Ippon · Waza-ari · Yuko</span></div>';
+      const yuko = t.yuko !== false;
+      const head = `<div class="jb-tb-row jb-tb-head"><span>Platz</span><span>Name</span><span>Siege</span><span>Wertungen</span><span>${yuko ? 'Ippon · Waza-ari · Yuko' : 'Ippon · Waza-ari'}</span></div>`;
       const rows = t.rows
         .map(
           (r) =>
             `<div class="jb-tb-row${r.tie ? ' tie' : ''}"><span class="pl p${r.place}">${r.place == null ? '–' : r.place}</span><span class="nm"><b>${esc(r.name)}</b>${
               s.showClub && r.club ? `<small>${esc(r.club)}</small>` : ''
-            }${r.tie ? '<em>Stichkampf</em>' : ''}</span><span>${r.wins}</span><span>${r.points}</span><span class="iwy">${r.ippon} · ${r.wazaari} · ${r.yuko}</span></div>`
+            }${r.tie ? '<em>Stichkampf</em>' : ''}</span><span>${r.wins}</span><span>${r.points}</span><span class="iwy">${r.ippon} · ${r.wazaari}${yuko ? ` · ${r.yuko}` : ''}</span></div>`
         )
         .join('');
       const grid = box.querySelector('.jb-tb-grid');
@@ -315,7 +315,7 @@
       if (t.ties && t.ties.length) {
         foot.innerHTML = `<b>Gleichstand: ${t.ties.map((x) => esc(x.join(', '))).join(' / ')} – Stichkampf nötig</b>`;
       } else {
-        foot.textContent = `Wertungspunkte je Sieg: Ippon ${p.ippon} · Waza-ari ${p.wazaari} · Yuko ${p.yuko} · Entscheidung ${p.decision} · ${order}`;
+        foot.textContent = `Wertungspunkte je Sieg: Ippon ${p.ippon} · Waza-ari ${p.wazaari}${yuko ? ` · Yuko ${p.yuko}` : ''} · Entscheidung ${p.decision} · ${order}`;
       }
     }
 
