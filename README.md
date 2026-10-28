@@ -219,7 +219,7 @@ Im Reiter **Kampfliste** gibt es *Excel-Vorlage speichern*. Die Vorlage hat zwei
 
 Die Spalten werden an den Überschriften erkannt, die Reihenfolge ist egal. CSV geht auch.
 
-Zum Ausprobieren: [`beispiel/Beispiel-Teilnehmer-20.xlsx`](beispiel/Beispiel-Teilnehmer-20.xlsx) – 20 erfundene Kämpfer in 5 Gruppen (U11–U15), ergibt mit „Kampflisten aller Gruppen erzeugen“ 31 Kämpfe (alle „Jeder gegen jeden“).
+Zum Ausprobieren: [`beispiel/Beispiel-Teilnehmer-20.xlsx`](beispiel/Beispiel-Teilnehmer-20.xlsx) – 20 erfundene Kämpfer in 5 Gruppen (U11–U15), ergibt mit „Kampflisten aller Gruppen erzeugen“ 31 Kämpfe (alle „Jeder gegen jeden“). Mit Spalte „Geschlecht“ (12 m, 8 w): Ist „Nach Geschlecht trennen“ eingeschaltet, werden daraus 9 Gruppen.
 Die **Altersklasse** wählt beim Laden eines Kampfes automatisch das passende Regelprofil (Name oder Alias, z. B. „U12, U13“).
 
 ## Regelprofile
