@@ -363,14 +363,14 @@ Free code signing provided by [SignPath.io](https://about.signpath.io), certific
 
 Die Windows-Programme (`Hajime.exe` und `Hajime-x.y.z-Windows-portable.exe`) werden in GitHub Actions direkt aus diesem Repository gebaut und anschließend über SignPath signiert; jede Signatur wird von Hand freigegeben. Signiert wird nur, was aus dem Quellcode dieses Repositorys gebaut wurde.
 
-**Rollen**
+### Rollen
 
 - Committers and reviewers: [junky84](https://github.com/junky84)
 - Approvers: [junky84](https://github.com/junky84)
 
 Änderungen von anderen (Pull Requests) werden vor dem Übernehmen geprüft.
 
-**Privacy policy**
+### Privacy policy
 
 This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
 

@@ -10,20 +10,115 @@ Die Windows-App kommt nur **signiert** ins Release, weil Microsoft Defender die 
 
 ## 2. Antrag stellen
 
-Formular: <https://signpath.org/apply>
+Formular: <https://signpath.org/apply> (englisch, von HubSpot eingebettet). Unten stehen die Felder in der Reihenfolge des Formulars mit fertigen Einträgen zum Kopieren. Persönliche Angaben (Name, E-Mail) stehen bewusst nicht in dieser öffentlichen Datei.
 
-Sinnvolle Angaben:
+### Erfolgsaussichten – vorher lesen
 
-| Feld | Inhalt |
-|---|---|
-| Projekt | Hajime – Judo-Anzeigetafel |
-| Repository | https://github.com/junky84/hajime |
-| Homepage / Download | README bzw. https://github.com/junky84/hajime/releases |
-| Lizenz | MIT |
-| Build | GitHub Actions (GitHub-gehostete Runner), Workflow `.github/workflows/build.yml` |
-| Zu signieren | `Hajime.exe` (Programmdatei) und `Hajime-x.y.z-Windows-portable.exe` |
+Die Foundation prüft, ob ein Projekt **bekannt und vertrauenswürdig** ist (Pflichtfeld *Reputation*) und ob es **schon in der zu signierenden Form veröffentlicht** ist. Stand 28.10.2026 ist Hajime zwei Tage öffentlich, hat 0 Sterne, etwa 7 Downloads und noch keine Windows-Version im Release. Eine Ablehnung oder Rückfrage ist gut möglich. Was die Chancen verbessert:
 
-**Wichtig – im Antrag ansprechen:** Hajime ist eine Electron-App. `Hajime.exe` ist die Electron-Programmdatei, die electron-builder umbenennt und mit Name, Symbol und Versionsangaben von Hajime versieht; das Programm selbst steckt in `resources/app.asar`. Die SignPath Foundation signiert grundsätzlich keine fremden („upstream“) Programmdateien. Deshalb fragen, ob `Hajime.exe` signiert werden darf. Falls nicht, wird nur die portable `.exe` signiert (siehe Schritt 4, Variable `SIGNPATH_SIGN_APP`).
+- Hajime eine Weile bei echten Turnieren und Trainings nutzen und das belegen (Vereinsseite, Turnierbericht, Foto, Erwähnung beim Landesverband).
+- Sterne, Downloads, Issues von anderen Vereinen sammeln, z. B. durch einen Hinweis in Judo-Foren oder Vereinsgruppen.
+- Die unsignierte Windows-Version zum Testen bereitstellen (liegt nach jedem Build unter *Actions → Test-Windows-unsigniert*).
+
+Ein Antrag schadet nicht; bei Ablehnung kann er später mit mehr Belegen wiederholt werden.
+
+### Felder und Einträge
+
+**Project Name\*** – „A Google search for this name should clearly identify your project.“ „Hajime“ allein ist ein häufiges japanisches Wort, deshalb mit Zusatz:
+
+```
+Hajime – Judo Scoreboard
+```
+
+**Repository URL\***
+
+```
+https://github.com/junky84/hajime
+```
+
+**Homepage URL\*** – die README ist die Homepage:
+
+```
+https://github.com/junky84/hajime
+```
+
+**Download URL** – die Seite muss erwähnen, dass das Projekt SignPath nutzt. Der Abschnitt *Download & Start* der README tut das (die Release-Seiten erst ab dem nächsten Release):
+
+```
+https://github.com/junky84/hajime#download--start
+```
+
+**Privacy Policy URL**
+
+```
+https://github.com/junky84/hajime#privacy-policy
+```
+
+**Wikipedia URL (optional)** – leer lassen.
+
+**Tagline\*** – ein Satz, kann auf der Website der Foundation erscheinen:
+
+```
+Free, offline judo scoreboard for training, club championships and tournaments – runs in any Chrome/Edge browser or as a desktop app.
+```
+
+**Category\*** – Auswahl: Accessibility, AI Tools, Audio, Developer Tools, Educational, Gaming, Graphics, Productivity, Science, Other. Eine Kategorie „Sport“ gibt es nicht:
+
+```
+Other
+```
+
+**Description\*** – kurzer Absatz, ohne versionsbezogene Funktionen:
+
+```
+Hajime is an open-source scoreboard for judo, made for clubs that run trainings, club championships and youth tournaments without dedicated hardware. An operator controls the contest on a laptop while the audience view runs full screen on a second screen or projector. Hajime follows the IJF rules (clock, Golden Score, osaekomi, shido, automatic scoring) with rule profiles per age group, and optionally manages contest lists, tournament brackets, several mats and results. It needs no installation and no internet connection, and is available as a web version for Chrome/Edge and as an Electron desktop app for macOS and Windows.
+
+Note for reviewers: the Windows app is built with Electron/electron-builder. Hajime.exe is the Electron executable renamed and branded by electron-builder (name, icon, version); the application code is in resources/app.asar. If signing Hajime.exe is not allowed under the upstream-binary rule, we would sign only the portable launcher Hajime-x.y.z-Windows-portable.exe.
+```
+
+**Reputation\*** – Belege für Verbreitung und Vertrauen. Nur Wahres eintragen; die Lücken in eckigen Klammern selbst füllen oder weglassen:
+
+```
+Hajime is a young project (public on GitHub since October 2026) developed for youth judo tournaments of a local club. It has regular releases with automated builds and start tests in GitHub Actions: https://github.com/junky84/hajime/releases
+[Where it has been used, e.g. "Used at <club> club championship <date>" – with a link if possible]
+[Any mention, e.g. club website, association newsletter, forum thread]
+```
+
+**Maintainer Type** – Auswahl: Independent community project, Non-profit foundation …, For-profit company …, Individual maintainer(s), Other:
+
+```
+Individual maintainer(s)
+```
+
+**Build System\*** – Auswahl: GitHub Actions, GitLab CI/CD:
+
+```
+GitHub Actions
+```
+
+**First Name\* / Last Name\*** – dein Name; daraus wird das SignPath-Konto angelegt. Er erscheint nicht im Zertifikat (das lautet auf die SignPath Foundation) und nicht im Repository.
+
+**Email\*** – deine E-Mail-Adresse für das SignPath-Konto und die Benachrichtigungen (dort kommen später auch die Freigabe-Anfragen für jedes Release an).
+
+**Company Name** – leer lassen.
+
+**Primary Discovery Channel\*** – Auswahl: Organic search, AI / LLM tools, Developer platforms (e.g. GitHub), Community platforms, Social media, Events, Referral, Direct contact, Other:
+
+```
+AI / LLM tools
+```
+
+**Please specify the exact source (optional)**
+
+```
+Claude (Anthropic)
+```
+
+**Häkchen**
+
+- *I have read and agree to the SignPath Foundation Code of Conduct …* (Pflicht) – vorher den verlinkten Code of Conduct lesen.
+- *I agree to receive other communications from SignPath.* – freiwillig, nicht nötig.
+- *I agree to allow SignPath to store and process my personal data.* (Pflicht).
 
 Die Prüfung dauert laut Berichten anderer Projekte einige Tage bis einige Wochen.
 
