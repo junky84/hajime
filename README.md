@@ -1,6 +1,4 @@
-<p align="center"><img src="docs/img/logo.png" alt="Hajime-Logo" width="128" /></p>
-
-<h1 align="center">Hajime</h1>
+# <img src="docs/img/logo.png" alt="" height="32"> Hajime
 
 **Judo-Anzeigetafel** für Training, Vereinsmeisterschaft und Turnier – **ohne Installation**: als **Webversion** für jeden Rechner mit Chrome oder Edge (läuft offline, keine Programmdatei) und als **App für macOS**.
 
