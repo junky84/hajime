@@ -206,6 +206,9 @@
         blue: { name: f.blue.name, club: f.blue.club },
         whiteScore: C.scoreText(f.white, r),
         blueScore: C.scoreText(f.blue, r),
+        whiteScores: C.scoreParts(f.white, r),
+        blueScores: C.scoreParts(f.blue, r),
+        yuko: !!r.yuko,
         winner: f.winner,
         winnerName: f.winner === 'draw' ? 'Unentschieden' : C.displayName(f[f.winner], f.winner),
         reason: f.reason,
@@ -1597,18 +1600,42 @@
 
   function renderLog() {
     const tb = $('#logTable tbody');
+    // Wertungen je Seite in eigenen Spalten; Yuko nur, wenn damit gekämpft wurde
+    const yuko = C.logUsesYuko(state.log);
+    const kinds = [['ippon', 'I', 'Ippon'], ['wazaari', 'W', 'Waza-ari']].concat(yuko ? [['yuko', 'Y', 'Yuko']] : [], [['shido', 'S', 'Shido']]);
+    const headSide = (lbl) => `<th>${lbl}</th>` + kinds.map((k, i) => `<th class="sc-n${i ? '' : ' first'}" title="${k[2]}">${k[1]}</th>`).join('');
+    const head = `<tr><th>Nr</th><th>Zeit</th><th>Klasse</th>${headSide('Weiß')}${headSide('Blau')}<th>Sieger</th><th>Entscheidung</th><th>Dauer</th><th></th></tr>`;
+    const thead = $('#logTable thead');
+    if (thead.dataset.h !== head) {
+      thead.innerHTML = head;
+      thead.dataset.h = head;
+    }
+    const cols = 7 + 2 * (kinds.length + 1);
+    const side = (l, k) => {
+      const sc = C.logScores(l, k);
+      const name = `<td${l.winner === k ? ' class="win"' : ''}>${esc(l[k].name || (k === 'white' ? 'Weiß' : 'Blau'))}</td>`;
+      return (
+        name +
+        kinds
+          .map(([key], i) => {
+            const v = sc[key] || 0;
+            const hsk = key === 'shido' && sc.hsk;
+            return `<td class="sc-n${i ? '' : ' first'}${v || hsk ? '' : ' z'}${hsk ? ' hsk' : ''}"${hsk ? ' title="Hansoku-make"' : ''}>${v}${hsk ? '<sup>H</sup>' : ''}</td>`;
+          })
+          .join('')
+      );
+    };
     const html = state.log
       .slice()
       .reverse()
       .map((l) => {
         const n = (l.events || []).length;
         const open = openEvents.has(l.fightId);
-        return `<tr data-fight="${esc(l.fightId)}"><td>${esc(l.no)}</td><td>${esc(l.time)}</td><td>${esc([l.ageClass, l.category].filter(Boolean).join(' '))}</td>
-        <td${l.winner === 'white' ? ' class="win"' : ''}>${esc(l.white.name || 'Weiß')}<br><small>${esc(l.whiteScore)}</small></td>
-        <td${l.winner === 'blue' ? ' class="win"' : ''}>${esc(l.blue.name || 'Blau')}<br><small>${esc(l.blueScore)}</small></td>
+        return `<tr data-fight="${esc(l.fightId)}"><td>${esc(l.no)}</td><td>${esc(l.time)}</td><td>${esc(C.classLabel(l))}</td>
+        ${side(l, 'white')}${side(l, 'blue')}
         <td>${esc(l.winnerName)}</td><td>${esc(l.reason)}</td><td>${esc(l.duration)}</td>
         <td><button class="btn ev-toggle" data-ev="${esc(l.fightId)}" ${n ? '' : 'disabled'}>${open ? 'Ereignisse ▴' : 'Ereignisse ▾'}${n ? ` (${n})` : ''}</button></td></tr>${
-          open ? `<tr class="ev-row"><td colspan="9">${eventsTable(l.events)}</td></tr>` : ''
+          open ? `<tr class="ev-row"><td colspan="${cols}">${eventsTable(l.events)}</td></tr>` : ''
         }`;
       })
       .join('');

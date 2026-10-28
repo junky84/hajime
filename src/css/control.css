@@ -695,6 +695,29 @@ dialog input {
   white-space: nowrap;
 }
 
+/* Protokoll: Wertungen je Seite als eigene, schmale Spalten */
+#logTable .sc-n {
+  width: 30px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+#logTable .sc-n.first {
+  border-left: 1px solid var(--line);
+}
+#logTable td.sc-n.z {
+  color: var(--muted);
+  opacity: 0.55;
+}
+#logTable td.sc-n.hsk {
+  color: #ff6b6b;
+  font-weight: 700;
+}
+#logTable th.sc-n {
+  font-size: 11px;
+}
+
 /* Ereignisprotokoll im Protokoll-Reiter */
 .tbl tr.ev-row > td {
   background: var(--panel-2);

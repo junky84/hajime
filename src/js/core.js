@@ -807,6 +807,25 @@
     return parts.join(' · ');
   }
 
+  // Wertungen einer Seite als Zahlen (eigene Spalten im Protokoll)
+  function scoreParts(c, r) {
+    return { ippon: c.ippon || 0, wazaari: c.wazaari || 0, yuko: c.yuko || 0, shido: c.shido || 0, hsk: isHansoku(c, r) };
+  }
+  // aus einem Protokolleintrag; ältere Einträge haben nur den Text „1 I · 2 W · 1 Y · 1 S“
+  function logScores(l, side) {
+    const raw = l && l[side + 'Scores'];
+    if (raw) return raw;
+    const t = String((l && l[side + 'Score']) || '');
+    const n = (k) => {
+      const m = t.match(new RegExp('(\\d+) ' + k + '(?![A-Za-z])'));
+      return m ? Number(m[1]) : 0;
+    };
+    return { ippon: n('I'), wazaari: n('W'), yuko: n('Y'), shido: n('S'), hsk: /HSK/.test(t) };
+  }
+  // Yuko-Spalten nur, wenn im Protokoll mit Yuko gekämpft wurde
+  const logUsesYuko = (log) =>
+    (log || []).some((l) => l.yuko === true || (l.yuko == null && /\d+ Y(?![A-Za-z])/.test((l.whiteScore || '') + ' ' + (l.blueScore || ''))) || logScores(l, 'white').yuko || logScores(l, 'blue').yuko);
+
   function displayName(c, side) {
     return c.name ? c.name : SIDE_LABEL[side];
   }
@@ -873,6 +892,9 @@
     tick,
     formatClock,
     scoreText,
+    scoreParts,
+    logScores,
+    logUsesYuko,
     displayName,
     roundRobin,
     winKind,

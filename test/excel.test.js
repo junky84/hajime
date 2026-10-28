@@ -1,6 +1,7 @@
 // Tests des Excel-Imports: node test/excel.test.js
 const assert = require('assert');
 global.self = global;
+global.JudoCore = require('../src/js/core.js');
 global.XLSX = require('../src/vendor/xlsx.full.min.js');
 require('../src/js/excel.js');
 const X = global.JudoExcel;
@@ -57,6 +58,15 @@ function fileFrom(sheets) {
   assert.strictEqual(gt[1][4], 'A');
   assert.strictEqual(gt[1][10], 15); // Ippon 10 + Yuko 5
   assert.ok(gt[0].includes('Yuko'));
+  // Protokoll: Wertungen je Seite in eigenen Spalten (auch aus älteren Einträgen mit Text)
+  const logE = (o) => Object.assign({ no: '1', time: '10:00', mat: 'Matte 1', ageClass: 'U11', category: '-28 kg', white: { name: 'A', club: 'X' }, blue: { name: 'B', club: 'Y' }, winnerName: 'A', reason: 'Ippon', duration: '1:00' }, o);
+  const pr = sheet(X.protocolBytes([logE({ whiteScores: { ippon: 1, wazaari: 1, yuko: 0, shido: 2 }, blueScores: { ippon: 0, wazaari: 0, yuko: 0, shido: 1 }, yuko: false }), logE({ whiteScore: '0 W · 1 S', blueScore: '1 I · 0 W · 2 S' })], []), 'Protokoll');
+  assert.deepStrictEqual(pr[0].slice(6, 18), ['Weiß', 'Verein Weiß', 'Weiß Ippon', 'Weiß Waza-ari', 'Weiß Shido', 'Blau', 'Verein Blau', 'Blau Ippon', 'Blau Waza-ari', 'Blau Shido', 'Sieger', 'Entscheidung']);
+  assert.deepStrictEqual(pr[1].slice(8, 11).concat(pr[1].slice(13, 16)), [1, 1, 2, 0, 0, 1]);
+  assert.deepStrictEqual(pr[2].slice(8, 11).concat(pr[2].slice(13, 16)), [0, 0, 1, 1, 0, 2]);
+  const prY = sheet(X.protocolBytes([logE({ whiteScore: '1 W · 1 Y', blueScore: '0 W · 0 Y' })], []), 'Protokoll');
+  assert.ok(prY[0].includes('Weiß Yuko') && prY[0].includes('Blau Yuko'));
+  assert.strictEqual(prY[1][prY[0].indexOf('Weiß Yuko')], 1);
   // ohne Yuko im Regelprofil fällt die Spalte weg
   const noY = sheet(X.protocolBytes([], tables.map((t) => Object.assign({}, t, { yuko: false }))), 'Gruppentabellen');
   assert.ok(!noY[0].includes('Yuko') && noY[0].includes('Waza-ari') && noY[0].length === gt[0].length - 1);

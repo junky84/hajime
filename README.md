@@ -36,7 +36,7 @@ Was du nicht brauchst, kannst du ignorieren – es stört den Kampf nicht. Ein e
 
 - Namen von Hand oder per **Excel-Import**
 - **Nächster Kampf** gut lesbar unten auf der Anzeige, in drei Größen
-- **Ereignisprotokoll** jedes Kampfes und Ergebnis-Export nach Excel
+- **Ereignisprotokoll** jedes Kampfes und Ergebnis-Export nach Excel (Ippon, Waza-ari, Yuko, Shido je Kämpfer in eigenen Spalten)
 - **Aushang** der Kampfreihenfolge pro Matte zum Ausdrucken (A4/A3)
 
 **Optional: Turnier**

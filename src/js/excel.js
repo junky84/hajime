@@ -297,10 +297,20 @@
 
   function protocolBytes(log, tables) {
     const XLSX = root.XLSX;
-    const head = ['Nr', 'Uhrzeit', 'Matte', 'Altersklasse', 'Geschlecht', 'Gewichtsklasse', 'Weiß', 'Verein Weiß', 'Wertung Weiß', 'Blau', 'Verein Blau', 'Wertung Blau', 'Sieger', 'Entscheidung', 'Kampfzeit'];
-    const rows = log.map((l) => [l.no, l.time, l.mat, l.ageClass, l.gender || '', l.category, l.white.name, l.white.club, l.whiteScore, l.blue.name, l.blue.club, l.blueScore, l.winnerName, l.reason, l.duration]);
+    // Wertungen je Seite in eigenen Spalten (Yuko nur, wenn damit gekämpft wurde)
+    const C = root.JudoCore;
+    const yuko = C.logUsesYuko(log);
+    const kinds = [['ippon', 'Ippon', 6], ['wazaari', 'Waza-ari', 9]].concat(yuko ? [['yuko', 'Yuko', 6]] : [], [['shido', 'Shido', 6]]);
+    const sideHead = (lbl) => [lbl, 'Verein ' + lbl].concat(kinds.map((k) => lbl + ' ' + k[1]));
+    const sideCols = (l, side) => {
+      const sc = C.logScores(l, side);
+      return [l[side].name, l[side].club].concat(kinds.map((k) => sc[k[0]] || 0));
+    };
+    const head = ['Nr', 'Uhrzeit', 'Matte', 'Altersklasse', 'Geschlecht', 'Gewichtsklasse'].concat(sideHead('Weiß'), sideHead('Blau'), ['Sieger', 'Entscheidung', 'Kampfzeit']);
+    const rows = log.map((l) => [l.no, l.time, l.mat, l.ageClass, l.gender || '', l.category].concat(sideCols(l, 'white'), sideCols(l, 'blue'), [l.winnerName, l.reason, l.duration]));
+    const sideW = [24, 22].concat(kinds.map((k) => k[2]));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheetFrom([head].concat(rows), [5, 9, 10, 12, 10, 14, 24, 22, 16, 24, 22, 16, 24, 26, 10]), 'Protokoll');
+    XLSX.utils.book_append_sheet(wb, sheetFrom([head].concat(rows), [5, 9, 10, 12, 10, 14].concat(sideW, sideW, [24, 26, 10])), 'Protokoll');
     // Ereignisprotokoll: jede Aktion mit Uhrzeit und Kampfzeit
     const two = (n) => String(n).padStart(2, '0');
     const clock = (ts) => {
