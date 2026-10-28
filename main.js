@@ -4,6 +4,18 @@ const path = require('path');
 const fs = require('fs');
 
 const isMac = process.platform === 'darwin';
+
+// Sprache für Menü und Dialoge: Sprachdateien wie im Fenster (src/lang/*.js)
+require('./src/js/i18n.js');
+const I18N = globalThis.HajimeI18n;
+try {
+  fs.readdirSync(path.join(__dirname, 'src', 'lang'))
+    .filter((f) => f.endsWith('.js'))
+    .forEach((f) => require(path.join(__dirname, 'src', 'lang', f)));
+} catch (err) {
+  /* ohne Übersetzungen: Deutsch */
+}
+let tm = I18N.make('de');
 let controlWin = null;
 let boardWin = null;
 let lastView = null;
@@ -24,7 +36,7 @@ log(`Start ${process.platform} ${process.arch} Electron ${process.versions.elect
 process.on('uncaughtException', (err) => {
   log('FEHLER: ' + (err && err.stack ? err.stack : err));
   try {
-    dialog.showErrorBox('Hajime – Fehler', String(err && err.stack ? err.stack : err));
+    dialog.showErrorBox(tm('Hajime – Fehler'), String(err && err.stack ? err.stack : err));
   } catch (e) {
     /* vor app.ready nicht möglich */
   }
@@ -86,12 +98,12 @@ function displayList() {
   const brd = boardWin && !boardWin.isDestroyed() ? screen.getDisplayMatching(boardWin.getBounds()) : null;
   return all.map((d, i) => {
     const tags = [];
-    if (d.id === primary.id) tags.push('Haupt');
-    if (d.id === ctrl.id) tags.push('Bedienung');
+    if (d.id === primary.id) tags.push(tm('Haupt'));
+    if (d.id === ctrl.id) tags.push(tm('Bedienung'));
     const name = d.label ? ` ${d.label}` : '';
     return {
       id: d.id,
-      label: `Bildschirm ${i + 1}:${name} ${d.size.width}×${d.size.height}${tags.length ? ' (' + tags.join(', ') + ')' : ''}`,
+      label: `${tm('Bildschirm')} ${i + 1}:${name} ${d.size.width}×${d.size.height}${tags.length ? ' (' + tags.join(', ') + ')' : ''}`,
       isControl: d.id === ctrl.id,
       isBoard: !!brd && d.id === brd.id,
     };
@@ -176,7 +188,7 @@ function createBoard(displayId) {
     width: 1280,
     height: 720,
     show: false,
-    title: 'Hajime – Anzeige',
+    title: tm('Hajime – Anzeige'),
     backgroundColor: '#000000',
     autoHideMenuBar: true,
     fullscreenable: true,
@@ -204,7 +216,7 @@ function createControl() {
     height: Math.min(960, primary.height),
     minWidth: 1000,
     minHeight: 640,
-    title: 'Hajime – Bedienung',
+    title: tm('Hajime – Bedienung'),
     backgroundColor: '#0f1218',
     show: false,
     webPreferences: webPrefs,
@@ -218,12 +230,12 @@ function createControl() {
     if (quitting) return;
     const choice = dialog.showMessageBoxSync(controlWin, {
       type: 'question',
-      buttons: ['Beenden', 'Abbrechen'],
+      buttons: [tm('Beenden'), tm('Abbrechen')],
       defaultId: 1,
       cancelId: 1,
-      title: 'Beenden',
-      message: 'Hajime beenden?',
-      detail: 'Der aktuelle Stand ist gespeichert und wird beim nächsten Start wiederhergestellt.',
+      title: tm('Beenden'),
+      message: tm('Hajime beenden?'),
+      detail: tm('Der aktuelle Stand ist gespeichert und wird beim nächsten Start wiederhergestellt.'),
     });
     if (choice !== 0) e.preventDefault();
     else quitting = true;
@@ -242,7 +254,7 @@ function createControl() {
 
 function buildMenu() {
   const sendMenu = (cmd) => controlWin && controlWin.webContents.send('menu', cmd);
-  const about = { label: 'Über Hajime', click: () => sendMenu('about') };
+  const about = { label: tm('Über Hajime'), click: () => sendMenu('about') };
   const template = [
     ...(isMac
       ? [
@@ -251,38 +263,38 @@ function buildMenu() {
             submenu: [
               about,
               { type: 'separator' },
-              { role: 'services', label: 'Dienste' },
+              { role: 'services', label: tm('Dienste') },
               { type: 'separator' },
-              { role: 'hide', label: 'Hajime ausblenden' },
-              { role: 'hideOthers', label: 'Andere ausblenden' },
-              { role: 'unhide', label: 'Alle einblenden' },
+              { role: 'hide', label: tm('Hajime ausblenden') },
+              { role: 'hideOthers', label: tm('Andere ausblenden') },
+              { role: 'unhide', label: tm('Alle einblenden') },
               { type: 'separator' },
-              { role: 'quit', label: 'Hajime beenden' },
+              { role: 'quit', label: tm('Hajime beenden') },
             ],
           },
         ]
       : []),
     {
-      label: 'Bearbeiten',
+      label: tm('Bearbeiten'),
       submenu: [
-        { label: 'Rückgängig', accelerator: 'CmdOrCtrl+Z', click: () => sendMenu('undo') },
+        { label: tm('Rückgängig'), accelerator: 'CmdOrCtrl+Z', click: () => sendMenu('undo') },
         { type: 'separator' },
-        { role: 'cut', label: 'Ausschneiden' },
-        { role: 'copy', label: 'Kopieren' },
-        { role: 'paste', label: 'Einfügen' },
-        { role: 'selectAll', label: 'Alles auswählen' },
+        { role: 'cut', label: tm('Ausschneiden') },
+        { role: 'copy', label: tm('Kopieren') },
+        { role: 'paste', label: tm('Einfügen') },
+        { role: 'selectAll', label: tm('Alles auswählen') },
       ],
     },
     {
-      label: 'Anzeige',
+      label: tm('Anzeige'),
       submenu: [
-        { label: 'Anzeige öffnen', click: () => createBoard() },
-        { label: 'Anzeige Vollbild an/aus', accelerator: 'CmdOrCtrl+F', click: () => setBoardFullscreen(!boardIsFullscreen()) },
+        { label: tm('Anzeige öffnen'), click: () => createBoard() },
+        { label: tm('Anzeige Vollbild an/aus'), accelerator: 'CmdOrCtrl+F', click: () => setBoardFullscreen(!boardIsFullscreen()) },
         { type: 'separator' },
-        { role: 'toggleDevTools', label: 'Entwicklerwerkzeuge' },
+        { role: 'toggleDevTools', label: tm('Entwicklerwerkzeuge') },
       ],
     },
-    ...(isMac ? [{ role: 'windowMenu', label: 'Fenster' }] : [{ label: 'Hilfe', submenu: [about] }]),
+    ...(isMac ? [{ role: 'windowMenu', label: tm('Fenster') }] : [{ label: tm('Hilfe'), submenu: [about] }]),
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -297,6 +309,14 @@ ipcMain.on('board-ready', (e) => {
   if (lastView) e.sender.send('view', lastView);
 });
 ipcMain.handle('displays', () => displayList());
+// Sprache der Bedienung: Menü und Dialoge folgen
+ipcMain.on('set-lang', (_e, lang) => {
+  if (tm.lang === I18N.resolve(lang)) return;
+  tm = I18N.make(lang);
+  buildMenu();
+  if (boardWin && !boardWin.isDestroyed()) boardWin.setTitle(tm('Hajime – Anzeige'));
+  if (controlWin && !controlWin.isDestroyed()) controlWin.setTitle(tm('Hajime – Bedienung'));
+});
 ipcMain.handle('app-version', () => app.getVersion());
 // Aushang, Siegerliste, Urkunden: HTML in einem unsichtbaren Fenster als PDF ausgeben, speichern und öffnen.
 // Über eine temporäre Datei statt data:-URL, weil Urkunden mit Hintergrundbild zu groß für eine URL werden.
@@ -338,10 +358,10 @@ ipcMain.handle('board-fullscreen-toggle', (e) => {
 ipcMain.handle('board-fullscreen', (e, flag) => setFullscreen(fsTarget(e), !!flag));
 ipcMain.handle('save-files', async (_e, files) => {
   const res = await dialog.showOpenDialog(controlWin, {
-    title: 'Ordner für die Dateien wählen',
+    title: tm('Ordner für die Dateien wählen'),
     defaultPath: app.getPath('documents'),
     properties: ['openDirectory', 'createDirectory'],
-    buttonLabel: 'Hier speichern',
+    buttonLabel: tm('Hier speichern'),
   });
   if (res.canceled || !res.filePaths[0]) return false;
   const dir = res.filePaths[0];
@@ -349,11 +369,11 @@ ipcMain.handle('save-files', async (_e, files) => {
   if (exist.length) {
     const c = dialog.showMessageBoxSync(controlWin, {
       type: 'question',
-      buttons: ['Ersetzen', 'Abbrechen'],
+      buttons: [tm('Ersetzen'), tm('Abbrechen')],
       defaultId: 0,
       cancelId: 1,
-      message: 'Dateien ersetzen?',
-      detail: exist.map((f) => f.name).join(', ') + ' gibt es in diesem Ordner schon.',
+      message: tm('Dateien ersetzen?'),
+      detail: tm('{files} gibt es in diesem Ordner schon.', { files: exist.map((f) => f.name).join(', ') }),
     });
     if (c !== 0) return false;
   }
@@ -421,6 +441,7 @@ app.on('web-contents-created', (_e, wc) => {
 });
 
 app.whenReady().then(() => {
+  tm = I18N.make(String(app.getLocale() || '').slice(0, 2));
   buildMenu();
   createControl();
   const changed = () => {

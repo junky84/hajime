@@ -8,27 +8,37 @@
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  // Übersetzung (opts.t aus i18n.js); ohne: Deutsch
+  const plain = (s, p) => (p ? String(s).replace(/\{(\w+)\}/g, (m, k) => (p[k] == null ? m : p[k])) : s);
 
-  // "2026-11-15" → "15. November 2026"
-  function longDate(iso) {
+  // "2026-11-15" → "15. November 2026" (andere Sprachen: Datumsformat des Browsers)
+  function longDate(iso, tr) {
     const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return String(iso || '');
+    if (tr && tr.lang && tr.lang !== 'de') {
+      try {
+        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(tr.lang, { day: 'numeric', month: 'long', year: 'numeric' });
+      } catch (err) {
+        /* unten deutsch */
+      }
+    }
     return `${Number(m[3])}. ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
   }
 
-  function classLine(t) {
+  function classLine(t, tr) {
+    tr = tr || plain;
     const parts = [];
-    if (t.ageClass) parts.push('Altersklasse ' + t.ageClass);
-    if (t.category) parts.push('Gewichtsklasse ' + t.category);
+    if (t.ageClass) parts.push(tr('Altersklasse {v}', { v: t.ageClass }));
+    if (t.category) parts.push(tr('Gewichtsklasse {v}', { v: t.category }));
     return parts.join(' · ') || t.label;
   }
 
   // Bilder nur einmal im CSS ablegen, nicht auf jeder Seite (hält das Dokument klein)
   const cssUrl = (data) => `url("${String(data).replace(/"/g, '%22')}")`;
 
-  function head(title, css) {
+  function head(title, css, tr) {
     return `<!doctype html>
-<html lang="de"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<html lang="${esc((tr && tr.lang) || 'de')}"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
   * { box-sizing: border-box; }
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -43,16 +53,17 @@ ${css}
   function listHtml(opts) {
     const s = opts.settings || {};
     const C = root.JudoCore;
-    const meta = [longDate(s.tournamentDate), s.tournamentPlace].filter(Boolean).join(' · ');
+    const tr = opts.t || plain;
+    const meta = [longDate(s.tournamentDate, tr), s.tournamentPlace].filter(Boolean).join(' · ');
     const blocks = opts.tables
       .map((t) => {
         const rows = C.awardRows(t, opts.places);
         if (!rows.length) return '';
-        const state = t.complete ? '' : `<span class="prov">vorläufig – ${t.done} von ${t.total} Kämpfen</span>`;
-        const tie = t.ties.length ? `<div class="tie">Gleichstand: ${t.ties.map((x) => esc(x.join(', '))).join(' / ')} – Stichkampf nötig</div>` : '';
+        const state = t.complete ? '' : `<span class="prov">${esc(tr('vorläufig – {n} von {m} Kämpfen', { n: t.done, m: t.total }))}</span>`;
+        const tie = t.ties.length ? `<div class="tie">${esc(tr('Gleichstand: {names} – Stichkampf nötig', { names: t.ties.map((x) => x.join(', ')).join(' / ') }))}</div>` : '';
         return `<section class="grp">
-  <h2>${esc(t.label)} <small>Jeder gegen jeden</small>${state}</h2>
-  <table><thead><tr><th class="pl">Platz</th><th>Name</th><th>Verein</th></tr></thead><tbody>
+  <h2>${esc(t.label)} <small>${esc(tr(t.systemLabel || 'Jeder gegen jeden'))}</small>${state}</h2>
+  <table><thead><tr><th class="pl">${esc(tr('Platz'))}</th><th>${esc(tr('Name'))}</th><th>${esc(tr('Verein'))}</th></tr></thead><tbody>
   ${rows.map((r) => `<tr><td class="pl p${r.place}">${r.place}${r.tie ? '*' : ''}</td><td class="nm">${esc(r.name)}</td><td>${esc(r.club)}</td></tr>`).join('\n  ')}
   </tbody></table>${tie}
 </section>`;
@@ -60,9 +71,9 @@ ${css}
       .join('\n');
     return (
       head(
-        'Siegerliste ' + (s.tournament || ''),
+        tr('Siegerliste') + ' ' + (s.tournament || ''),
         `  @page { size: A4 portrait; margin: 14mm 15mm 16mm;
-    @bottom-right { content: "Seite " counter(page) " von " counter(pages); font: 9pt system-ui, Arial, sans-serif; color: #555; } }
+    @bottom-right { content: "${tr('Seite')} " counter(page) " ${tr('von')} " counter(pages); font: 9pt system-ui, Arial, sans-serif; color: #555; } }
   .top { border-bottom: 0.8mm solid #111; padding-bottom: 3mm; margin-bottom: 6mm; display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; }
   .title { font-size: 22pt; font-weight: 800; line-height: 1.1; }
   .sub { font-size: 11pt; color: #444; margin-top: 1mm; }
@@ -78,11 +89,12 @@ ${css}
   td.p1 { color: #a07a1c; } td.p2 { color: #6b7280; } td.p3 { color: #9a5a26; }
   .nm { font-weight: 600; }
   .tie { font-size: 9.5pt; color: #a15c00; font-weight: 700; margin-top: 1.5mm; }
-  .empty { font-size: 13pt; color: #555; padding: 10mm 0; }`
+  .empty { font-size: 13pt; color: #555; padding: 10mm 0; }`,
+        tr
       ) +
       `
-<div class="top"><div><div class="title">${esc(s.tournament || 'Judo')}</div><div class="sub">Siegerliste${meta ? ' · ' + esc(meta) : ''}</div></div>${s.logo ? '<div class="logo"></div>' : ''}</div>
-${blocks.trim() || '<div class="empty">Noch keine Platzierungen – es sind keine Kämpfe beendet.</div>'}
+<div class="top"><div><div class="title">${esc(s.tournament || 'Judo')}</div><div class="sub">${esc(tr('Siegerliste'))}${meta ? ' · ' + esc(meta) : ''}</div></div>${s.logo ? '<div class="logo"></div>' : ''}</div>
+${blocks.trim() || `<div class="empty">${esc(tr('Noch keine Platzierungen – es sind keine Kämpfe beendet.'))}</div>`}
 </body></html>`
     );
   }
@@ -97,7 +109,8 @@ ${blocks.trim() || '<div class="empty">Noch keine Platzierungen – es sind kein
   function certHtml(opts) {
     const s = opts.settings || {};
     const C = root.JudoCore;
-    const meta = [s.tournament, longDate(s.tournamentDate), s.tournamentPlace].filter(Boolean).join(' · ');
+    const tr = opts.t || plain;
+    const meta = [s.tournament, longDate(s.tournamentDate, tr), s.tournamentPlace].filter(Boolean).join(' · ');
     const pages = [];
     opts.tables.forEach((t) => {
       C.awardRows(t, opts.places).forEach((r) => {
@@ -106,12 +119,12 @@ ${blocks.trim() || '<div class="empty">Noch keine Platzierungen – es sind kein
   <div class="body">
     ${s.logo ? '<div class="logo"></div>' : '<div class="logo-space"></div>'}
     <div class="meta">${esc(meta)}</div>
-    <div class="head">Urkunde</div>
-    <div class="for">für den</div>
-    <div class="place p${r.place}">${r.place}. Platz</div>
+    <div class="head">${esc(tr('Urkunde'))}</div>
+    <div class="for">${esc(tr('für den'))}</div>
+    <div class="place p${r.place}">${esc(tr('{n}. Platz', { n: r.place }))}</div>
     <div class="name" style="font-size:${nameSize(r.name)}pt">${esc(r.name)}</div>
     <div class="club">${esc(r.club)}</div>
-    <div class="cls">${esc(classLine(t))}</div>
+    <div class="cls">${esc(classLine(t, tr))}</div>
     <div class="signs">
       <div><i></i>${esc(s.certSign1 || '')}</div>
       <div><i></i>${esc(s.certSign2 || '')}</div>
@@ -123,7 +136,7 @@ ${blocks.trim() || '<div class="empty">Noch keine Platzierungen – es sind kein
     const bg = s.certBg ? cssUrl(s.certBg) : null;
     return (
       head(
-        'Urkunden ' + (s.tournament || ''),
+        tr('Urkunden') + ' ' + (s.tournament || ''),
         `  @page { size: A4 portrait; margin: 0; }
   .cert { position: relative; width: 210mm; height: 296.5mm; overflow: hidden; break-after: page; ${bg ? `background: ${bg} center / cover no-repeat;` : ''} }
   .cert:last-child { break-after: auto; }
@@ -142,10 +155,11 @@ ${blocks.trim() || '<div class="empty">Noch keine Platzierungen – es sind kein
   .signs { margin-top: auto; width: 100%; display: flex; justify-content: space-between; gap: 30mm; }
   .signs div { flex: 1; font-size: 11pt; color: #444; }
   .signs i { display: block; border-top: 0.3mm solid #777; margin-bottom: 2.5mm; }
-  .empty { font-size: 14pt; color: #555; padding: 30mm; }`
+  .empty { font-size: 14pt; color: #555; padding: 30mm; }`,
+        tr
       ) +
       `
-${pages.join('\n') || '<div class="empty">Keine Platzierungen für Urkunden vorhanden.</div>'}
+${pages.join('\n') || `<div class="empty">${esc(tr('Keine Platzierungen für Urkunden vorhanden.'))}</div>`}
 </body></html>`
     );
   }

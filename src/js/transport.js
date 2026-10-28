@@ -6,6 +6,7 @@
 (function (root) {
   'use strict';
   const E = root.judoBridge || null;
+  let tr = (s) => s; // Übersetzung (setzt die Bedienung)
   const isElectron = !!E;
 
   /* ----- Anzeige-Seite ----- */
@@ -89,8 +90,8 @@
     const cur = screenDetails.currentScreen;
     return screenDetails.screens.map((s, i) => {
       const own = s === cur || screenId(s) === screenId(cur);
-      const name = (s.label || `Bildschirm ${i + 1}`) + ` (${s.width}×${s.height})`;
-      return { id: screenId(s), label: own ? `${name} – Bedienung` : name, isControl: own, screen: s };
+      const name = (s.label || `${tr('Bildschirm')} ${i + 1}`) + ` (${s.width}×${s.height})`;
+      return { id: screenId(s), label: own ? `${name} – ${tr('Bedienung')}` : name, isControl: own, screen: s };
     });
   }
   function onScreensChanged(fn) {
@@ -163,5 +164,6 @@
     setOnNeedView: (fn) => (onNeedView = fn),
     saveFile,
     saveFiles,
+    setTranslator: (fn) => (tr = fn),
   };
 })(typeof self !== 'undefined' ? self : this);

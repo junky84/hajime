@@ -22,13 +22,17 @@
     return Array.from(m, ([name, fights]) => ({ name, fights }));
   }
 
-  function person(p, from) {
-    if (!(p && p.name) && from) return `<span class="n ph">${esc(from)}</span>`;
+  function person(p, from, t) {
+    if (!(p && p.name) && from) return `<span class="n ph">${esc(t.phrase(from))}</span>`;
     return `<span class="n">${esc((p && p.name) || '–')}</span>${p && p.club ? `<span class="c">${esc(p.club)}</span>` : ''}`;
   }
   const cls = (f) => [f.ageClass, f.gender, f.category].filter(Boolean).join(' ');
 
+  const plain = (s, p) => (p ? String(s).replace(/\{(\w+)\}/g, (m, k) => (p[k] == null ? m : p[k])) : s);
+  plain.phrase = (s) => s || '';
+
   function html(opts) {
+    const t = opts.t || plain;
     const size = opts.size === 'A3' ? 'A3' : 'A4';
     const scale = size === 'A3' ? 1.41 : 1;
     const pages = opts.mats
@@ -38,19 +42,20 @@
     <thead>
       <tr class="head"><th colspan="4">
         <div class="top">
-          <div><div class="title">${esc(opts.tournament || 'Judo')}</div><div class="sub">Kampfreihenfolge</div></div>
-          <div class="matname">${esc(mat.name.toUpperCase())}</div>
+          <div><div class="title">${esc(opts.tournament || 'Judo')}</div><div class="sub">${esc(t('Kampfreihenfolge'))}</div></div>
+          <div class="matname">${esc(t.phrase(mat.name).toUpperCase())}</div>
         </div>
       </th></tr>
-      <tr class="cols"><th class="no">Nr.</th><th class="cls">Klasse</th><th>Weiß</th><th>Blau</th></tr>
+      <tr class="cols"><th class="no">${esc(t('Nr.'))}</th><th class="cls">${esc(t('Klasse'))}</th><th>${esc(t('Weiß'))}</th><th>${esc(t('Blau'))}</th></tr>
     </thead>
     <tbody>
       ${mat.fights
         .map(
-          (f) => `<tr><td class="no">${esc(f.no)}</td><td class="cls">${esc(cls(f))}${f.round ? `<span class="rd">${esc(f.round)}</span>` : ''}</td><td>${person(
+          (f) => `<tr><td class="no">${esc(f.no)}</td><td class="cls">${esc(cls(f))}${f.round ? `<span class="rd">${esc(t.phrase(f.round))}</span>` : ''}</td><td>${person(
             f.white,
-            f.whiteFrom
-          )}</td><td>${person(f.blue, f.blueFrom)}</td></tr>`
+            f.whiteFrom,
+            t
+          )}</td><td>${person(f.blue, f.blueFrom, t)}</td></tr>`
         )
         .join('\n      ')}
     </tbody>
@@ -59,10 +64,10 @@
       )
       .join('\n');
     return `<!doctype html>
-<html lang="de"><head><meta charset="utf-8"><title>Aushang ${esc(opts.tournament || '')}</title>
+<html lang="${esc(t.lang || 'de')}"><head><meta charset="utf-8"><title>${esc(t('Aushang'))} ${esc(opts.tournament || '')}</title>
 <style>
   @page { size: ${size} landscape; margin: 12mm 14mm 14mm;
-    @bottom-right { content: "Seite " counter(page) " von " counter(pages); font: ${9 * scale}pt system-ui, -apple-system, "Segoe UI", Arial, sans-serif; color: #555; } }
+    @bottom-right { content: "${t('Seite')} " counter(page) " ${t('von')} " counter(pages); font: ${9 * scale}pt system-ui, -apple-system, "Segoe UI", Arial, sans-serif; color: #555; } }
   * { box-sizing: border-box; }
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: #111; font-size: ${12 * scale}pt; }
@@ -88,7 +93,7 @@
   .empty { font-size: ${14 * scale}pt; color: #555; padding: 10mm 0; }
 </style></head>
 <body>
-${pages || `<div class="empty">Keine Kämpfe in der Kampfliste.</div>`}
+${pages || `<div class="empty">${esc(t('Keine Kämpfe in der Kampfliste.'))}</div>`}
 </body></html>`;
   }
 

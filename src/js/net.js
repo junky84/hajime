@@ -7,6 +7,12 @@
   'use strict';
   const C = root.JudoCore || (typeof require === 'function' ? require('./core.js') : null);
 
+  // „Matte 2“ und „Mat 2“ sind dieselbe Matte
+  const matNo = (s) => {
+    const m = C.norm(s).match(/^(?:matte|mat|tapis|tatami|mata|mattan?)\s*(\d+)$/);
+    return m ? m[1] : null;
+  };
+  const sameMat = (a, b) => C.norm(a) === C.norm(b) || (matNo(a) != null && matNo(a) === matNo(b));
   const pick = (p) => ({ name: (p && p.name) || '', club: (p && p.club) || '' });
   const entryOut = (e) => {
     const x = { id: e.id, no: e.no || '', ageClass: e.ageClass || '', category: e.category || '', white: pick(e.white), blue: pick(e.blue), status: e.status || 'open' };
@@ -50,7 +56,7 @@
         named: !!named,
       },
       next: (upcoming || []).slice(0, 4).map((e) => ({ no: e.no || '', cls: C.classLabel(e), white: pick(e.white), blue: pick(e.blue), at: e.at || '' })),
-      open: state.queue.filter((e) => e.status === 'open' && !e.pending && (!e.mat || e.mat === state.settings.mat)).length,
+      open: state.queue.filter((e) => e.status === 'open' && !e.pending && (!e.mat || sameMat(e.mat, state.settings.mat))).length,
       done: results.length,
       results,
       at: now,
@@ -105,7 +111,7 @@
 
   // Kampfliste dieser Matte für den Versand (mit Turniersystemen der Gruppen)
   function fightsFor(state, mat) {
-    const entries = state.queue.filter((e) => (e.mat || '') === mat && e.status !== 'skipped');
+    const entries = state.queue.filter((e) => e.mat && sameMat(e.mat, mat) && e.status !== 'skipped');
     const keys = new Set(entries.map((e) => e.bracket).filter(Boolean));
     return { type: 'fights', mat, tournament: state.settings.tournament || '', entries: entries.map(entryOut), brackets: (state.brackets || []).filter((b) => keys.has(b.key)) };
   }
@@ -122,7 +128,7 @@
     // offene Kämpfe der Matte, die nicht mehr dazugehören, entfernen
     const keep = state.queue.filter((e) => {
       if (ids.has(e.id) || e.status === 'done' || e.team) return true;
-      if (e.mat && e.mat !== msg.mat) return true;
+      if (e.mat && !sameMat(e.mat, msg.mat)) return true;
       out.removed++;
       return false;
     });

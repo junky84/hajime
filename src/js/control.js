@@ -37,8 +37,7 @@
   let lastSoundKey = state.fight.sound ? state.fight.id + ':' + state.fight.sound.id : null;
   const preview = window.JudoBoard.mount($('#preview'), { preview: true });
   const trPreview = window.JudoBoard.mount($('#trPreview'), { preview: true });
-  initTraining();
-  state.team = TM.normTeam(state.team);
+  adoptState();
   let lastTrainSound = state.training.run.sound ? state.training.run.sound.id : null;
 
   let saveTimer = 0;
@@ -86,7 +85,7 @@
     let table = null;
     if (state.screen === 'table') {
       const key = tableGroupKey();
-      table = B.allTables(state).find((t) => t.key === key) || null;
+      table = B.allTables(state).find((x) => x.key === key) || null;
       const b = table && bracketOf(key);
       if (hasTree(b)) table = Object.assign({}, table, { tree: B.treeModel(state, b, state.fight.queueId) });
     }
@@ -161,7 +160,7 @@
     f.ageClass = cur.ageClass;
     // Ereignisprotokoll bleibt vollständig, „Rückgängig“ wird angehängt
     const prevCount = (f.events || []).length;
-    const undone = (cur.events || []).slice(prevCount).map((e) => e.text).filter((t) => !/^Rückgängig/.test(t));
+    const undone = (cur.events || []).slice(prevCount).map((e) => e.text).filter((x) => !/^Rückgängig/.test(x));
     f.events = (cur.events || []).slice();
     C.logEvent(f, Date.now(), 'Rückgängig' + (undone.length ? ': ' + undone.join(', ') : ''));
     const running = C.clockRunning(f.clock) || !!f.osae.side;
@@ -289,11 +288,11 @@
   let restPending = null;
   function requestLoad(entry, onLoaded) {
     if (entry.status === 'skipped') {
-      alert('Dieser Kampf entfällt (Best of Three ist schon entschieden).');
+      alert(t('Dieser Kampf entfällt (Best of Three ist schon entschieden).'));
       return;
     }
     if (entry.pending) {
-      alert(`Diese Paarung steht noch nicht fest: ${entry.white.name || entry.whiteFrom || '?'} – ${entry.blue.name || entry.blueFrom || '?'}.\nSie wird automatisch ausgefüllt, sobald die Vorkämpfe beendet sind.`);
+      alert(t('Diese Paarung steht noch nicht fest: {w} – {b}.\nSie wird automatisch ausgefüllt, sobald die Vorkämpfe beendet sind.', { w: entry.white.name || t.phrase(entry.whiteFrom) || '?', b: entry.blue.name || t.phrase(entry.blueFrom) || '?' }));
       return;
     }
     if (!C.restCheck(state, entry, Date.now()).waits.length) {
@@ -309,9 +308,9 @@
   const entryTitle = (e) => {
     const no = e.no || String(state.queue.indexOf(e) + 1);
     const cls = C.classLabel(e);
-    return `Nr. ${esc(no)}${cls ? ' · ' + esc(cls) : ''}`;
+    return `${esc(t('Nr.'))} ${esc(no)}${cls ? ' · ' + esc(cls) : ''}`;
   };
-  const entryNames = (e) => `${esc(e.white.name || e.whiteFrom || 'Weiß')} – ${esc(e.blue.name || e.blueFrom || 'Blau')}`;
+  const entryNames = (e) => `${esc(e.white.name || t.phrase(e.whiteFrom) || t('Weiß'))} – ${esc(e.blue.name || t.phrase(e.blueFrom) || t('Blau'))}`;
 
   // Kämpfe, deren Kämpfer schon bereit sind – in Kampflisten-Reihenfolge ab dem gewünschten Kampf
   function restSuggestions(entry, now) {
@@ -335,27 +334,30 @@
     const rc = C.restCheck(state, entry, now);
     const ready = !rc.waits.length;
     dlg.classList.toggle('ready', ready);
-    $('.rest-head', dlg).textContent = ready ? '✓ Ruhezeit vorbei – alle Kämpfer bereit' : '⚠ Ruhezeit noch nicht vorbei';
-    $('.rest-fight', dlg).innerHTML = `Kampf <b>${entryTitle(entry)}</b>: ${entryNames(entry)}`;
+    $('.rest-head', dlg).textContent = ready ? '✓ ' + t('Ruhezeit vorbei – alle Kämpfer bereit') : '⚠ ' + t('Ruhezeit noch nicht vorbei');
+    $('.rest-fight', dlg).innerHTML = `${esc(t('Kampf'))} <b>${entryTitle(entry)}</b>: ${entryNames(entry)}`;
     $('.rest-waits', dlg).innerHTML = rc.waits
       .map(
-        (w) => `<div class="rest-wait"><div><b>${esc(w.name)}</b><small>letzter Kampf${w.lastNo ? ` (Nr. ${esc(w.lastNo)})` : ''} endete um ${fmtClock(w.lastEnd)} · Mindestpause ${esc(
-          rc.profile
-        )}: ${fmtSec(rc.restMs / 1000)}</small></div><div class="rest-left"><b>noch ${C.formatClock(w.remainingMs, 'regular')}</b><small>bereit ab ${fmtClock(w.readyAt)}</small></div></div>`
+        (w) =>
+          `<div class="rest-wait"><div><b>${esc(w.name)}</b><small>${esc(
+            t(w.lastNo ? 'letzter Kampf (Nr. {no}) endete um {time}' : 'letzter Kampf endete um {time}', { no: w.lastNo, time: fmtClock(w.lastEnd) })
+          )} · ${esc(t('Mindestpause {profile}: {time}', { profile: t(rc.profile), time: fmtSec(rc.restMs / 1000) }))}</small></div><div class="rest-left"><b>${esc(
+            t('noch {time}', { time: C.formatClock(w.remainingMs, 'regular') })
+          )}</b><small>${esc(t('bereit ab {time}', { time: fmtClock(w.readyAt) }))}</small></div></div>`
       )
       .join('');
     const sugg = ready ? [] : restSuggestions(entry, now);
     $('.rest-sugg-wrap', dlg).style.display = sugg.length ? '' : 'none';
     const box = $('.rest-sugg', dlg);
     const html = sugg
-      .map((e) => `<div class="rest-s"><span><b>${entryTitle(e)}</b> · ${entryNames(e)}</span><button class="btn" data-pull="${esc(e.id)}">Vorziehen</button></div>`)
+      .map((e) => `<div class="rest-s"><span><b>${entryTitle(e)}</b> · ${entryNames(e)}</span><button class="btn" data-pull="${esc(e.id)}">${esc(t('Vorziehen'))}</button></div>`)
       .join('');
     if (box.dataset.h !== html) {
       box.innerHTML = html;
       box.dataset.h = html;
     }
     const lb = $('[data-r="load"]', dlg);
-    lb.textContent = ready ? 'Laden' : 'Trotzdem laden';
+    lb.textContent = ready ? t('Laden') : t('Trotzdem laden');
     lb.classList.toggle('primary', ready);
     lb.classList.toggle('warn', !ready);
   }
@@ -392,7 +394,7 @@
   }, 500);
 
   function resetFight() {
-    if (fightBusy() && !confirm('Kampf wirklich zurücksetzen? Wertungen und Zeit gehen verloren.')) return;
+    if (fightBusy() && !confirm(t('Kampf wirklich zurücksetzen? Wertungen und Zeit gehen verloren.'))) return;
     const f = state.fight;
     const entry = {
       id: f.queueId,
@@ -517,9 +519,9 @@
   };
 
   document.addEventListener('keydown', (e) => {
-    const t = e.target;
-    if (t && t.closest && t.closest('input, textarea, select, dialog')) {
-      if (e.key === 'Escape' && t.blur) t.blur();
+    const tg = e.target;
+    if (tg && tg.closest && tg.closest('input, textarea, select, dialog')) {
+      if (e.key === 'Escape' && tg.blur) tg.blur();
       return;
     }
     const mod = e.ctrlKey || e.metaKey;
@@ -588,15 +590,15 @@
     const f = state.fight;
     const now = Date.now();
     const el = $('#ctlClock');
-    const t = C.formatClock(C.clockMs(f.clock, now), f.clock.mode);
+    const txt = C.formatClock(C.clockMs(f.clock, now), f.clock.mode);
     const tEl = $('.t', el);
-    if (tEl.textContent !== t) tEl.textContent = t;
+    if (tEl.textContent !== txt) tEl.textContent = txt;
     el.classList.toggle('running', C.clockRunning(f.clock));
     el.classList.toggle('golden', f.clock.mode === 'golden');
     $$('[data-osae]').forEach((b) => {
       const live = f.osae.side === b.dataset.osae;
       b.classList.toggle('live', live);
-      const label = (b.dataset.osae === 'white' ? 'Osaekomi Weiß' : 'Osaekomi Blau') + (live ? ' · ' + Math.floor(C.osaeMs(f.osae, now) / 1000) + ' s' : '');
+      const label = 'Osaekomi ' + t(b.dataset.osae === 'white' ? 'Weiß' : 'Blau') + (live ? ' · ' + Math.floor(C.osaeMs(f.osae, now) / 1000) + ' s' : '');
       const kbd = b.dataset.osae === 'white' ? 'A' : 'L';
       const html = esc(label) + ` <kbd>${kbd}</kbd>`;
       if (b.innerHTML !== html) b.innerHTML = html;
@@ -627,11 +629,11 @@
 
   function rulesSummary(r) {
     const parts = [fmtSec(r.duration) + ' min'];
-    parts.push(r.golden ? 'Golden Score ' + (r.goldenLimit ? 'max. ' + fmtSec(r.goldenLimit) : 'unbegrenzt') : 'kein Golden Score');
-    parts.push(r.ipponEnds ? 'Ippon beendet' : 'Ippon beendet nicht');
+    parts.push(r.golden ? 'Golden Score ' + (r.goldenLimit ? 'max. ' + fmtSec(r.goldenLimit) : t('unbegrenzt')) : t('kein Golden Score'));
+    parts.push(t(r.ipponEnds ? 'Ippon beendet' : 'Ippon beendet nicht'));
     if (r.ipponEnds && r.awasete) parts.push('2 W = I');
-    parts.push(r.yuko ? 'mit Yuko' : 'ohne Yuko');
-    parts.push(r.shidoLimit ? r.shidoLimit + '. Shido = HSK' : 'keine HSK durch Shido');
+    parts.push(t(r.yuko ? 'mit Yuko' : 'ohne Yuko'));
+    parts.push(r.shidoLimit ? r.shidoLimit + '. Shido = HSK' : t('keine HSK durch Shido'));
     return parts.join(' · ');
   }
 
@@ -639,7 +641,7 @@
     const f = state.fight;
     const r = C.getRules(state);
     const ps = $('#profileSelect');
-    const opts = state.profiles.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+    const opts = state.profiles.map((p) => `<option value="${esc(p.id)}">${esc(t(p.name))}</option>`).join('');
     if (ps.dataset.opts !== opts) {
       ps.innerHTML = opts;
       ps.dataset.opts = opts;
@@ -661,7 +663,7 @@
         row.classList.toggle('off', k === 'yuko' && !r.yuko);
       });
       $('.hsk', panel).classList.toggle('on', C.isHansoku(c, r));
-      $('.side-badge', panel).textContent = f.status === 'finished' && f.winner === side ? 'SIEGER' : '';
+      $('.side-badge', panel).textContent = f.status === 'finished' && f.winner === side ? t('SIEGER') : '';
     });
 
     const hb = $('#btnHajime');
@@ -669,35 +671,35 @@
     hb.disabled = false;
     let label = 'Hajime';
     if (f.status === 'finished') {
-      label = 'Kampf beendet';
+      label = t('Kampf beendet');
       hb.disabled = true;
     } else if (C.clockRunning(f.clock) || f.osae.side) {
       label = 'Mate';
       hb.classList.add('mate');
     } else if (f.status === 'timeup') {
       if (f.clock.mode === 'regular' && r.golden) {
-        label = 'Golden Score starten';
+        label = t('Golden Score starten');
         hb.classList.add('golden');
       } else {
-        label = 'Kampfrichterentscheid nötig';
+        label = t('Kampfrichterentscheid nötig');
         hb.disabled = true;
       }
     }
-    hb.innerHTML = esc(label) + ' <kbd>Leertaste</kbd>';
+    hb.innerHTML = esc(label) + ` <kbd>${esc(t('Leertaste'))}</kbd>`;
 
     const st = $('#ctlStatus');
     let text = '';
     let cls = '';
     const needDecision = f.status === 'timeup' && !(f.clock.mode === 'regular' && r.golden);
-    if (f.status === 'ready') text = 'Bereit – Hajime startet den Kampf';
-    else if (f.status === 'running') text = f.osae.side ? 'Osaekomi ' + C.SIDE_LABEL[f.osae.side] : f.clock.mode === 'golden' ? 'Golden Score läuft' : 'Kampf läuft';
-    else if (f.status === 'paused') text = 'Mate – Uhr steht';
+    if (f.status === 'ready') text = t('Bereit – Hajime startet den Kampf');
+    else if (f.status === 'running') text = f.osae.side ? 'Osaekomi ' + t(C.SIDE_LABEL[f.osae.side]) : f.clock.mode === 'golden' ? t('Golden Score läuft') : t('Kampf läuft');
+    else if (f.status === 'paused') text = t('Mate – Uhr steht');
     else if (f.status === 'timeup') {
       cls = 'gold';
-      text = needDecision ? 'Zeit abgelaufen, Gleichstand – Entscheidung der Kampfrichter wählen' : 'Zeit abgelaufen, Gleichstand – Hajime startet Golden Score';
+      text = t(needDecision ? 'Zeit abgelaufen, Gleichstand – Entscheidung der Kampfrichter wählen' : 'Zeit abgelaufen, Gleichstand – Hajime startet Golden Score');
     } else if (f.status === 'finished') {
       cls = 'win';
-      text = f.winner === 'draw' ? 'Unentschieden' : `Sieger: ${C.displayName(f[f.winner], f.winner)} (${C.SIDE_LABEL[f.winner]}) – ${f.reason}`;
+      text = f.winner === 'draw' ? t('Unentschieden') : t('Sieger: {name} ({side}) – {reason}', { name: C.displayName(f[f.winner], f.winner, t), side: t(C.SIDE_LABEL[f.winner]), reason: C.reasonText(f.reason, t) });
     }
     st.textContent = text;
     st.className = 'ctl-status ' + cls;
@@ -709,7 +711,7 @@
     $('#btnIdle').classList.toggle('on', state.screen === 'idle');
     $('#btnTable').classList.toggle('on', state.screen === 'table');
     const nx = nextEntries(1)[0];
-    $('#btnNext').title = nx ? `Nächster: ${nx.white.name || '?'} – ${nx.blue.name || '?'}` : 'Leerer neuer Kampf';
+    $('#btnNext').title = nx ? t('Nächster: {w} – {b}', { w: nx.white.name || '?', b: nx.blue.name || '?' }) : t('Leerer neuer Kampf');
   }
 
   /* ================= Anzeige-Fenster ================= */
@@ -732,6 +734,8 @@
   $('#btnTable').addEventListener('click', () => toggleTable());
 
   const displaySelect = $('#displaySelect');
+  let lastBoardStatus = null;
+  let relabelBoard = () => {};
   async function refreshDisplays() {
     if (!T.isElectron) return;
     const list = await T.bridge.getDisplays();
@@ -744,14 +748,18 @@
   if (T.isElectron) {
     refreshDisplays();
     T.bridge.onDisplaysChanged(refreshDisplays);
-    T.bridge.onBoardStatus((s) => {
+    T.bridge.onBoardStatus((s) => showBoardStatus(s));
+    function showBoardStatus(s) {
+      lastBoardStatus = s;
       const el = $('#boardState');
-      el.textContent = s.open ? (s.fullscreen ? '● Anzeige: Vollbild' : '● Anzeige: Fenster') : '○ Anzeige geschlossen';
+      el.textContent = s.open ? '● ' + t(s.fullscreen ? 'Anzeige: Vollbild' : 'Anzeige: Fenster') : '○ ' + t('Anzeige geschlossen');
       el.classList.toggle('on', !!s.open);
-      $('#btnBoardShow').textContent = s.open ? 'Anzeige hierhin' : 'Anzeige öffnen';
+      $('#btnBoardShow').textContent = t(s.open ? 'Anzeige hierhin' : 'Anzeige öffnen');
       $('#btnBoardFs').disabled = !s.open;
       refreshDisplays();
-    });
+    }
+    // nach einem Sprachwechsel neu beschriften
+    relabelBoard = () => lastBoardStatus && showBoardStatus(lastBoardStatus);
     $('#btnBoardShow').addEventListener('click', () => T.bridge.showBoard({ displayId: Number(displaySelect.value) }));
     $('#btnBoardFs').addEventListener('click', () => T.bridge.toggleBoardFullscreen());
   } else {
@@ -783,7 +791,7 @@
     $('#btnBoardShow').addEventListener('click', async () => {
       const wasOpen = T.boardOpen();
       if (!T.openBoardBrowser(chosen())) {
-        alert('Das Anzeige-Fenster wurde vom Browser blockiert. Bitte Pop-ups für diese Seite erlauben.');
+        alert(t('Das Anzeige-Fenster wurde vom Browser blockiert. Bitte Pop-ups für diese Seite erlauben.'));
         return;
       }
       setTimeout(publish, 300);
@@ -797,9 +805,9 @@
     setInterval(() => {
       const open = T.boardOpen();
       const el = $('#boardState');
-      el.textContent = open ? '● Anzeige offen (Doppelklick = Vollbild)' : '○ Anzeige geschlossen';
+      el.textContent = open ? '● ' + t('Anzeige offen (Doppelklick = Vollbild)') : '○ ' + t('Anzeige geschlossen');
       el.classList.toggle('on', open);
-      $('#btnBoardShow').textContent = open && screens && screens.length > 1 ? 'Anzeige hierhin' : 'Anzeige öffnen';
+      $('#btnBoardShow').textContent = t(open && screens && screens.length > 1 ? 'Anzeige hierhin' : 'Anzeige öffnen');
     }, 1000);
   }
 
@@ -808,7 +816,7 @@
   $$('.tabs button').forEach((b) =>
     b.addEventListener('click', () => {
       $$('.tabs button').forEach((x) => x.classList.toggle('active', x === b));
-      $$('.tab').forEach((t) => t.classList.toggle('active', t.id === 'tab-' + b.dataset.tab));
+      $$('.tab').forEach((x) => x.classList.toggle('active', x.id === 'tab-' + b.dataset.tab));
     })
   );
 
@@ -846,8 +854,8 @@
   }
 
   function personCell(p, wait, from) {
-    if (!p.name && from) return `<i class="from">${esc(from)}</i>`;
-    const tag = wait ? ` <span class="rest-tag" title="Mindestpause bis ${fmtClock(wait.readyAt)}">Pause ${C.formatClock(wait.remainingMs, 'regular')}</span>` : '';
+    if (!p.name && from) return `<i class="from">${esc(t.phrase(from))}</i>`;
+    const tag = wait ? ` <span class="rest-tag" title="${esc(t('Mindestpause bis {time}', { time: fmtClock(wait.readyAt) }))}">${esc(t('Pause {t}', { t: C.formatClock(wait.remainingMs, 'regular') }))}</span>` : '';
     return `${esc(p.name || '–')}${tag}${p.club ? `<br><small>${esc(p.club)}</small>` : ''}`;
   }
 
@@ -862,25 +870,25 @@
         const wait = (side) => waits.find((w) => w.side === side);
         let res = '';
         if (e.result) {
-          const wn = e.result.winner === 'draw' ? 'Unentschieden' : e.result.winner === 'white' ? e.white.name || 'Weiß' : e.blue.name || 'Blau';
-          res = `<span class="win">${esc(wn)}</span><br><small>${esc(e.result.reason)}</small>`;
-        } else if (cur) res = '<small>läuft / geladen</small>';
-        else if (e.status === 'skipped') res = '<small>entfällt</small>';
-        else if (e.pending) res = `<small>${e.white.name && e.blue.name ? 'nur falls nötig' : 'steht noch nicht fest'}</small>`;
-        const where = e.mat ? `<br><small class="${other ? 'other-mat' : ''}">${esc(e.mat)}${e.at ? ' · ' + esc(e.at) : ''}</small>` : '';
-        const round = e.round && !/^Kampf \d+$/.test(e.round) ? `<br><small>${esc(e.round)}</small>` : '';
+          const wn = e.result.winner === 'draw' ? t('Unentschieden') : e.result.winner === 'white' ? e.white.name || t('Weiß') : e.blue.name || t('Blau');
+          res = `<span class="win">${esc(wn)}</span><br><small>${esc(C.reasonText(e.result.reason, t))}</small>`;
+        } else if (cur) res = `<small>${esc(t('läuft / geladen'))}</small>`;
+        else if (e.status === 'skipped') res = `<small>${esc(t('entfällt'))}</small>`;
+        else if (e.pending) res = `<small>${esc(t(e.white.name && e.blue.name ? 'nur falls nötig' : 'steht noch nicht fest'))}</small>`;
+        const where = e.mat ? `<br><small class="${other ? 'other-mat' : ''}">${esc(t.phrase(e.mat))}${e.at ? ' · ' + esc(e.at) : ''}</small>` : '';
+        const round = e.round && !/^Kampf \d+$/.test(e.round) ? `<br><small>${esc(t.phrase(e.round))}</small>` : '';
         const cls = ['current', 'done', 'skipped', 'pending', 'other'].filter((k) => (k === 'current' ? cur : k === 'other' ? other : k === 'pending' ? e.pending : e.status === k));
         return `<tr class="${cls.join(' ')}" data-id="${esc(e.id)}">
           <td>${esc(e.no || i + 1)}${where}</td>
-          <td>${esc(C.classLabel(e))}${round}${e.tiebreak ? '<br><span class="tb-tag">Stichkampf</span>' : ''}</td>
+          <td>${esc(C.classLabel(e))}${round}${e.tiebreak ? `<br><span class="tb-tag">${esc(t('Stichkampf'))}</span>` : ''}</td>
           <td>${personCell(e.white, wait('white'), e.whiteFrom)}</td>
           <td>${personCell(e.blue, wait('blue'), e.blueFrom)}</td>
           <td>${res}</td>
           <td class="acts">
-            <button class="load" data-a="load" title="In den Kampf laden" ${e.pending || e.status === 'skipped' ? 'disabled' : ''}>Laden</button>
-            <button data-a="up" title="nach oben">↑</button>
-            <button data-a="down" title="nach unten">↓</button>
-            <button data-a="del" title="entfernen">✕</button>
+            <button class="load" data-a="load" title="${esc(t('In den Kampf laden'))}" ${e.pending || e.status === 'skipped' ? 'disabled' : ''}>${esc(t('Laden'))}</button>
+            <button data-a="up" title="${esc(t('nach oben'))}">↑</button>
+            <button data-a="down" title="${esc(t('nach unten'))}">↓</button>
+            <button data-a="del" title="${esc(t('entfernen'))}">✕</button>
           </td></tr>`;
       })
       .join('');
@@ -893,7 +901,7 @@
     $('#queueCount').textContent = all ? `${open}/${all}` : '';
     const mats = new Set(state.queue.map((e) => e.mat).filter(Boolean));
     const hint = $('#queueMatHint');
-    hint.textContent = mats.size > 1 ? `Kampfliste für ${mats.size} Matten. Dieser Rechner ist „${state.settings.mat || '–'}“ (Einstellungen) – Kämpfe anderer Matten werden beim „Nächster Kampf“ übersprungen.` : '';
+    hint.textContent = mats.size > 1 ? t('Kampfliste für {n} Matten. Dieser Rechner ist „{mat}“ (Einstellungen) – Kämpfe anderer Matten werden beim „Nächster Kampf“ übersprungen.', { n: mats.size, mat: t.phrase(state.settings.mat) || '–' }) : '';
     hint.style.display = mats.size > 1 ? '' : 'none';
   }
 
@@ -905,9 +913,9 @@
     if (i < 0) return;
     const a = b.dataset.a;
     if (a === 'load') {
-      if (state.fight.queueId !== id && fightBusy() && !confirm('Der aktuelle Kampf ist noch nicht beendet. Trotzdem diesen Kampf laden?')) return;
+      if (state.fight.queueId !== id && fightBusy() && !confirm(t('Der aktuelle Kampf ist noch nicht beendet. Trotzdem diesen Kampf laden?'))) return;
       const entry = state.queue[i];
-      if (entry.status === 'done' && !confirm('Dieser Kampf ist bereits beendet. Erneut laden (Ergebnis wird überschrieben)?')) return;
+      if (entry.status === 'done' && !confirm(t('Dieser Kampf ist bereits beendet. Erneut laden (Ergebnis wird überschrieben)?'))) return;
       requestLoad(entry, () => $('.tabs button[data-tab="fight"]').click());
       return;
     }
@@ -919,7 +927,7 @@
       const b = e.bracket && e.slot && bracketOf(e.bracket);
       if (b) {
         // Paarungen eines Turniersystems hängen zusammen: nur die ganze Gruppe entfernen
-        if (!confirm(`Dieser Kampf gehört zum Turniersystem „${B.SYSTEMS[b.system]}“ der Gruppe ${C.groupLabel(b)}.\nGanze Gruppe (alle ihre Kämpfe) aus der Kampfliste entfernen?`)) return;
+        if (!confirm(t('Dieser Kampf gehört zum Turniersystem „{sys}“ der Gruppe {group}.\nGanze Gruppe (alle ihre Kämpfe) aus der Kampfliste entfernen?', { sys: t(B.SYSTEMS[b.system]), group: C.groupLabel(b) }))) return;
         removeBracket(b.key);
       } else state.queue.splice(i, 1);
     }
@@ -971,8 +979,8 @@
     const own = state.groupSystems[g.key];
     return own && B.allowed(own, n) ? own : B.suggest(n, limits());
   }
-  const fightWord = (n) => (n === 1 ? 'Kampf' : 'Kämpfe');
-  const countText = (sys, n) => (sys === 'bo3' ? '2–3 Kämpfe' : `${B.fightCount(sys, n)} ${fightWord(B.fightCount(sys, n))}`);
+  const fightWord = (n) => t(n === 1 ? 'Kampf' : 'Kämpfe');
+  const countText = (sys, n) => (sys === 'bo3' ? t('2–3 Kämpfe') : `${B.fightCount(sys, n)} ${fightWord(B.fightCount(sys, n))}`);
 
   function removeBracket(key) {
     state.queue = state.queue.filter((e) => e.bracket !== key);
@@ -985,10 +993,10 @@
     if (!sys) return false;
     const old = state.queue.filter((e) => C.groupKey(e) === g.key);
     if (old.some((e) => e.status === 'done')) {
-      if (!quiet) alert(`${g.label}: Es gibt schon beendete Kämpfe – die Kampfliste dieser Gruppe wird nicht neu erzeugt.`);
+      if (!quiet) alert(t('{group}: Es gibt schon beendete Kämpfe – die Kampfliste dieser Gruppe wird nicht neu erzeugt.', { group: g.label }));
       return false;
     }
-    if (old.length && !quiet && !confirm(`${g.label}: Für diese Gruppe stehen schon ${old.length} Kämpfe in der Liste. Ersetzen?`)) return false;
+    if (old.length && !quiet && !confirm(t('{group}: Für diese Gruppe stehen schon {n} Kämpfe in der Liste. Ersetzen?', { group: g.label, n: old.length }))) return false;
     state.queue = state.queue.filter((e) => C.groupKey(e) !== g.key);
     state.brackets = state.brackets.filter((b) => b.key !== g.key);
     state.brackets.push(B.newBracket(g, sys, g.people));
@@ -1003,9 +1011,9 @@
     const open = gs.filter((g) => !bracketOf(g.key) && g.people.length > 1);
     const html =
       (gs.length > 1
-        ? `<div class="btnrow" style="margin-bottom:8px"><button class="btn primary" data-gen="*" ${open.length ? '' : 'disabled'}>Kampflisten aller Gruppen erzeugen${open.length ? ` (${open.length})` : ''}</button></div>`
+        ? `<div class="btnrow" style="margin-bottom:8px"><button class="btn primary" data-gen="*" ${open.length ? '' : 'disabled'}>${esc(t('Kampflisten aller Gruppen erzeugen'))}${open.length ? ` (${open.length})` : ''}</button></div>`
         : '') +
-      (missingGender ? '<div class="import-msg err">Einige Teilnehmer haben kein Geschlecht – sie bilden eigene Gruppen ohne Geschlecht.</div>' : '') +
+      (missingGender ? `<div class="import-msg err">${esc(t('Einige Teilnehmer haben kein Geschlecht – sie bilden eigene Gruppen ohne Geschlecht.'))}</div>` : '') +
       gs
         .map((g) => {
           const n = g.people.length;
@@ -1013,18 +1021,18 @@
           let ctl;
           if (b) {
             const started = state.queue.some((e) => e.bracket === b.key && e.status === 'done');
-            ctl = `<span class="sys-tag">${esc(B.SYSTEMS[b.system])}</span>
-              <button class="btn" data-regen="${esc(g.key)}" ${started ? 'disabled title="Es gibt schon Ergebnisse"' : 'title="Neu auslosen"'}>Neu auslosen</button>
-              <button class="btn" data-unbr="${esc(g.key)}" title="Gruppe aus der Kampfliste entfernen">✕</button>`;
-          } else if (n < 2) ctl = '<span class="muted">zu wenige Kämpfer</span>';
+            ctl = `<span class="sys-tag">${esc(t(B.SYSTEMS[b.system]))}</span>
+              <button class="btn" data-regen="${esc(g.key)}" ${started ? `disabled title="${esc(t('Es gibt schon Ergebnisse'))}"` : `title="${esc(t('Neu auslosen'))}"`}>${esc(t('Neu auslosen'))}</button>
+              <button class="btn" data-unbr="${esc(g.key)}" title="${esc(t('Gruppe aus der Kampfliste entfernen'))}">✕</button>`;
+          } else if (n < 2) ctl = `<span class="muted">${esc(t('zu wenige Kämpfer'))}</span>`;
           else {
             const sys = systemFor(g);
             const sug = B.suggest(n, L);
             const opts = B.SYSTEM_IDS.filter((id) => B.allowed(id, n))
-              .map((id) => `<option value="${id}" ${id === sys ? 'selected' : ''}>${esc(B.SYSTEMS[id])}${id === sug ? ' (Vorschlag)' : ''}</option>`)
+              .map((id) => `<option value="${id}" ${id === sys ? 'selected' : ''}>${esc(t(B.SYSTEMS[id]))}${id === sug ? ' ' + esc(t('(Vorschlag)')) : ''}</option>`)
               .join('');
-            ctl = `<select data-sys="${esc(g.key)}" title="Turniersystem">${opts}</select>
-              <button class="btn" data-gen="${esc(g.key)}">Kampfliste erzeugen (${countText(sys, n)})</button>`;
+            ctl = `<select data-sys="${esc(g.key)}" title="${esc(t('Turniersystem'))}">${opts}</select>
+              <button class="btn" data-gen="${esc(g.key)}">${esc(t('Kampfliste erzeugen ({count})', { count: countText(sys, n) }))}</button>`;
           }
           return `<div class="group${b ? ' has-br' : ''}"><div class="group-head"><span>${esc(g.label)} <span class="pill">${n}</span></span><span class="group-ctl">${ctl}</span></div>
             <div class="group-names">${(b ? b.players : g.people).map((p) => esc(p.name) + (p.club ? ` <small>(${esc(p.club)})</small>` : '')).join(', ')}</div></div>`;
@@ -1052,23 +1060,23 @@
       const all = b.dataset.gen === '*';
       const list = groups().filter((g) => (all ? !bracketOf(g.key) && g.people.length > 1 : g.key === b.dataset.gen));
       const withOld = all && list.filter((g) => state.queue.some((q) => C.groupKey(q) === g.key));
-      if (withOld && withOld.length && !confirm(`Für ${withOld.length} Gruppe(n) stehen schon Kämpfe in der Liste (ohne Turniersystem). Durch neu erzeugte ersetzen?`)) return;
+      if (withOld && withOld.length && !confirm(t('Für {n} Gruppe(n) stehen schon Kämpfe in der Liste (ohne Turniersystem). Durch neu erzeugte ersetzen?', { n: withOld.length }))) return;
       let n = 0;
       list.forEach((g) => generate(g, all) && n++);
-      importMsg(`${n} ${n === 1 ? 'Gruppe' : 'Gruppen'} erzeugt – Kampfliste hat jetzt ${state.queue.filter((q) => q.status !== 'skipped').length} Kämpfe.`);
+      importMsg(t(n === 1 ? '{n} Gruppe erzeugt – Kampfliste hat jetzt {m} Kämpfe.' : '{n} Gruppen erzeugt – Kampfliste hat jetzt {m} Kämpfe.', { n, m: state.queue.filter((q) => q.status !== 'skipped').length }));
       commit();
     } else if (b.dataset.regen) {
       const g = groups().find((x) => x.key === b.dataset.regen);
       const br = bracketOf(b.dataset.regen);
       if (!g || !br) return;
-      if (!confirm(`${g.label}: Neu auslosen? Die Paarungen werden neu gemischt.`)) return;
+      if (!confirm(t('{group}: Neu auslosen? Die Paarungen werden neu gemischt.', { group: g.label }))) return;
       state.groupSystems[g.key] = br.system;
       removeBracket(g.key);
       generate(g, true);
       commit();
     } else if (b.dataset.unbr) {
       const br = bracketOf(b.dataset.unbr);
-      if (!br || !confirm(`${C.groupLabel(br)}: Alle Kämpfe dieser Gruppe aus der Kampfliste entfernen?`)) return;
+      if (!br || !confirm(t('{group}: Alle Kämpfe dieser Gruppe aus der Kampfliste entfernen?', { group: C.groupLabel(br) }))) return;
       removeBracket(br.key);
       commit();
     }
@@ -1086,15 +1094,15 @@
     e.target.value = '';
     if (!file) return;
     try {
-      const res = await X.importFile(file);
+      const res = await X.importFile(file, t);
       if (!res.fights.length && !res.participants.length) {
-        importMsg('In der Datei wurden keine Namen erkannt. Tipp: Excel-Vorlage verwenden (Spalten „Weiß Name“/„Blau Name“ oder „Vorname“/„Nachname“).', true);
+        importMsg(t('In der Datei wurden keine Namen erkannt. Tipp: Excel-Vorlage verwenden (Spalten „Weiß Name“/„Blau Name“ oder „Vorname“/„Nachname“).'), true);
         return;
       }
       const replace = $('#importReplace').checked;
       // Geschlecht nur, wenn nach Geschlecht getrennt wird (bei Teilnehmern immer merken)
       const split = !!state.settings.splitGender || (res.brackets || []).some((b) => b.gender);
-      if (split && !state.settings.splitGender && confirm('Die Datei trennt Gruppen nach Geschlecht. Einstellung „nach Geschlecht trennen“ einschalten?')) state.settings.splitGender = true;
+      if (split && !state.settings.splitGender && confirm(t('Die Datei trennt Gruppen nach Geschlecht. Einstellung „nach Geschlecht trennen“ einschalten?'))) state.settings.splitGender = true;
       const keepGender = !!state.settings.splitGender;
       // Turniersysteme aus dem Mattenexport
       const brackets = (res.brackets || [])
@@ -1124,25 +1132,25 @@
       }
       if (res.participants.length) state.participants = replace ? res.participants : state.participants.concat(res.participants);
       if (replace && res.fights.length) state.matPlan = Object.assign({}, state.matPlan, { active: false, assign: {} });
-      importMsg(`„${file.name}“ importiert – ${res.sheets.join(', ')}.${res.fights.some((f) => f.mat) && state.settings.mat ? ` Matte: ${state.settings.mat}.` : ''}`);
+      importMsg(t('„{file}“ importiert – {sheets}.', { file: file.name, sheets: res.sheets.join(', ') }) + (res.fights.some((f) => f.mat) && state.settings.mat ? ' ' + t('Matte: {mat}.', { mat: t.phrase(state.settings.mat) }) : ''));
       commit();
     } catch (err) {
-      importMsg('Import fehlgeschlagen: ' + err.message, true);
+      importMsg(t('Import fehlgeschlagen: {msg}', { msg: err.message }), true);
     }
   });
 
-  $('#btnTemplate').addEventListener('click', () => T.saveFile('Hajime-Import-Vorlage.xlsx', new Uint8Array(X.templateBytes())));
+  $('#btnTemplate').addEventListener('click', () => T.saveFile(t('Hajime-Import-Vorlage') + '.xlsx', new Uint8Array(X.templateBytes(t))));
   // Aushang: Kampfreihenfolge pro Matte (App: PDF-Datei, Browser: Druckdialog mit „Als PDF sichern“)
   $('#btnNotice').addEventListener('click', async () => {
-    const N = window.JudoNotice;
+    const NT = window.JudoNotice;
     const size = $('#noticeSize').value;
-    const mats = N.mats(state.queue, state.settings.mat, $('#noticeOpen').checked);
+    const mats = NT.mats(state.queue, state.settings.mat, $('#noticeOpen').checked);
     if (!mats.length) {
-      alert('Die Kampfliste ist leer – es gibt nichts auszuhängen.');
+      alert(t('Die Kampfliste ist leer – es gibt nichts auszuhängen.'));
       return;
     }
-    const html = N.html({ tournament: state.settings.tournament, mats, size });
-    const name = `Hajime-Aushang-${fileSafe(mats.length === 1 ? mats[0].name : 'Matten')}.pdf`;
+    const html = NT.html({ tournament: state.settings.tournament, mats, size, t });
+    const name = `${t('Hajime-Aushang')}-${fileSafe(mats.length === 1 ? t.phrase(mats[0].name) : t('Matten'))}.pdf`;
     printDoc(name, html, size, true);
   });
 
@@ -1154,7 +1162,7 @@
       try {
         await T.bridge.savePdf(name, html, size, landscape);
       } catch (err) {
-        alert('PDF konnte nicht erstellt werden: ' + err.message);
+        alert(t('PDF konnte nicht erstellt werden: {msg}', { msg: err.message }));
       }
       return;
     }
@@ -1169,7 +1177,7 @@
     document.body.appendChild(frame);
   }
   $('#btnClearQueue').addEventListener('click', () => {
-    if (state.queue.length && confirm('Kampfliste komplett leeren (auch Turnierbäume und Mattenverteilung)?')) {
+    if (state.queue.length && confirm(t('Kampfliste komplett leeren (auch Turnierbäume und Mattenverteilung)?'))) {
       state.queue = [];
       state.brackets = [];
       state.matPlan = Object.assign({}, state.matPlan, { active: false, assign: {} });
@@ -1177,7 +1185,7 @@
     }
   });
   $('#btnClearParts').addEventListener('click', () => {
-    if (state.participants.length && confirm('Teilnehmerliste leeren?')) {
+    if (state.participants.length && confirm(t('Teilnehmerliste leeren?'))) {
       state.participants = [];
       commit();
     }
@@ -1185,13 +1193,13 @@
 
   /* ================= Auswertung ================= */
 
-  function tieButtons(t, ties, pool) {
+  function tieButtons(tb, ties, pool) {
     return ties
       .map(
         (names, i) =>
-          `<div class="eval-tie">${pool ? `Pool ${pool} – ` : ''}Gleichstand: ${esc(names.join(', '))} – Stichkampf nötig <button class="btn" data-tb="${esc(t.key)}" data-tie="${i}"${
+          `<div class="eval-tie">${pool ? `Pool ${pool} – ` : ''}${esc(t('Gleichstand: {names} – Stichkampf nötig', { names: names.join(', ') }))} <button class="btn" data-tb="${esc(tb.key)}" data-tie="${i}"${
             pool ? ` data-pool="${pool}"` : ''
-          }>Stichkampf anlegen (${(names.length * (names.length - 1)) / 2})</button></div>`
+          }>${esc(t('Stichkampf anlegen ({n})', { n: (names.length * (names.length - 1)) / 2 }))}</button></div>`
       )
       .join('');
   }
@@ -1200,33 +1208,33 @@
     const tables = B.allTables(state);
     const shown = state.screen === 'table' ? tableGroupKey() : null;
     const html = tables
-      .map((t) => {
-        const b = bracketOf(t.key);
-        const status = t.complete ? '<span class="pill ok">fertig</span>' : `<span class="pill">${t.done} von ${t.total} Kämpfen</span>`;
-        const rows = t.rows
+      .map((tb) => {
+        const b = bracketOf(tb.key);
+        const status = tb.complete ? `<span class="pill ok">${esc(t('fertig'))}</span>` : `<span class="pill">${esc(t('{n} von {m} Kämpfen', { n: tb.done, m: tb.total }))}</span>`;
+        const rows = tb.rows
           .map(
             (r) => `<tr class="${r.tie ? 'tie' : ''}"><td class="pl p${r.place}">${r.place == null ? '–' : r.place}</td><td><b>${esc(r.name)}</b>${r.club ? ` <small>${esc(r.club)}</small>` : ''}${
-              r.tie ? ' <span class="tb-tag">Stichkampf</span>' : ''
-            }</td><td>${r.fights}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td><b>${r.points}</b></td>${t.scheme === 'ijf' ? `<td>${r.timeMs ? fmtSec(r.timeMs / 1000) : '–'}</td>` : ''}</tr>`
+              r.tie ? ` <span class="tb-tag">${esc(t('Stichkampf'))}</span>` : ''
+            }</td><td>${r.fights}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td><b>${r.points}</b></td>${tb.scheme === 'ijf' ? `<td>${r.timeMs ? fmtSec(r.timeMs / 1000) : '–'}</td>` : ''}</tr>`
           )
           .join('');
-        let ties = tieButtons(t, t.ties);
-        if (t.pools) t.pools.forEach((p) => (ties += tieButtons(t, p.ties, p.pool)));
-        const open = t.tiebreakOpen ? `<div class="muted">${t.tiebreakOpen} ${t.tiebreakOpen === 1 ? 'Stichkampf' : 'Stichkämpfe'} offen</div>` : '';
-        const tree = hasTree(b) ? `<div class="eval-tree">${BV.treeHtml(B.treeModel(state, b, state.fight.queueId), { club: false })}</div>` : '';
-        const sys = b ? `<span class="sys-tag">${esc(B.SYSTEMS[b.system])}</span>` : '';
-        return `<div class="card eval-card${t.complete ? ' done' : ''}${tree ? ' wide' : ''}">
-          <div class="eval-head"><h2>${esc(t.label)}</h2>${sys}${status}<span class="grow"></span>
-            ${tree ? `<button class="btn" data-tree="${esc(t.key)}" title="Turnierbaum als PDF (A4 quer)">Baum drucken …</button>` : ''}
-            <button class="btn toggle${shown === t.key ? ' on' : ''}" data-show="${esc(t.key)}" title="${tree ? 'Turnierbaum' : 'Diese Tabelle'} auf der Anzeige zeigen">Auf Anzeige</button>
-            <button class="btn" data-cert="${esc(t.key)}">Urkunden …</button></div>
+        let ties = tieButtons(tb, tb.ties);
+        if (tb.pools) tb.pools.forEach((p) => (ties += tieButtons(tb, p.ties, p.pool)));
+        const open = tb.tiebreakOpen ? `<div class="muted">${esc(t(tb.tiebreakOpen === 1 ? '{n} Stichkampf offen' : '{n} Stichkämpfe offen', { n: tb.tiebreakOpen }))}</div>` : '';
+        const tree = hasTree(b) ? `<div class="eval-tree">${BV.treeHtml(B.treeModel(state, b, state.fight.queueId), { club: false, t })}</div>` : '';
+        const sys = b ? `<span class="sys-tag">${esc(t(B.SYSTEMS[b.system]))}</span>` : '';
+        return `<div class="card eval-card${tb.complete ? ' done' : ''}${tree ? ' wide' : ''}">
+          <div class="eval-head"><h2>${esc(tb.label)}</h2>${sys}${status}<span class="grow"></span>
+            ${tree ? `<button class="btn" data-tree="${esc(tb.key)}" title="${esc(t('Turnierbaum als PDF (A4 quer)'))}">${esc(t('Baum drucken …'))}</button>` : ''}
+            <button class="btn toggle${shown === tb.key ? ' on' : ''}" data-show="${esc(tb.key)}" title="${esc(t(tree ? 'Turnierbaum auf der Anzeige zeigen' : 'Diese Tabelle auf der Anzeige zeigen'))}">${esc(t('Auf Anzeige'))}</button>
+            <button class="btn" data-cert="${esc(tb.key)}">${esc(t('Urkunden …'))}</button></div>
           ${tree}
           ${ties}
-          <div class="table-wrap"><table class="tbl eval"><thead><tr><th>Platz</th><th>Name</th><th title="Kämpfe">K</th><th title="Siege">S</th><th title="Niederlagen">N</th><th title="Unentschieden">U</th><th title="${t.scheme === 'ijf' ? 'Punkte (IJF)' : t.scheme === 'custom' ? 'Wertungspunkte (eigene Werte)' : 'Wertungspunkte (DJB)'}">Punkte</th>${
-            t.scheme === 'ijf' ? '<th title="Gesamtzeit der gewonnenen Kämpfe – bei Gleichstand gewinnt die kürzere">Zeit</th>' : ''
+          <div class="table-wrap"><table class="tbl eval"><thead><tr><th>${esc(t('Platz'))}</th><th>${esc(t('Name'))}</th><th title="${esc(t('Kämpfe'))}">${esc(t('K'))}</th><th title="${esc(t('Siege'))}">${esc(t('S'))}</th><th title="${esc(t('Niederlagen'))}">${esc(t('N'))}</th><th title="${esc(t('Unentschieden'))}">${esc(t('U'))}</th><th title="${esc(t(tb.scheme === 'ijf' ? 'Punkte (IJF)' : tb.scheme === 'custom' ? 'Wertungspunkte (eigene Werte)' : 'Wertungspunkte (DJB)'))}">${esc(t('Punkte'))}</th>${
+            tb.scheme === 'ijf' ? `<th title="${esc(t('Gesamtzeit der gewonnenen Kämpfe – bei Gleichstand gewinnt die kürzere'))}">${esc(t('Zeit'))}</th>` : ''
           }</tr></thead><tbody>${rows}</tbody></table></div>
           ${open}
-          ${tree ? '<p class="muted">Sieger rücken automatisch weiter, sobald ein Kampf beendet ist. Vereinstrennung: Kämpfer desselben Vereins treffen möglichst spät aufeinander.</p>' : ''}
+          ${tree ? `<p class="muted">${esc(t('Sieger rücken automatisch weiter, sobald ein Kampf beendet ist. Vereinstrennung: Kämpfer desselben Vereins treffen möglichst spät aufeinander.'))}</p>` : ''}
         </div>`;
       })
       .join('');
@@ -1236,32 +1244,32 @@
       box.dataset.h = html;
     }
     $('#evalEmpty').style.display = tables.length ? 'none' : '';
-    const done = tables.filter((t) => t.complete).length;
-    $('#evalInfo').textContent = tables.length ? `${done} von ${tables.length} Gruppen fertig` : '';
+    const done = tables.filter((tb) => tb.complete).length;
+    $('#evalInfo').textContent = tables.length ? t('{n} von {m} Gruppen fertig', { n: done, m: tables.length }) : '';
   }
 
   function awardTables(onlyKey) {
     const all = B.allTables(state);
-    if (onlyKey) return all.filter((t) => t.key === onlyKey);
-    return all.filter((t) => (state.settings.awardsDoneOnly ? t.complete : t.done > 0));
+    if (onlyKey) return all.filter((tb) => tb.key === onlyKey);
+    return all.filter((tb) => (state.settings.awardsDoneOnly ? tb.complete : tb.done > 0));
   }
   function awardWarnings(tables) {
     const msgs = [];
-    const open = tables.filter((t) => !t.complete);
-    const ties = tables.filter((t) => t.ties.length);
-    if (open.length) msgs.push(`Noch nicht fertig: ${open.map((t) => `${t.label} (${t.done}/${t.total})`).join(', ')}`);
-    if (ties.length) msgs.push(`Gleichstand ohne Stichkampf: ${ties.map((t) => t.label).join(', ')}`);
-    return !msgs.length || confirm(msgs.join('\n') + '\n\nTrotzdem fortfahren?');
+    const open = tables.filter((tb) => !tb.complete);
+    const ties = tables.filter((tb) => tb.ties.length);
+    if (open.length) msgs.push(t('Noch nicht fertig: {list}', { list: open.map((tb) => `${tb.label} (${tb.done}/${tb.total})`).join(', ') }));
+    if (ties.length) msgs.push(t('Gleichstand ohne Stichkampf: {list}', { list: ties.map((tb) => tb.label).join(', ') }));
+    return !msgs.length || confirm(msgs.join('\n') + '\n\n' + t('Trotzdem fortfahren?'));
   }
   function noAwards() {
-    alert(state.settings.awardsDoneOnly ? 'Noch keine Gruppe ist fertig. Für vorläufige Ergebnisse „nur fertige Gruppen“ ausschalten.' : 'Es sind noch keine Kämpfe beendet.');
+    alert(t(state.settings.awardsDoneOnly ? 'Noch keine Gruppe ist fertig. Für vorläufige Ergebnisse „nur fertige Gruppen“ ausschalten.' : 'Es sind noch keine Kämpfe beendet.'));
   }
 
   function printCerts(tables, label) {
     const places = state.settings.certPlaces;
     const n = window.JudoAwards.count(tables, places);
-    if (!n) return alert('Für diese Auswahl gibt es keine Platzierten.');
-    printDoc(`Hajime-Urkunden-${fileSafe(label)}.pdf`, window.JudoAwards.certHtml({ tables, places, settings: state.settings }), 'A4', false);
+    if (!n) return alert(t('Für diese Auswahl gibt es keine Platzierten.'));
+    printDoc(`${t('Hajime-Urkunden')}-${fileSafe(label)}.pdf`, window.JudoAwards.certHtml({ tables, places, settings: state.settings, t }), 'A4', false);
   }
 
   $('#evalGroups').addEventListener('click', (e) => {
@@ -1280,9 +1288,9 @@
             return [];
           }
         })
-        .filter((t) => /\.bk/.test(t) && !/jb-tb-grid/.test(t))
+        .filter((x) => /\.bk/.test(x) && !/jb-tb-grid/.test(x))
         .join('\n');
-      return printDoc(`Hajime-Turnierbaum-${fileSafe(model.label)}.pdf`, BV.printHtml(model, state.settings, css), 'A4', true);
+      return printDoc(`${t('Hajime-Turnierbaum')}-${fileSafe(model.label)}.pdf`, BV.printHtml(model, state.settings, css, t), 'A4', true);
     }
     if (b.dataset.cert) {
       const tables = awardTables(b.dataset.cert);
@@ -1293,10 +1301,10 @@
       // Stichkampf: jeder gegen jeden unter den Gleichplatzierten, direkt nach dem aktuellen Kampf
       const all = B.allTables(state).find((x) => x.key === b.dataset.tb);
       const pool = b.dataset.pool || '';
-      const t = pool && all && all.pools ? all.pools.find((p) => p.pool === pool) : all;
-      const names = t && t.ties[Number(b.dataset.tie)];
+      const tbl = pool && all && all.pools ? all.pools.find((p) => p.pool === pool) : all;
+      const names = tbl && tbl.ties[Number(b.dataset.tie)];
       if (!names) return;
-      const people = names.map((n) => t.rows.find((r) => r.name === n));
+      const people = names.map((n) => tbl.rows.find((r) => r.name === n));
       const br = bracketOf(all.key);
       const mat = (state.queue.find((q) => C.groupKey(q) === all.key && q.mat) || {}).mat;
       const fights = C.roundRobin(people).map(([a, c]) => ({
@@ -1317,7 +1325,7 @@
       const cur = state.queue.findIndex((q) => q.id === state.fight.queueId);
       state.queue.splice(cur >= 0 ? cur + 1 : state.queue.length, 0, ...fights);
       commit();
-      $('#evalMsg').textContent = `${all.label}${pool ? ' Pool ' + pool : ''}: ${fights.length} ${fights.length === 1 ? 'Stichkampf' : 'Stichkämpfe'} als nächste${fights.length === 1 ? 'r Kampf' : ' Kämpfe'} in die Kampfliste eingefügt.`;
+      $('#evalMsg').textContent = `${all.label}${pool ? ' Pool ' + pool : ''}: ` + t(fights.length === 1 ? '{n} Stichkampf als nächster Kampf in die Kampfliste eingefügt.' : '{n} Stichkämpfe als nächste Kämpfe in die Kampfliste eingefügt.', { n: fights.length });
     }
   });
 
@@ -1325,13 +1333,13 @@
     const tables = awardTables();
     if (!tables.length) return noAwards();
     const places = state.settings.certPlaces === 'all' ? 'all' : '3';
-    printDoc(`Hajime-Siegerliste-${fileSafe(state.settings.tournament)}.pdf`, window.JudoAwards.listHtml({ tables, places, settings: state.settings }), 'A4', false);
+    printDoc(`${t('Hajime-Siegerliste')}-${fileSafe(state.settings.tournament)}.pdf`, window.JudoAwards.listHtml({ tables, places, settings: state.settings, t }), 'A4', false);
   });
   $('#btnWinnersXlsx').addEventListener('click', () => {
     const tables = awardTables();
     if (!tables.length) return noAwards();
     const places = state.settings.certPlaces === 'all' ? 'all' : '3';
-    T.saveFile(`Hajime-Siegerliste-${fileSafe(state.settings.tournament)}.xlsx`, new Uint8Array(X.winnersBytes(tables, places, C.awardRows)));
+    T.saveFile(`${t('Hajime-Siegerliste')}-${fileSafe(state.settings.tournament)}.xlsx`, new Uint8Array(X.winnersBytes(tables, places, C.awardRows, t)));
   });
   $('#btnCertsAll').addEventListener('click', () => {
     const tables = awardTables();
@@ -1350,7 +1358,7 @@
     const people = new Set();
     groups.forEach((g) => g.entries.forEach((e) => ['white', 'blue'].forEach((k) => e[k].name && people.add(C.norm(e[k].name)))));
     const fights = groups.reduce((a, g) => a + g.fights, 0);
-    $('#mpInfo').textContent = groups.length ? `${groups.length} Gruppen · ${people.size} Teilnehmer · ${fights} Kämpfe` : '';
+    $('#mpInfo').textContent = groups.length ? t('{g} Gruppen · {p} Teilnehmer · {f} Kämpfe', { g: groups.length, p: people.size, f: fights }) : '';
     ['mpCount', 'mpStart', 'mpExtra'].forEach((id) => {
       const el = document.getElementById(id);
       if (document.activeElement === el) return;
@@ -1362,27 +1370,27 @@
     $('#btnMpClear').disabled = !plan.active;
     $('#btnMpExport').disabled = !plan.active;
     $('#btnMpNotice').disabled = !plan.active;
-    $('#btnMpDistribute').textContent = plan.active ? 'Neu verteilen' : 'Verteilen';
+    $('#btnMpDistribute').textContent = t(plan.active ? 'Neu verteilen' : 'Verteilen');
     let html = '';
     if (plan.active && groups.length) {
       const L = M.layout(groups, plan);
       html = L.mats
         .map(
           (m) => `<div class="mat-col" data-mat="${m.index}">
-            <div class="mat-head"><b>${esc(m.name)}</b><span>${m.fights} ${fightWord(m.fights)} · ca. ${minText(m.durSec)} · bis ${esc(m.end)}</span></div>
-            ${m.gender ? `<div class="mat-sex sex-${m.gender}">${esc(C.GENDER_LABEL[m.gender])}${m.then ? `, danach ${esc(C.GENDER_LABEL[m.then])}` : ''}</div>` : ''}
+            <div class="mat-head"><b>${esc(t.phrase(m.name))}</b><span>${m.fights} ${fightWord(m.fights)} · ${esc(t('ca. {d} · bis {end}', { d: minText(m.durSec), end: m.end }))}</span></div>
+            ${m.gender ? `<div class="mat-sex sex-${m.gender}">${esc(t(C.GENDER_LABEL[m.gender]))}${m.then ? ', ' + esc(t('danach {g}', { g: t(C.GENDER_LABEL[m.then]) })) : ''}</div>` : ''}
             <div class="mat-bar"><i style="width:${Math.round(m.share * 100)}%"></i></div>
             ${m.groups
               .map(
-                (g) => `<div class="mat-group${g.tooBig ? ' big' : ''}" draggable="true" data-key="${esc(g.key)}" title="Ziehen, um die Gruppe auf eine andere Matte zu legen">
+                (g) => `<div class="mat-group${g.tooBig ? ' big' : ''}" draggable="true" data-key="${esc(g.key)}" title="${esc(t('Ziehen, um die Gruppe auf eine andere Matte zu legen'))}">
                   <span class="grip">⠿</span>
-                  <div class="mg-txt"><b>${esc(g.label)}</b><small>${g.players} Kämpfer · ${g.fights} ${fightWord(g.fights)} · ${esc(g.systemLabel)}${g.open < g.fights ? ` · ${g.fights - g.open} beendet` : ''}</small>${
-                  g.tooBig ? '<small class="warn">allein länger als eine Matte im Schnitt</small>' : ''
+                  <div class="mg-txt"><b>${esc(g.label)}</b><small>${esc(t('{n} Kämpfer', { n: g.players }))} · ${g.fights} ${fightWord(g.fights)} · ${esc(t(g.systemLabel))}${g.open < g.fights ? ' · ' + esc(t('{n} beendet', { n: g.fights - g.open })) : ''}</small>${
+                  g.tooBig ? `<small class="warn">${esc(t('allein länger als eine Matte im Schnitt'))}</small>` : ''
                 }</div>
                   <span class="mg-dur">${minText(g.durSec)}</span></div>`
               )
               .join('')}
-            <div class="mat-drop">Gruppe hierher ziehen</div>
+            <div class="mat-drop">${esc(t('Gruppe hierher ziehen'))}</div>
           </div>`
         )
         .join('');
@@ -1407,13 +1415,13 @@
   $('#btnMpDistribute').addEventListener('click', () => {
     const groups = M.matGroups(state);
     if (!groups.length) return;
-    if (state.queue.some((e) => e.status === 'done') && !confirm('Es gibt schon beendete Kämpfe. Trotzdem neu verteilen? Reihenfolge und Nummern ändern sich.')) return;
+    if (state.queue.some((e) => e.status === 'done') && !confirm(t('Es gibt schon beendete Kämpfe. Trotzdem neu verteilen? Reihenfolge und Nummern ändern sich.'))) return;
     const plan = M.planOf(state);
     setPlan({ assign: M.distribute(groups, plan.count) });
-    applyMats('Gruppen nach erwarteter Dauer verteilt. Mit der Maus lassen sich Gruppen auf eine andere Matte ziehen.');
+    applyMats(t('Gruppen nach erwarteter Dauer verteilt. Mit der Maus lassen sich Gruppen auf eine andere Matte ziehen.'));
   });
   $('#btnMpClear').addEventListener('click', () => {
-    if (!confirm('Verteilung aufheben? Matte und Uhrzeit werden aus der Kampfliste entfernt.')) return;
+    if (!confirm(t('Verteilung aufheben? Matte und Uhrzeit werden aus der Kampfliste entfernt.'))) return;
     M.clear(state);
     commit();
     $('#mpMsg').textContent = '';
@@ -1422,7 +1430,7 @@
     const n = Math.max(1, Math.min(20, Math.round(Number(e.target.value) || 1)));
     const plan = M.planOf(state);
     setPlan({ count: n, assign: plan.active ? M.distribute(M.matGroups(state), n) : {} });
-    if (plan.active) applyMats(`Auf ${n} ${n === 1 ? 'Matte' : 'Matten'} neu verteilt.`);
+    if (plan.active) applyMats(t(n === 1 ? 'Auf {n} Matte neu verteilt.' : 'Auf {n} Matten neu verteilt.', { n }));
     else commit();
   });
   $('#mpStart').addEventListener('change', (e) => {
@@ -1482,24 +1490,25 @@
       if (!entries.length) continue;
       const keys = new Set(entries.map((e) => e.bracket).filter(Boolean));
       const bytes = X.matBytes({
+        t,
         mat: name,
         tournament: state.settings.tournament,
         entries,
         brackets: state.brackets.filter((b) => keys.has(b.key)),
-        systemLabel: (id) => B.SYSTEMS[id],
+        systemLabel: (id) => t(B.SYSTEMS[id]),
       });
-      files.push({ name: `${fileSafe(name)}.xlsx`, bytes: new Uint8Array(bytes) });
+      files.push({ name: `${fileSafe(t.phrase(name))}.xlsx`, bytes: new Uint8Array(bytes) });
     }
-    if (!files.length) return alert('Keine Kämpfe verteilt.');
+    if (!files.length) return alert(t('Keine Kämpfe verteilt.'));
     const ok = await T.saveFiles(files);
-    if (ok) $('#mpMsg').textContent = `${files.length} Dateien gespeichert: ${files.map((f) => f.name).join(', ')}. Am Rechner jeder Matte über „Kampfliste → Excel / CSV importieren“ einlesen.`;
+    if (ok) $('#mpMsg').textContent = t('{n} Dateien gespeichert: {files}. Am Rechner jeder Matte über „Kampfliste → Excel / CSV importieren“ einlesen.', { n: files.length, files: files.map((f) => f.name).join(', ') });
   });
   $('#btnMpNotice').addEventListener('click', () => {
-    const N = window.JudoNotice;
+    const NT = window.JudoNotice;
     const size = $('#noticeSize').value;
-    const mats = N.mats(state.queue, state.settings.mat, false);
+    const mats = NT.mats(state.queue, state.settings.mat, false);
     if (!mats.length) return;
-    printDoc(`Hajime-Aushang-Matten.pdf`, N.html({ tournament: state.settings.tournament, mats, size }), size, true);
+    printDoc(`${t('Hajime-Aushang')}-${t('Matten')}.pdf`, NT.html({ tournament: state.settings.tournament, mats, size, t }), size, true);
   });
 
   /* ================= Aufruf (Zeile oben auf der Anzeige) ================= */
@@ -1507,8 +1516,8 @@
   const personLabel = (p) => (p.club ? `${p.name} (${p.club})` : p.name);
   function callText(picks) {
     if (!picks.length) return '';
-    const who = picks.length === 1 ? picks[0] : picks.slice(0, -1).join(', ') + ' und ' + picks[picks.length - 1];
-    return `${who} bitte zur ${state.settings.mat || 'Matte'}`;
+    const who = picks.length === 1 ? picks[0] : picks.slice(0, -1).join(', ') + ' ' + t('und') + ' ' + picks[picks.length - 1];
+    return t('{who} bitte zur {mat}', { who, mat: t.phrase(state.settings.mat) || t('Matte') });
   }
   // Kämpfer zur Auswahl: aktueller Kampf (bzw. der nächste, wenn keiner läuft), dann die nächsten
   function callGroups() {
@@ -1516,10 +1525,10 @@
     const named = (x) => (x.white && x.white.name) || (x.blue && x.blue.name);
     const groups = [];
     const loaded = named(f) && f.status !== 'finished';
-    if (loaded) groups.push({ title: 'Aktueller Kampf', cls: C.classLabel(f), fights: [f], cur: true });
+    if (loaded) groups.push({ title: t('Aktueller Kampf'), cls: C.classLabel(f), fights: [f], cur: true });
     const next = upcoming(false).filter(named).slice(0, 3);
-    if (next.length) groups.push({ title: loaded ? 'Nächster Kampf · bereitmachen' : 'Als Nächstes auf die Matte', cls: C.classLabel(next[0]), fights: [next[0]], cur: !loaded });
-    if (next.length > 1) groups.push({ title: 'Danach', cls: '', fights: next.slice(1), cur: false });
+    if (next.length) groups.push({ title: t(loaded ? 'Nächster Kampf · bereitmachen' : 'Als Nächstes auf die Matte'), cls: C.classLabel(next[0]), fights: [next[0]], cur: !loaded });
+    if (next.length > 1) groups.push({ title: t('Danach'), cls: '', fights: next.slice(1), cur: false });
     return groups;
   }
   function renderCall() {
@@ -1554,7 +1563,7 @@
                 .join('')}</div></div>`
           )
           .join('')
-      : '<p class="muted">Keine Namen in der Kampfliste – einfach freien Text eingeben.</p>';
+      : `<p class="muted">${esc(t('Keine Namen in der Kampfliste – einfach freien Text eingeben.'))}</p>`;
     const box = $('#callGroups');
     if (box.dataset.h !== html) {
       box.innerHTML = html;
@@ -1639,8 +1648,8 @@
     return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
   }
   function eventsTable(events) {
-    if (!events || !events.length) return '<div class="muted">Keine Ereignisse aufgezeichnet.</div>';
-    return `<table class="tbl ev"><thead><tr><th>Uhrzeit</th><th>Kampfzeit</th><th>Ereignis</th></tr></thead><tbody>${events
+    if (!events || !events.length) return `<div class="muted">${esc(t('Keine Ereignisse aufgezeichnet.'))}</div>`;
+    return `<table class="tbl ev"><thead><tr><th>${esc(t('Uhrzeit'))}</th><th>${esc(t('Kampfzeit'))}</th><th>${esc(t('Ereignis'))}</th></tr></thead><tbody>${events
       .map((e) => `<tr><td>${esc(fmtTimeSec(e.at))}</td><td>${esc(e.clock)}</td><td>${esc(e.text)}</td></tr>`)
       .join('')}</tbody></table>`;
   }
@@ -1651,7 +1660,7 @@
     const yuko = C.logUsesYuko(state.log);
     const kinds = [['ippon', 'I', 'Ippon'], ['wazaari', 'W', 'Waza-ari']].concat(yuko ? [['yuko', 'Y', 'Yuko']] : [], [['shido', 'S', 'Shido']]);
     const headSide = (lbl) => `<th>${lbl}</th>` + kinds.map((k, i) => `<th class="sc-n${i ? '' : ' first'}" title="${k[2]}">${k[1]}</th>`).join('');
-    const head = `<tr><th>Nr</th><th>Zeit</th><th>Klasse</th>${headSide('Weiß')}${headSide('Blau')}<th>Sieger</th><th>Entscheidung</th><th>Dauer</th><th></th></tr>`;
+    const head = `<tr><th>${esc(t('Nr'))}</th><th>${esc(t('Zeit'))}</th><th>${esc(t('Klasse'))}</th>${headSide(esc(t('Weiß')))}${headSide(esc(t('Blau')))}<th>${esc(t('Sieger'))}</th><th>${esc(t('Entscheidung'))}</th><th>${esc(t('Dauer'))}</th><th></th></tr>`;
     const thead = $('#logTable thead');
     if (thead.dataset.h !== head) {
       thead.innerHTML = head;
@@ -1660,7 +1669,7 @@
     const cols = 7 + 2 * (kinds.length + 1);
     const side = (l, k) => {
       const sc = C.logScores(l, k);
-      const name = `<td${l.winner === k ? ' class="win"' : ''}>${esc(l[k].name || (k === 'white' ? 'Weiß' : 'Blau'))}</td>`;
+      const name = `<td${l.winner === k ? ' class="win"' : ''}>${esc(l[k].name || t(k === 'white' ? 'Weiß' : 'Blau'))}</td>`;
       return (
         name +
         kinds
@@ -1680,8 +1689,8 @@
         const open = openEvents.has(l.fightId);
         return `<tr data-fight="${esc(l.fightId)}"><td>${esc(l.no)}</td><td>${esc(l.time)}</td><td>${esc(C.classLabel(l))}</td>
         ${side(l, 'white')}${side(l, 'blue')}
-        <td>${esc(l.winnerName)}</td><td>${esc(l.reason)}</td><td>${esc(l.duration)}</td>
-        <td><button class="btn ev-toggle" data-ev="${esc(l.fightId)}" ${n ? '' : 'disabled'}>${open ? 'Ereignisse ▴' : 'Ereignisse ▾'}${n ? ` (${n})` : ''}</button></td></tr>${
+        <td>${esc(l.winner === 'draw' ? t('Unentschieden') : l.winnerName)}</td><td>${esc(C.reasonText(l.reason, t))}</td><td>${esc(l.duration)}</td>
+        <td><button class="btn ev-toggle" data-ev="${esc(l.fightId)}" ${n ? '' : 'disabled'}>${esc(t('Ereignisse'))} ${open ? '▴' : '▾'}${n ? ` (${n})` : ''}</button></td></tr>${
           open ? `<tr class="ev-row"><td colspan="${cols}">${eventsTable(l.events)}</td></tr>` : ''
         }`;
       })
@@ -1703,10 +1712,10 @@
   $('#btnExportLog').addEventListener('click', () => {
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    T.saveFile(`Hajime-Protokoll-${stamp}.xlsx`, new Uint8Array(X.protocolBytes(state.log, B.allTables(state).filter((t) => t.done))));
+    T.saveFile(`${t('Hajime-Protokoll')}-${stamp}.xlsx`, new Uint8Array(X.protocolBytes(state.log, B.allTables(state).filter((x) => x.done), t)));
   });
   $('#btnClearLog').addEventListener('click', () => {
-    if (state.log.length && confirm('Protokoll wirklich leeren? Vorher als Excel speichern!')) {
+    if (state.log.length && confirm(t('Protokoll wirklich leeren? Vorher als Excel speichern!'))) {
       state.log = [];
       commit();
     }
@@ -1767,7 +1776,7 @@
     const sc = C.scoringOpts(state.settings).scheme;
     setVal($('#sScoring'), sc);
     $('#customScoring').style.display = sc === 'custom' ? '' : 'none';
-    $('#scoringInfo').textContent = SCORING_INFO[sc] || '';
+    $('#scoringInfo').textContent = t(SCORING_INFO[sc] || '');
     $('.gender-in').style.display = state.settings.splitGender ? '' : 'none';
     const L = B.limitsOf(state.settings.systems);
     $$('[data-sl]').forEach((el) => {
@@ -1775,13 +1784,18 @@
       if (el.type === 'checkbox') el.checked = !!L[el.dataset.sl];
       else if (el.value !== String(L[el.dataset.sl])) el.value = String(L[el.dataset.sl]);
     });
-    $('#slInfo').textContent = `Vorschlag: 2 Kämpfer ${B.SYSTEMS[B.suggest(2, L)]} · 3–${L.rrMax} Jeder gegen jeden${L.poolMax > L.rrMax ? ` · ${Math.max(4, L.rrMax + 1)}–${L.poolMax} Doppel-Pool` : ''} · ab ${L.poolMax + 1} K.-o. mit Trostrunde`;
+    $('#slInfo').textContent =
+      t('Vorschlag: 2 Kämpfer {sys}', { sys: t(B.SYSTEMS[B.suggest(2, L)]) }) +
+      ` · 3–${L.rrMax} ${t('Jeder gegen jeden')}` +
+      (L.poolMax > L.rrMax ? ` · ${Math.max(4, L.rrMax + 1)}–${L.poolMax} ${t('Doppel-Pool')}` : '') +
+      ' · ' +
+      t('ab {n} K.-o. mit Trostrunde', { n: L.poolMax + 1 });
   }
 
   const SCORING_INFO = {
-    djb: 'DJB-Regeln „Platzierungen im Pool“ (2023): je Sieg 1 Siegpunkt; Wertungspunkte nur für den Sieger nach der kampfentscheidenden Wertung – Ippon 10, Waza-ari 7, Hansoku-make / Kiken-gachi / Fusen-gachi 10, Hantei 0. Yuko ist dort nicht geregelt, Hajime rechnet 5. Rangfolge: Siegpunkte → Wertungspunkte → direkter Vergleich → Stichkampf.',
-    ijf: 'IJF Sport and Organisation Rules 2025: Punkte für beide Kämpfer – Summe der eigenen Wertungen (Ippon 100, Waza-ari 10, Yuko 1), höchstens 100 je Kampf; Hansoku-make / Kiken-gachi / Fusen-gachi 100 für den Sieger, Hantei 0. Rangfolge: Siege → Punkte → direkter Vergleich → kürzere Gesamtzeit der gewonnenen Kämpfe → Entscheidungskampf.',
-    custom: 'Eigene Wertungspunkte je Sieg (nur der Sieger bekommt Punkte) und wählbare Rangfolge.',
+    djb: N_('DJB-Regeln „Platzierungen im Pool“ (2023): je Sieg 1 Siegpunkt; Wertungspunkte nur für den Sieger nach der kampfentscheidenden Wertung – Ippon 10, Waza-ari 7, Hansoku-make / Kiken-gachi / Fusen-gachi 10, Hantei 0. Yuko ist dort nicht geregelt, Hajime rechnet 5. Rangfolge: Siegpunkte → Wertungspunkte → direkter Vergleich → Stichkampf.'),
+    ijf: N_('IJF Sport and Organisation Rules 2025: Punkte für beide Kämpfer – Summe der eigenen Wertungen (Ippon 100, Waza-ari 10, Yuko 1), höchstens 100 je Kampf; Hansoku-make / Kiken-gachi / Fusen-gachi 100 für den Sieger, Hantei 0. Rangfolge: Siege → Punkte → direkter Vergleich → kürzere Gesamtzeit der gewonnenen Kämpfe → Entscheidungskampf.'),
+    custom: N_('Eigene Wertungspunkte je Sieg (nur der Sieger bekommt Punkte) und wählbare Rangfolge.'),
   };
   $('#sScoring').addEventListener('change', (e) => {
     const prev = C.scoringOpts(state.settings);
@@ -1872,7 +1886,7 @@
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const bytes = new TextEncoder().encode(JSON.stringify(state, null, 1));
-    T.saveFile(`Hajime-Sicherung-${stamp}.json`, bytes, 'application/json');
+    T.saveFile(`${t('Hajime-Sicherung')}-${stamp}.json`, bytes, 'application/json');
   });
   $('#btnRestore').addEventListener('click', () => $('#fileRestore').click());
   $('#fileRestore').addEventListener('change', async (e) => {
@@ -1881,20 +1895,23 @@
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      if (!data || !data.fight || !data.profiles) throw new Error('keine gültige Sicherung');
-      if (!confirm('Aktuellen Stand durch die Sicherung ersetzen?')) return;
+      if (!data || !data.fight || !data.profiles) throw new Error(t('keine gültige Sicherung'));
+      if (!confirm(t('Aktuellen Stand durch die Sicherung ersetzen?'))) return;
       state = C.restore(data, Date.now());
+      adoptState();
       history = [];
       commit();
     } catch (err) {
-      alert('Sicherung konnte nicht geladen werden: ' + err.message);
+      alert(t('Sicherung konnte nicht geladen werden: {msg}', { msg: err.message }));
     }
   });
   $('#btnFactory').addEventListener('click', () => {
-    if (!confirm('Wirklich ALLES zurücksetzen (Kampfliste, Teilnehmer, Protokoll, Profile, Einstellungen)?')) return;
+    if (!confirm(t('Wirklich ALLES zurücksetzen (Kampfliste, Teilnehmer, Protokoll, Profile, Einstellungen)?'))) return;
     state = C.createState();
+    adoptState();
     history = [];
     commit();
+    askLevel();
   });
 
   // Regelprofile
@@ -1911,7 +1928,7 @@
   function renderProfiles() {
     const sel = $('#profEditSelect');
     const opts = state.profiles
-      .map((p) => `<option value="${esc(p.id)}">${esc(p.name)}${p.id === state.activeProfileId ? ' (aktiv)' : ''}</option>`)
+      .map((p) => `<option value="${esc(p.id)}">${esc(t(p.name))}${p.id === state.activeProfileId ? ' ' + esc(t('(aktiv)')) : ''}</option>`)
       .join('');
     if (sel.dataset.h !== opts) {
       sel.innerHTML = opts;
@@ -1949,34 +1966,34 @@
       } else if (el.type === 'number') v = Math.max(0, Number(el.value) || 0);
       else v = el.value.trim();
       p[key] = v;
-      if (key === 'name' && !v) p.name = 'Profil';
+      if (key === 'name' && !v) p.name = t('Profil');
       if (p.id === state.activeProfileId) C.applyProfile(state, p.id, Date.now());
       commit();
     })
   );
   $('#btnProfNew').addEventListener('click', () => {
-    const p = Object.assign({}, C.BASE_RULES, { id: C.uid(), name: 'Neues Profil', aliases: '' });
+    const p = Object.assign({}, C.BASE_RULES, { id: C.uid(), name: t('Neues Profil'), aliases: '' });
     state.profiles.push(p);
     editProfId = p.id;
     commit();
   });
   $('#btnProfDup').addEventListener('click', () => {
     const p = Object.assign(C.clone(editProf()), { id: C.uid() });
-    p.name += ' (Kopie)';
+    p.name += ' ' + t('(Kopie)');
     state.profiles.push(p);
     editProfId = p.id;
     commit();
   });
   $('#btnProfDel').addEventListener('click', () => {
     const p = editProf();
-    if (state.profiles.length < 2 || !confirm(`Profil „${p.name}“ löschen?`)) return;
+    if (state.profiles.length < 2 || !confirm(t('Profil „{name}“ löschen?', { name: p.name }))) return;
     state.profiles = state.profiles.filter((x) => x !== p);
     if (state.activeProfileId === p.id) C.applyProfile(state, state.profiles[0].id, Date.now());
     editProfId = state.activeProfileId;
     commit();
   });
   $('#btnProfReset').addEventListener('click', () => {
-    if (!confirm('Alle Regelprofile auf die Standardwerte zurücksetzen?')) return;
+    if (!confirm(t('Alle Regelprofile auf die Standardwerte zurücksetzen?'))) return;
     state.profiles = C.clone(C.DEFAULT_PROFILES);
     const keep = state.profiles.some((p) => p.id === state.activeProfileId) ? state.activeProfileId : 'p-adult';
     C.applyProfile(state, keep, Date.now());
@@ -2141,12 +2158,12 @@
   }
 
   const STATUS_TEXT = {
-    off: 'Nicht verbunden.',
-    connecting: 'Verbinde mit der Zentrale …',
-    connected: 'Verbunden mit der Zentrale – Ergebnisse werden automatisch gemeldet.',
-    waiting: 'Keine Verbindung zur Zentrale – neuer Versuch alle paar Sekunden. Die Matte läuft normal weiter, der Stand wird nachgereicht.',
-    rejected: 'Die Zentrale hat die Verbindung abgelehnt: falscher Turniercode.',
-    closed: 'Getrennt.',
+    off: N_('Nicht verbunden.'),
+    connecting: N_('Verbinde mit der Zentrale …'),
+    connected: N_('Verbunden mit der Zentrale – Ergebnisse werden automatisch gemeldet.'),
+    waiting: N_('Keine Verbindung zur Zentrale – neuer Versuch alle paar Sekunden. Die Matte läuft normal weiter, der Stand wird nachgereicht.'),
+    rejected: N_('Die Zentrale hat die Verbindung abgelehnt: falscher Turniercode.'),
+    closed: N_('Getrennt.'),
   };
 
   function renderNet() {
@@ -2511,7 +2528,7 @@
       $('#tmMsg').classList.toggle('err', !!err);
     };
     try {
-      const res = await X.importFile(file);
+      const res = await X.importFile(file, t);
       const lu = X.teamFromFights(res.fights);
       if (!lu.classes.length) return msg(t('In der Datei wurde keine Aufstellung erkannt (Spalten „Gewichtsklasse“, „Weiß Name“, „Blau Name“).'), true);
       const tm = state.team;
@@ -2548,6 +2565,12 @@
   });
 
   /* ================= Training ================= */
+
+  // neuer oder geladener Stand: Training und Mannschaft ergänzen
+  function adoptState() {
+    initTraining();
+    state.team = TM.normTeam(state.team);
+  }
 
   function initTraining() {
     if (!state.training || !state.training.current || !Array.isArray(state.training.templates)) state.training = TR.createTraining();
@@ -2602,7 +2625,7 @@
     const cur = tr.current;
     const sel = $('#trTplSelect');
     const known = tr.templates.some((x) => x.id === cur.id);
-    const opts = (known ? '' : `<option value="">${esc(t('(nicht gespeichert)'))}</option>`) + tr.templates.map((x) => `<option value="${esc(x.id)}">${esc(x.name)} – ${esc(TR.summary(x, t))}</option>`).join('');
+    const opts = (known ? '' : `<option value="">${esc(t('(nicht gespeichert)'))}</option>`) + tr.templates.map((x) => `<option value="${esc(x.id)}">${esc(t(x.name))} – ${esc(TR.summary(x, t))}</option>`).join('');
     if (sel.dataset.h !== opts) {
       sel.innerHTML = opts;
       sel.dataset.h = opts;
@@ -2680,9 +2703,9 @@
   /* ================= Umfang und Sprache ================= */
 
   const LEVEL_INFO = {
-    simple: 'Nur Anzeigetafel: Uhr, Wertungen, Shido und Osaekomi. Namen, Kampfliste, Protokoll und Turnierfunktionen sind ausgeblendet.',
-    standard: 'Kämpfe mit Namen: Kampfliste, Excel-Import, Mannschaftskampf, Aushang und Protokoll. Ohne Turniersysteme, Matten, Auswertung und Aufruf.',
-    tournament: 'Alle Funktionen: Turniersysteme, Matten, Vernetzung, Auswertung, Urkunden und Aufruf.',
+    simple: N_('Nur Anzeigetafel: Uhr, Wertungen, Shido und Osaekomi. Namen, Kampfliste, Protokoll und Turnierfunktionen sind ausgeblendet.'),
+    standard: N_('Kämpfe mit Namen: Kampfliste, Excel-Import, Mannschaftskampf, Aushang und Protokoll. Ohne Turniersysteme, Matten, Auswertung und Aufruf.'),
+    tournament: N_('Alle Funktionen: Turniersysteme, Matten, Vernetzung, Auswertung, Urkunden und Aufruf.'),
   };
   function renderLevel() {
     const lv = state.settings.level || 'tournament';
@@ -2718,29 +2741,33 @@
     shownLang = want;
     t = I18n.make(state.settings.langControl);
     C.setTranslator(t);
+    T.setTranslator(t);
     document.documentElement.lang = want;
     I18n.translateDom(document.body, t);
     document.title = t('Hajime – Bedienung');
+    // Standardname der Matte in der neuen Sprache („Matte 1“ ↔ „Mat 1“)
+    const no = M.matNo(state.settings.mat);
+    if (no && /^\S+ \d+$/.test(state.settings.mat)) state.settings.mat = t('Matte') + ' ' + no;
     if (T.isElectron && T.bridge.setLang) T.bridge.setLang(want);
+    setTimeout(() => relabelBoard(), 50);
   }
 
   // Erster Start: Umfang abfragen
-  function askLevel() {
-    const dlg = $('#dlgLevel');
-    fillLangSelects();
-    dlg.addEventListener('cancel', (e) => e.preventDefault());
-    $('#dlgLevelLang').addEventListener('change', (e) => {
-      state.settings.langControl = e.target.value;
+  $('#dlgLevel').addEventListener('cancel', (e) => e.preventDefault());
+  $('#dlgLevelLang').addEventListener('change', (e) => {
+    state.settings.langControl = e.target.value;
+    commit();
+  });
+  $$('#dlgLevel .level-opt').forEach((b) =>
+    b.addEventListener('click', () => {
+      state.settings.level = b.dataset.level;
+      $('#dlgLevel').close();
       commit();
-    });
-    $$('.level-opt', dlg).forEach((b) =>
-      b.addEventListener('click', () => {
-        state.settings.level = b.dataset.level;
-        dlg.close();
-        commit();
-      })
-    );
-    dlg.showModal();
+    })
+  );
+  function askLevel() {
+    fillLangSelects();
+    if (!$('#dlgLevel').open) $('#dlgLevel').showModal();
   }
 
   /* ================= Start ================= */
@@ -2774,6 +2801,7 @@
     },
     set state(v) {
       state = v;
+      adoptState();
       history = [];
     },
     commit,

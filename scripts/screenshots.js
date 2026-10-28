@@ -38,6 +38,9 @@ module.exports = async function run({ getControl, getBoard, quit }) {
   await js(`
     const C = JudoCore;
     const s = C.createState();
+    s.settings.level = 'tournament';
+    s.settings.langControl = 'de';
+    s.settings.langBoard = 'de';
     s.settings.tournament = 'Bezirkseinzelmeisterschaft U11–U15';
     s.settings.mat = 'Matte 1';
     s.settings.soundOn = false;
@@ -298,6 +301,97 @@ module.exports = async function run({ getControl, getBoard, quit }) {
     document.querySelector('main').scrollTop = 0;
   `);
   await shot(ctl, 'bedienung-einstellungen');
+
+  // Erster Start: Abfrage des Umfangs
+  await js(`
+    document.querySelector('.tabs button[data-tab="fight"]').click();
+    document.getElementById('dlgLevel').showModal();
+  `);
+  await shot(ctl, 'bedienung-start');
+
+  // Umfang „Einfach“: Bedienung und Anzeige nur mit Uhr und Wertungen
+  await js(`
+    document.getElementById('dlgLevel').close();
+    const s = __judo.state, C = JudoCore, now = Date.now();
+    s.settings.level = 'simple';
+    s.callMessage = '';
+    C.applyProfile(s, 'p-adult', now);
+    C.loadFight(s, null, now);
+    C.hajimeMate(s, now - 75000);
+    C.addScore(s, 'white', 'wazaari', 1, now - 50000);
+    C.addScore(s, 'blue', 'yuko', 1, now - 40000);
+    C.addScore(s, 'white', 'shido', 1, now - 20000);
+    C.hajimeMate(s, now - 1000);
+    s.fight.flash = null;
+    __judo.commit();
+  `);
+  await shot(ctl, 'bedienung-einfach');
+  await shot(brd, 'anzeige-einfach');
+
+  // Trainingsmodus: Randori-Timer, Runde 3 von 6
+  await js(`
+    const s = __judo.state, now = Date.now();
+    s.settings.level = 'standard';
+    const tpl = Object.assign({}, s.training.templates.find((x) => x.id === 't-adults'), { round: 180 });
+    s.training.current = tpl;
+    s.training.run = { phase: 'round', round: 3, running: true, endsAt: now + 112400, leftMs: 0, warned: false, sound: null, seq: 9 };
+    s.screen = 'training';
+    __judo.commit();
+    document.querySelector('.tabs button[data-tab="training"]').click();
+  `);
+  await shot(brd, 'anzeige-training');
+  await shot(ctl, 'bedienung-training');
+
+  // Mannschaftskampf: Begegnung mit Hin- und Rückrunde, Kampf 6 von 10
+  await js(`
+    const s = __judo.state, C = JudoCore, now = Date.now();
+    s.training.run = { phase: 'ready', round: 1, running: false, endsAt: 0, leftMs: 0, warned: false, sound: null, seq: 0 };
+    s.screen = 'board';
+    s.settings.tournament = 'Bezirksliga Männer · 4. Kampftag';
+    s.queue = [];
+    s.log = [];
+    const w = { '-60 kg': 'Paul Hagedorn', '-66 kg': 'Leon Pfisterer', '-73 kg': 'Jonas Eichhorn', '-81 kg': 'Paul Brandt', '-90 kg': 'Tim Weber' };
+    const b1 = { '-60 kg': 'Lea Dornbusch', '-73 kg': 'Finn Ostermann', '-81 kg': 'Felix Moosbrugger', '-90 kg': 'Ole Krause' };
+    const b2 = Object.assign({}, b1, { '-66 kg': 'Ben Kurz' });
+    s.team = JudoTeam.normTeam({ active: true, title: 'Bezirksliga Männer · 4. Kampftag', ageClass: 'Männer', white: { name: 'JC Mittelstadt' }, blue: { name: 'TSV Lindenau' },
+      classes: ['-60 kg', '-66 kg', '-73 kg', '-81 kg', '-90 kg'], legs: 2, lineup: [{ white: w, blue: b1 }, { white: Object.assign({}, w), blue: b2 }] });
+    __judo.commit();
+    const q = s.queue.filter((e) => e.team === s.team.id);
+    const res = (e, winner, reason, ws, bs) => { e.status = 'done'; e.result = { winner, reason, scores: { white: ws, blue: bs }, finishedAt: now }; };
+    const sc = (i, wz, y) => ({ ippon: i, wazaari: wz, yuko: y || 0, shido: 0, hsk: false });
+    res(q[0], 'white', 'Ippon', sc(1, 0), sc(0, 0));
+    res(q[2], 'blue', 'Waza-ari', sc(0, 0), sc(0, 1));
+    res(q[3], 'white', 'Waza-ari', sc(0, 1), sc(0, 0, 1));
+    res(q[4], 'blue', 'Ippon', sc(0, 0), sc(1, 0));
+    __judo.commit();
+    C.loadFight(s, Object.assign({}, q[5]), now);
+    C.hajimeMate(s, now - 94000);
+    C.addScore(s, 'white', 'wazaari', 1, now - 60000);
+    C.addScore(s, 'blue', 'shido', 1, now - 30000);
+    C.hajimeMate(s, now - 1000);
+    s.fight.flash = null;
+    __judo.commit();
+    document.querySelector('.tabs button[data-tab="team"]').click();
+  `);
+  await shot(brd, 'anzeige-mannschaft');
+  await shot(ctl, 'bedienung-mannschaft');
+
+  // Bedienung auf Englisch (Anzeige getrennt einstellbar)
+  await js(`
+    const s = __judo.state;
+    s.settings.level = 'tournament';
+    s.settings.langControl = 'en';
+    s.settings.langBoard = 'en';
+    __judo.commit();
+    document.querySelector('.tabs button[data-tab="fight"]').click();
+  `);
+  await shot(ctl, 'bedienung-englisch');
+  await js(`
+    const s = __judo.state;
+    s.settings.langControl = 'de';
+    s.settings.langBoard = 'de';
+    __judo.commit();
+  `);
 
   quit();
 };

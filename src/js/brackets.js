@@ -521,7 +521,8 @@
         empty: o.white === BYE && o.blue === BYE,
         reason: res && res.winner !== 'draw' ? res.kind ? { ippon: 'Ippon', wazaari: 'Waza-ari', yuko: 'Yuko', decision: 'Entscheidung' }[res.kind] : res.reason : '',
         live: !!(e && e.id === liveId && fight && fight.status !== 'finished'),
-        liveText: e && e.id === liveId && fight ? (fight.started ? 'läuft' : 'geladen') + (e.mat ? ' · ' + e.mat : '') : '',
+        // wird bei der Darstellung übersetzt (bracketview.js)
+        liveText: e && e.id === liveId && fight ? { state: fight.started ? 'läuft' : 'geladen', mat: e.mat || '' } : null,
       };
     };
     const t = table(b, { key: b.key, label: C.groupLabel(b), ageClass: b.ageClass, category: b.category, gender: b.gender || '', entries }, opts);

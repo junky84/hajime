@@ -94,8 +94,9 @@
     let raf = 0;
     let fitPending = true;
     // Sprache der Anzeige (Einstellungen → Bedienung)
-    let t = I18n ? I18n.make('de') : (x) => x;
+    let t = I18n ? I18n.make('de') : Object.assign((x) => x, { phrase: (x) => x || '' });
     const tx = (k, p) => t(k, p);
+    tx.phrase = (x) => t.phrase(x);
     function setLang(lang) {
       if (!I18n || t.lang === I18n.resolve(lang)) return;
       t = I18n.make(lang);
@@ -215,7 +216,7 @@
         logo.style.display = '';
       } else logo.style.display = 'none';
       $('.jb-title').textContent = s.tournament || 'Judo';
-      const meta = s.level === 'simple' ? [] : [s.mat, f.ageClass, f.gender, f.category, f.no ? tx('Kampf {no}', { no: f.no }) : ''].filter(Boolean);
+      const meta = s.level === 'simple' ? [] : [t.phrase(s.mat), f.ageClass, f.gender, f.category, f.no ? tx('Kampf {no}', { no: f.no }) : ''].filter(Boolean);
       $('.jb-meta').innerHTML = meta.map((m) => `<span>${esc(m)}</span>`).join('');
 
       renderRow('white', f, r, s);
@@ -259,7 +260,7 @@
         il.style.display = '';
       } else il.style.display = 'none';
       $('.jb-idle-title').textContent = s.tournament || 'Judo';
-      $('.jb-idle-mat').textContent = s.mat || '';
+      $('.jb-idle-mat').textContent = t.phrase(s.mat);
       const list = (view.next || []).slice(0, 6);
       $('.jb-idle-list').innerHTML = list.length
         ? `<h3>${esc(tx('Nächste Kämpfe'))}</h3>` +
@@ -406,19 +407,19 @@
       if (!tr) return;
       const box = $('.jb-train');
       const fmt = (sec) => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
-      $('.jb-tr-title').textContent = tx('Training') + ' · ' + tr.name;
+      $('.jb-tr-title').textContent = tx('Training') + ' · ' + tx(tr.name);
       $('.jb-tr-sum').textContent = `${tr.rounds} × ${fmt(tr.roundSec)}` + (tr.pauseSec ? ' · ' + tx('Pause {t}', { t: fmt(tr.pauseSec) }) : '');
       const last = tr.round >= tr.rounds;
       let next = '';
-      if (tr.phase === 'round') next = last ? tx('Ende') : tr.pauseSec ? [tx('Pause {t}', { t: fmt(tr.pauseSec) }), tr.pauseNote].filter(Boolean).join(' · ') : tx('Runde {n}', { n: tr.round + 1 });
-      else if (tr.phase === 'pause') next = [tx('Runde {n}', { n: tr.round + 1 }), tr.roundNote].filter(Boolean).join(' · ');
-      else if (tr.phase === 'ready') next = [tx('Runde {n}', { n: 1 }), tr.roundNote].filter(Boolean).join(' · ');
+      if (tr.phase === 'round') next = last ? tx('Ende') : tr.pauseSec ? [tx('Pause {t}', { t: fmt(tr.pauseSec) }), tx(tr.pauseNote)].filter(Boolean).join(' · ') : tx('Runde {n}', { n: tr.round + 1 });
+      else if (tr.phase === 'pause') next = [tx('Runde {n}', { n: tr.round + 1 }), tx(tr.roundNote)].filter(Boolean).join(' · ');
+      else if (tr.phase === 'ready') next = [tx('Runde {n}', { n: 1 }), tx(tr.roundNote)].filter(Boolean).join(' · ');
       $('.jb-tr-next small').textContent = next ? tx('danach') : '';
       $('.jb-tr-next b').textContent = tr.phase === 'ready' ? '' : next;
       const label = { ready: tx('BEREIT'), round: 'HAJIME', pause: tx('PAUSE'), done: 'SOREMADE' }[tr.phase] || '';
       $('.jb-tr-phase').textContent = label;
       $('.jb-tr-round').textContent = tr.phase === 'done' ? tx('Training beendet') : tx('Runde {n} von {m}', { n: tr.phase === 'pause' ? tr.round : tr.round, m: tr.rounds });
-      $('.jb-tr-note').textContent = tr.phase === 'round' ? tr.roundNote || '' : tr.phase === 'pause' ? tr.pauseNote || '' : '';
+      $('.jb-tr-note').textContent = tr.phase === 'round' ? tx(tr.roundNote || '') : tr.phase === 'pause' ? tx(tr.pauseNote || '') : '';
       const dots = tr.rounds <= 24 ? Array.from({ length: tr.rounds }, (_, i) => {
         const n = i + 1;
         const cls = tr.phase === 'done' || n < tr.round || (n === tr.round && tr.phase === 'pause') ? 'done' : n === tr.round && tr.phase === 'round' ? 'cur' : '';

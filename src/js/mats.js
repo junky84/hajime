@@ -336,11 +336,16 @@
     state.matPlan = plan;
   }
 
-  const sameMat = (a, b) => C.norm(a) === C.norm(b);
+  // „Matte 2“, „Mat 2“, „Tapis 2“ … gelten als dieselbe Matte (Sprache der Bedienung)
+  const matNo = (s) => {
+    const m = C.norm(s).match(/^(?:matte|mat|tapis|tatami|mata|mattan?)\s*(\d+)$/);
+    return m ? m[1] : null;
+  };
+  const sameMat = (a, b) => C.norm(a) === C.norm(b) || (matNo(a) != null && matNo(a) === matNo(b));
   // Kämpfe einer Matte; ohne Mattenangabe gehören sie zu jeder Matte
   const forMat = (e, mat) => !e.mat || sameMat(e.mat, mat);
 
-  const api = { DEFAULT_PLAN, planOf, matName, parseHM, fmtHM, matGroups, distribute, layout, schedule, apply, clear, sameMat, forMat };
+  const api = { DEFAULT_PLAN, planOf, matName, parseHM, fmtHM, matGroups, distribute, layout, schedule, apply, clear, sameMat, forMat, matNo };
   if (node) module.exports = api;
   else root.JudoMats = api;
 })(typeof self !== 'undefined' ? self : this);

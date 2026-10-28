@@ -7,50 +7,61 @@
 ## In 3 Schritten zur Anzeigetafel
 
 1. Unter [**Releases**](../../releases/latest) die Datei herunterladen und entpacken: `Hajime-x.y.z-Web.zip` für jeden Rechner mit Chrome oder Edge, `Hajime-x.y.z-Mac.zip` für den Mac (Einzelheiten unter [Download & Start](#download--start)).
-2. Starten. Die Anzeige erscheint auf dem Beamer oder zweiten Bildschirm (in der Webversion *Anzeige öffnen* klicken).
-3. **Leertaste** drücken = *Hajime*. Wertungen mit der Maus oder per Taste geben, nach dem Kampf *Nächster Kampf*.
+2. Starten und bei der Frage *„Wie möchtest du Hajime nutzen?“* **Einfach** wählen. Die Anzeige erscheint auf dem Beamer oder zweiten Bildschirm (in der Webversion *Anzeige öffnen* klicken).
+3. **Leertaste** drücken = *Hajime*. Wertungen mit der Maus oder per Taste geben, danach *Kampf neu*.
 
 Fertig. Keine Anmeldung, kein Internet, keine Namen nötig. Die Kampfzeit und die übrigen Regeln (z. B. für U11 oder U15) wählst du oben im Feld *Regelprofil*.
 
-## Was du zusätzlich nutzen kannst – wenn du willst
-
-| Du möchtest … | Dann nutze … |
+| Einfach: Bedienung | Einfach: Anzeige für das Publikum |
 |---|---|
-| nur Uhr und Punkte zeigen | **nichts weiter** – siehe oben |
-| Namen und Vereine auf der Anzeige | die Namensfelder in der Ansicht *Kampf* (einfach hineinschreiben) |
-| eine vorbereitete Kampfliste abarbeiten | den Reiter *Kampfliste* mit **Excel-Import** ([Vorlage](#excel-import)) |
-| ein ganzes Turnier mit Platzierungen, Urkunden, mehreren Matten | *Auswertung*, *Matten* und Turniersysteme ([ab hier](#auswertung-und-siegerehrung)) |
+| ![Bedienung im einfachen Modus](docs/screenshots/bedienung-einfach.png) | ![Anzeige im einfachen Modus](docs/screenshots/anzeige-einfach.png) |
 
-Was du nicht brauchst, kannst du ignorieren – es stört den Kampf nicht. Ein einfacher Modus, der ungenutzte Bereiche ganz ausblendet, ist [geplant](https://github.com/junky84/hajime/issues/18).
+## Einfach, Standard oder Turnier
+
+Beim ersten Start fragt Hajime, wie du es nutzen möchtest. Ändern lässt sich das jederzeit unter *Einstellungen → Bedienung → Umfang*. Dabei geht nichts verloren: Kampfliste, Protokoll usw. werden nur ausgeblendet.
+
+| Umfang | Du bekommst … |
+|---|---|
+| **Einfach** – nur Anzeigetafel | Uhr, Hajime/Mate, Osaekomi, Wertungen, Shido, Rückgängig, Regelprofil, Trainingsuhr. Keine Namen, keine Listen. |
+| **Standard** – Kämpfe mit Namen | dazu Namen und Vereine, Kampfliste mit **Excel-Import**, Aushang, Protokoll, Pausenbild und [Mannschaftskampf](#mannschaftskampf) |
+| **Turnier** – alles | dazu Turniersysteme, [mehrere Matten](#mehrere-matten), [Matten im Netz](#matten-im-netz), [Auswertung, Siegerliste und Urkunden](#auswertung-und-siegerehrung), Gruppentabelle und Aufruf |
+
+![Abfrage beim ersten Start](docs/screenshots/bedienung-start.png)
+
+Tastenkürzel bleiben in allen Stufen gleich; Kürzel für ausgeblendete Funktionen (z. B. `G` für die Gruppentabelle) tun dann einfach nichts.
 
 ## Alle Funktionen im Überblick
 
-**Anzeigetafel**
+**Anzeigetafel** (alle Stufen)
 
 - **Publikumsanzeige** im Vollbild auf dem zweiten Bildschirm/Beamer (erweiterter Desktop)
 - **Bedienfenster** auf dem Laptop mit Live-Vorschau der Anzeige
 - **Regelprofile** pro Altersklasse (Kampfzeit, Golden Score, „Ippon beendet den Kampf“ ja/nein, Yuko, Shido-Grenze, Osaekomi-Zeiten …)
 - Golden Score, Osaekomi-Uhr, 2× Waza-ari und 3. Shido werden automatisch ausgewertet
+- **Trainingsmodus:** Randori-Timer mit Runden, Pausen, Vorlagen, Gong und Signalton ([mehr](#trainingsmodus))
+- **Sprachen:** Bedienung und Anzeige getrennt auf Deutsch oder Englisch ([mehr](#sprachen))
 
-**Optional: Namen und Kampfliste**
+**Optional: Namen und Kampfliste** (ab *Standard*)
 
 - Namen von Hand oder per **Excel-Import**
 - **Nächster Kampf** gut lesbar unten auf der Anzeige, in drei Größen
 - **Ereignisprotokoll** jedes Kampfes und Ergebnis-Export nach Excel (Ippon, Waza-ari, Yuko, Shido je Kämpfer in eigenen Spalten)
 - **Aushang** der Kampfreihenfolge pro Matte zum Ausdrucken (A4/A3)
+- **Mannschaftskampf** für Liga und Mannschaftsturnier: Aufstellung, Hin- und Rückrunde, Mannschaftsstand auf der Anzeige, Ergebnisbogen ([mehr](#mannschaftskampf))
 
-**Optional: Turnier**
+**Optional: Turnier** (Stufe *Turnier*)
 
 - **Turniersysteme:** Best of Three, Jeder gegen jeden, Doppel-Pool und K.-o. mit Trostrunde – nach Gruppengröße vorgeschlagen, mit Vereinstrennung, Sieger rücken automatisch weiter
 - **Mehrere Matten:** Gruppen gleichmäßig verteilen, Mädchen und Jungen möglichst auf eigenen Matten, pro Matte als Excel exportieren
+- **Matten im Netz:** Die Rechner der Matten finden eine Zentrale im (W)LAN von selbst, Ergebnisse laufen automatisch zurück, Übersicht aller Matten auch im Browser ([mehr](#matten-im-netz))
 - Gruppen auf Wunsch **nach Geschlecht getrennt**
-- **Gruppentabellen und Turnierbäume** mit automatischer Platzierung, auch groß auf der Anzeige
+- **Gruppentabellen und Turnierbäume** mit automatischer Platzierung nach **DJB** (Standard), **IJF** oder eigenen Werten, auch groß auf der Anzeige
 - **Siegerliste und Urkunden** als PDF (Siegerliste auch als Excel)
 - **Ruhezeit-Warnung**, wenn ein Kämpfer seine Mindestpause noch nicht hatte
 
 ## Screenshots
 
-**Publikumsanzeige** (Vollbild auf Beamer/zweitem Bildschirm)
+**Publikumsanzeige** (Vollbild auf Beamer/zweitem Bildschirm) – die einfache Anzeige ohne Namen steht [oben](#in-3-schritten-zur-anzeigetafel)
 
 | Kampf läuft mit Osaekomi | Kampfende mit Sieger |
 |---|---|
@@ -59,8 +70,10 @@ Was du nicht brauchst, kannst du ignorieren – es stört den Kampf nicht. Ein e
 | ![Anzeige Golden Score](docs/screenshots/anzeige-golden-score.png) | ![Pausenbild](docs/screenshots/anzeige-pausenbild.png) |
 | **Gruppentabelle** (Taste `G`) | **Turnierbaum** K.-o. mit Trostrunde |
 | ![Gruppentabelle](docs/screenshots/anzeige-gruppentabelle.png) | ![Turnierbaum](docs/screenshots/anzeige-turnierbaum.png) |
-| **Aufrufzeile** oben auf der Anzeige (Taste `K`) | |
-| ![Aufrufzeile](docs/screenshots/anzeige-aufruf.png) | |
+| **Aufrufzeile** oben auf der Anzeige (Taste `K`) | **Trainingsuhr** (Randori mit Runden und Pausen) |
+| ![Aufrufzeile](docs/screenshots/anzeige-aufruf.png) | ![Trainingsuhr](docs/screenshots/anzeige-training.png) |
+| **Mannschaftskampf** mit Mannschaftsstand | |
+| ![Mannschaftskampf](docs/screenshots/anzeige-mannschaft.png) | |
 
 **Bedienfenster** (Laptop)
 
@@ -73,8 +86,10 @@ Was du nicht brauchst, kannst du ignorieren – es stört den Kampf nicht. Ein e
 | ![Auswertung](docs/screenshots/bedienung-auswertung.png) | ![Ruhezeit-Warnung](docs/screenshots/bedienung-ruhezeit.png) |
 | **Turniersysteme** je Gruppe, nach Geschlecht getrennt | **Auf Matten verteilen** |
 | ![Turniersysteme](docs/screenshots/bedienung-turniersysteme.png) | ![Matten verteilen](docs/screenshots/bedienung-matten.png) |
-| **Turnierbaum** in der Auswertung | |
-| ![Turnierbaum](docs/screenshots/bedienung-turnierbaum.png) | |
+| **Turnierbaum** in der Auswertung | **Trainingsmodus** |
+| ![Turnierbaum](docs/screenshots/bedienung-turnierbaum.png) | ![Training](docs/screenshots/bedienung-training.png) |
+| **Mannschaftskampf**: Aufstellung und Ergebnisse | **Bedienung auf Englisch** |
+| ![Mannschaft](docs/screenshots/bedienung-mannschaft.png) | ![Englisch](docs/screenshots/bedienung-englisch.png) |
 
 **Ausdrucke** (PDF)
 
@@ -138,7 +153,7 @@ Alternativ im Terminal: `xattr -cr /Pfad/zu/Hajime.app`
 | `G` | Gruppentabelle der aktuellen Klasse an/aus |
 | `K` | Kämpfer aufrufen (Auswahl öffnen) bzw. Aufrufzeile ausblenden |
 
-Im Anzeigefenster: Doppelklick oder `F` = Vollbild an/aus.
+Im Anzeigefenster: Doppelklick oder `F` = Vollbild an/aus. Zeigt die Anzeige die Trainingsuhr, startet und pausiert die `Leertaste` das Training, `←` / `→` wechseln die Runde.
 
 ### Was die Tafel automatisch macht
 
@@ -161,7 +176,17 @@ Im Anzeigefenster: Doppelklick oder `F` = Vollbild an/aus.
 
 > **Ab hier geht es um Turnierfunktionen.** Wer nur eine Anzeigetafel braucht, kann den Rest überspringen.
 
-- **Gruppentabellen:** Der Reiter *Auswertung* rechnet für jede Alters-/Gewichtsklasse der Kampfliste („Jeder gegen jeden“) die Platzierung selbst aus: Siege, Wertungspunkte und wie gewonnen wurde (Ippon · Waza-ari · Yuko). Wertungspunkte je Sieg: Ippon 10, Waza-ari 7, Yuko 5, Entscheidung (Hantei, Shido) 1 – änderbar unter *Einstellungen → Auswertung*. Bei gleich vielen Siegen entscheiden die Wertungspunkte und dann der direkte Vergleich (oder umgekehrt, je nach Ausschreibung).
+- **Gruppentabellen:** Der Reiter *Auswertung* rechnet für jede Alters-/Gewichtsklasse der Kampfliste („Jeder gegen jeden“) die Platzierung selbst aus. Das **Punkteschema** steht unter *Einstellungen → Auswertung*:
+
+  | | **DJB** (Standard) | **IJF** | **Eigene Werte** |
+  |---|---|---|---|
+  | Punkte bekommt | nur der Sieger (kampfentscheidende Wertung) | beide Kämpfer (Summe ihrer Wertungen, max. 100) | nur der Sieger |
+  | Ippon / Waza-ari / Yuko | 10 / 7 / 5 | 100 / 10 / 1 | frei einstellbar |
+  | Hansoku-make, Kiken-gachi, Fusen-gachi | 10 | 100 | wie Ippon |
+  | Hantei | 0 (führt der Sieger mit Wertungen, zählt diese) | 0 | frei einstellbar |
+  | Rangfolge | Siegpunkte → Wertungspunkte → direkter Vergleich → Stichkampf | Siege → Punkte → direkter Vergleich → kürzere Gesamtzeit der Siege → Entscheidungskampf | Siege, dann Punkte und direkter Vergleich in wählbarer Reihenfolge |
+
+  Quellen: [DJB – Platzierungen im Pool (2023)](https://www.judobund.de/fileadmin/user_upload/judobund.de/Downloads/Regeln_und_Ordnungen/20763-DJB_Regeln_und_Ordnungen_Platzierungen_im_Pool_2023.pdf), [IJF Sport and Organisation Rules 2025](https://78884ca60822a34fb0e6-082b8fd5551e97bc65e327988b444396.ssl.cf3.rackcdn.com/up/2025/01/IJF_Sport_and_Organisation_Rul-1738236032.pdf). Yuko ist im DJB-Dokument nicht geregelt, Hajime rechnet dort 5 Punkte.
 - **Stichkampf:** Bleibt ein Gleichstand (z. B. drei Kämpfer im Kreis), markiert Hajime „Stichkampf nötig“. *Stichkampf anlegen* setzt die nötigen Kämpfe als nächste in die Kampfliste; sie entscheiden nur den Gleichstand und zählen nicht als Siege.
 - **Auf der Anzeige:** *Gruppentabelle* oben rechts (Taste `G`) zeigt die Tabelle der aktuellen Klasse groß für Kämpfer und Eltern, *Auf Anzeige* in der Auswertung eine bestimmte Gruppe.
 - **Siegerliste** (Plätze 1–3 je Gruppe) als PDF oder Excel; der Protokoll-Export enthält zusätzlich ein Blatt „Gruppentabellen“.
@@ -208,6 +233,51 @@ Fehlt ein Kämpfer an der Matte, *Aufruf* oben rechts klicken (oder Taste `K`):
 |---|
 | ![Aufruf im Bedienfenster](docs/screenshots/bedienung-aufruf.png) |
 
+### Matten im Netz
+
+Bei mehreren Matten können sich die Hajime-Rechner im selben (W)LAN verbinden. Dann laufen Ergebnisse ohne Excel-Umweg zurück, und die Turnierleitung sieht alle Matten auf einen Blick. Nur lokales Netz, kein Internet nötig.
+
+1. **Zentrale** (z. B. der Rechner der Turnierleitung, macOS-App): *Einstellungen → Matten im Netz → Dieser Rechner: Zentrale*. Hajime zeigt einen **Turniercode** (4 Ziffern) und die Adresse.
+2. **Mattenrechner:** Hajime findet die Zentrale von selbst und fragt *„Zentrale gefunden – diese Matte verbinden?“*. Turniercode und Mattenname eingeben, fertig. Klappt die Suche nicht, unter *Einstellungen → Matten im Netz* die Adresse von Hand eintragen (z. B. `192.168.1.20`).
+3. In der Zentrale im Reiter *Matten* bei jeder Matte *Kampfliste senden* – oder wie bisher per *Excel je Matte*.
+
+Danach meldet jede Matte laufend ihren Stand. Beendete Kämpfe landen automatisch in der Kampfliste der Zentrale (Protokoll, Gruppentabellen, Turnierbäume, Siegerliste). Von der Zentrale aus lässt sich ein **Aufruf** an die Anzeige einer bestimmten Matte schicken. **Übersicht im Browser** öffnet `http://<zentrale>:47801/` – das kann auch ein Fernseher oder Tablet in der Halle anzeigen.
+
+- Der Turniercode verhindert, dass sich zwei Turniere in derselben Halle mischen.
+- Bricht die Verbindung ab, läuft die Matte ganz normal weiter und reicht den Stand nach dem Wiederverbinden nach.
+- **Hallen- und Gäste-WLANs** blockieren oft die Verbindung zwischen Geräten („Client Isolation“). Dann einen eigenen Router oder einen Handy-Hotspot verwenden.
+- **macOS** fragt beim ersten Start nach *Lokales Netzwerk* bzw. eingehenden Verbindungen, **Windows** nach der Firewall-Freigabe – jeweils erlauben (bei der Zentrale *und* den Matten).
+- Die **Webversion** kann keine Zentrale sein (der Browser erlaubt keinen Server und keine Netzwerksuche), sich aber als Matte mit einer Zentrale verbinden: Adresse von Hand eintragen. Das klappt nur, wenn die Webversion per Doppelklick oder über `http://` geöffnet ist, nicht über `https://`.
+- Technik: Die Zentrale ruft sich alle 2 Sekunden per UDP-Broadcast und Multicast (Port 47800) ins Netz, die Matten verbinden sich per WebSocket (Port 47801).
+
+### Mannschaftskampf
+
+Für Liga und Mannschaftsturnier, ab Stufe *Standard*, Reiter **Mannschaft**:
+
+- Bezeichnung, Altersklasse (wählt das Regelprofil), die beiden Mannschaften und die **Gewichtsklassen in Kampfreihenfolge** eintragen. *Beginn mit* legt die Klasse fest, mit der begonnen wird (z. B. ausgelost); danach geht es reihum.
+- **Aufstellung** je Gewichtsklasse eintippen oder *Aufstellung aus Excel …* (Vorlage über *Excel-Vorlage speichern*). Ein leeres Feld heißt *nicht besetzt*: Die andere Mannschaft gewinnt den Kampf kampflos.
+- Optional **Hin- und Rückrunde**; die Aufstellung der Hinrunde wird für die Rückrunde vorgeschlagen und lässt sich ändern.
+- **Mannschaftskampf aktiv** setzt die Einzelkämpfe in die Kampfliste. *Nächster Kampf* geht sie der Reihe nach durch, die Anzeige zeigt unter der Kopfzeile den **Mannschaftsstand** (Siege und Wertungspunkte) und „Kampf 6 von 10“.
+- **Wertung:** Unterbewertungen je Sieg (Standard: Ippon 10, Waza-ari 7, Yuko 5, Entscheidung 1, kampflos 10) und ob bei gleich vielen Siegen die Unterbewertungen entscheiden oder die Begegnung unentschieden endet.
+- **Ergebnisbogen** der Begegnung als PDF zum Ausdrucken und Unterschreiben (Mannschaftsführer, Kampfrichter) oder als Excel.
+
+### Trainingsmodus
+
+Für das normale Training, in allen Stufen, Reiter **Training**:
+
+- Rundenzeit, Pausenzeit und Rundenanzahl einstellen, dazu Hinweise für Runde und Pause (z. B. „Partnerwechsel“, „Start in Bodenlage“). Mitgeliefert sind die Vorlagen *Randori Kinder*, *Randori Erwachsene*, *Ne-waza* und *Uchi-komi Intervall*; eigene Einstellungen lassen sich als Vorlage speichern.
+- *Start* (oder `Leertaste`) schaltet die Anzeige auf die große Trainingsuhr mit Rundenzähler. Farben: **grün** = Runde, **gelb** = letzte 10 Sekunden, **blau** = Pause.
+- Gong bei Rundenbeginn und -ende, kurzer Signalton 10 Sekunden vor Rundenende. Bei *nur Signalton* (z. B. Uchi-komi) gibt es statt des Gongs einen kurzen Ton.
+- *Zurück zur Wettkampfanzeige* schaltet wieder auf die normale Tafel.
+
+### Sprachen
+
+Unter *Einstellungen → Bedienung* lassen sich die **Sprache der Bedienung** und die **Sprache der Anzeige** getrennt wählen – z. B. Bedienung auf Deutsch, Anzeige auf Englisch bei einem internationalen Turnier. Beim ersten Start gilt die Sprache des Betriebssystems bzw. Browsers, sonst Englisch.
+
+- Zurzeit: **Deutsch** und **Englisch**. Judo-Begriffe (Hajime, Mate, Osaekomi, Ippon, Waza-ari, Yuko, Shido …) bleiben japanisch.
+- Ausdrucke (Aushang, Siegerliste, Urkunden, Ergebnisbogen) und Excel-Dateien entstehen in der Sprache der Bedienung. Der Excel-Import erkennt deutsche und englische Spaltenüberschriften („Verein“ / „Club“, „Gewichtsklasse“ / „Weight category“ …).
+- **Weitere Sprache ergänzen:** `src/lang/en.js` kopieren (z. B. als `fr.js`), in der ersten Zeile Sprachkürzel und Namen ändern, die rechte Seite übersetzen und die Datei in `src/control.html` und `src/board.html` nach `lang/en.js` eintragen. Fehlende Einträge erscheinen auf Englisch; `node scripts/i18n-keys.js fr` listet sie auf. Übersetzungen gern als Pull Request.
+
 ### Ruhezeit
 
 - Im Regelprofil steht eine **Mindestpause** zwischen zwei Kämpfen eines Kämpfers (Vorschlag: U11/U13 5 Minuten, ab U15 10 Minuten; 0 = keine Warnung).
@@ -240,17 +310,23 @@ Für U11/U13 ist „Ippon beendet den Kampf“ ab Werk ausgeschaltet; es zählt 
 ```bash
 npm install
 npm start           # App starten
-npm test            # Tests der Wettkampflogik, Turniersysteme, Mattenverteilung und des Excel-Imports
+npm test            # Tests: Wettkampflogik, Turniersysteme, Matten, Excel, Training, Mannschaft, Netz, Sprachen
 npm run build:web   # Webversion nach dist/Hajime-Web bauen
 HAJIME_SCREENSHOTS=docs/screenshots npx electron .   # README-Screenshots neu erzeugen
 ```
 
 Aufbau:
 
-- `main.js` – Electron-Hauptprozess (Fenster, Bildschirme, Vollbild)
+- `main.js` – Electron-Hauptprozess (Fenster, Bildschirme, Vollbild, Menü)
+- `hub.js` – Zentrale für Matten im Netz: HTTP/WebSocket-Server und Suche per Broadcast/Multicast, reines Node.js
+- `src/overview.html` – Übersicht aller Matten im Browser (liefert die Zentrale aus)
 - `src/js/core.js` – Wettkampfregeln, ohne Oberfläche, mit Tests in `test/`
 - `src/js/brackets.js` – Turniersysteme (Auslosung, Paarungen, Nachrücken, Platzierung), ohne Oberfläche
 - `src/js/mats.js` – Verteilung auf Matten und Reihenfolge je Matte, ohne Oberfläche
+- `src/js/net.js` – Stand einer Matte, Ergebnisse übernehmen, Kampfliste senden, WebSocket-Verbindung zur Zentrale
+- `src/js/team.js` – Mannschaftskampf (Aufstellung, Mannschaftsstand, Ergebnisbogen), ohne Oberfläche
+- `src/js/training.js` – Trainingsmodus (Runden, Pausen, Vorlagen), ohne Oberfläche
+- `src/js/i18n.js` + `src/lang/*.js` – Mehrsprachigkeit; `scripts/i18n-keys.js` prüft Sprachdateien auf fehlende Texte
 - `src/js/bracketview.js` – Turnierbaum als HTML (Bedienung, Anzeige, Druck)
 - `src/js/render.js` + `src/css/board.css` – Anzeigetafel (auch als Vorschau im Bedienfenster)
 - `src/js/control.js` – Bedienfenster
@@ -264,8 +340,8 @@ Aufbau:
 ### Neue Version veröffentlichen
 
 ```bash
-git tag v1.4.2
-git push origin v1.4.2
+git tag v1.5.0
+git push origin v1.5.0
 ```
 
 GitHub Actions baut dann die Mac- und die Webversion, startet die App zur Probe und hängt beides an ein neues Release.

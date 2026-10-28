@@ -6,8 +6,23 @@
   const wait = document.getElementById('wait');
   const hint = document.getElementById('hint');
 
+  // feste Texte der Seite in der Sprache der Anzeige
+  const I18n = window.HajimeI18n;
+  let lang = null;
+  function setLang(l) {
+    const want = I18n.resolve(l);
+    if (want === lang) return;
+    lang = want;
+    const t = I18n.make(want);
+    document.documentElement.lang = want;
+    ['wait', 'hint', 'soundHint'].forEach((id) => I18n.translateDom(document.getElementById(id), t));
+    document.title = t('Hajime – Anzeige');
+  }
+  setLang('');
+
   T.boardListen((view) => {
     wait.style.display = 'none';
+    if (view && view.settings) setLang(view.settings.langBoard);
     board.update(view);
   });
 

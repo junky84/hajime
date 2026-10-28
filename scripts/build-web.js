@@ -138,6 +138,11 @@ Anzeige für das Publikum:
   Im Anzeigefenster einmal klicken (sonst bleibt der Gong stumm) und
   doppelklicken für Vollbild.
 
+Matten im Netz:
+  Die Webversion kann keine Zentrale sein, sich aber als Matte mit einer
+  Zentrale (macOS-App) verbinden: Einstellungen -> Matten im Netz -> Matte,
+  Adresse der Zentrale und Turniercode eintragen.
+
 Daten:
   Einstellungen, Kampfliste und Protokoll speichert der Browser, nicht der
   Ordner. Für einen anderen Rechner oder Browser unter "Einstellungen" eine

@@ -49,8 +49,48 @@
     };
     t.lang = id;
     t.has = (key) => id === 'de' || !!(own[key] || en[key]);
+    t.phrase = (str) => phrase(str, t);
     return t;
   }
+
+  /*
+   * Zusammengesetzte Bezeichnungen, die als Daten gespeichert sind („Viertelfinale 2“,
+   * „Sieger HF 1“, „Matte 3“, „Pool A – Kampf 4“): bekannte Wörter einzeln übersetzen.
+   * Längere Wendungen zuerst, damit „Kampf um Platz 3“ nicht als „Kampf“ übersetzt wird.
+   */
+  const PHRASES = [
+    'Kampf um Platz 3',
+    'Sechzehntelfinale',
+    'Achtelfinale',
+    'Viertelfinale',
+    'Halbfinale',
+    'Finale',
+    'Trostrunde',
+    'Hinrunde',
+    'Rückrunde',
+    'Verlierer',
+    'Sieger',
+    'Freilos',
+    'falls nötig',
+    'Runde',
+    'Kampf',
+    'Platz',
+    'Matte',
+    'HF',
+    'VF',
+    'AF',
+  ];
+  const phraseRe = new RegExp('(^|[^\\p{L}])(' + PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![\\p{L}])', 'gu');
+  function phrase(str, t) {
+    if (str == null || str === '') return '';
+    const s = String(str);
+    if (t.lang === 'de') return s;
+    if (t.has(s)) return t(s);
+    return s.replace(phraseRe, (m, pre, w) => pre + t(w));
+  }
+
+  // Markiert Texte in Datentabellen für die Übersetzung (wird erst bei der Anzeige mit t() übersetzt)
+  root.N_ = (s) => s;
 
   /*
    * Feste Texte einer Seite übersetzen (Textknoten, title, placeholder, aria-label).
@@ -102,5 +142,5 @@
     }
   }
 
-  root.HajimeI18n = { register, languages, detect, resolve, make, translateDom };
+  root.HajimeI18n = { register, languages, detect, resolve, make, translateDom, PHRASES };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
