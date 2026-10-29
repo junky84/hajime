@@ -1535,7 +1535,7 @@ body.lvl-simple .decision:not(.need):not(.manual):not(.shown) {
   color: var(--ink);
   font-size: 14px;
 }
-.fw-box > div {
+.fw-box > div[data-fw] {
   display: flex;
   flex-direction: column;
   gap: 10px;

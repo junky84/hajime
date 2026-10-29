@@ -124,16 +124,20 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const hub = H.createHub({ code: '1', port: 0, beacon: false, name: 'Suchtest', tournament: 'Pokal' });
     await hub.start();
     const found = [];
-    const finder = H.createFinder((list) => found.push(list), null, { port: hub.port(), hosts: ['127.0.0.1', '127.0.0.2'], interval: 200, timeout: 300 });
-    await wait(600);
-    let last = found[found.length - 1] || [];
-    assert.ok(last.some((h) => h.name === 'Suchtest' && h.tournament === 'Pokal' && h.address === '127.0.0.1'), 'Zentrale nicht gefunden');
-    // Zentrale weg: nach zwei Durchgängen ohne Antwort aus der Liste
-    await hub.stop();
-    await wait(1500);
-    finder.stop();
-    last = found[found.length - 1] || [];
-    assert.strictEqual(last.length, 0, 'beendete Zentrale steht noch in der Liste');
+    const finder = H.createFinder((list) => found.push(list), null, { port: hub.port(), hosts: ['127.0.0.1', '192.0.2.1'], interval: 200, timeout: 500 });
+    try {
+      for (let i = 0; i < 50 && !found.length; i++) await wait(100);
+      let last = found[found.length - 1] || [];
+      assert.ok(last.some((h) => h.name === 'Suchtest' && h.tournament === 'Pokal' && /^127\./.test(h.address)), 'Zentrale nicht gefunden');
+      // Zentrale weg: nach zwei Durchgängen ohne Antwort aus der Liste
+      await hub.stop();
+      for (let i = 0; i < 60 && (found[found.length - 1] || []).length; i++) await wait(100);
+      last = found[found.length - 1] || [];
+      assert.strictEqual(last.length, 0, 'beendete Zentrale steht noch in der Liste');
+    } finally {
+      finder.stop();
+      await hub.stop();
+    }
   });
 
   await test('Suche: Adressbereich bleibt klein (höchstens /24 je Netzwerk)', () => {

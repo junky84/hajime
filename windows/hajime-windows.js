@@ -12,7 +12,7 @@
  *   --no-browser   kein Fenster öffnen (Tests)
  *   --stay         nicht beenden, wenn kein Fenster offen ist (Tests)
  *   --foreground   nicht in den Hintergrund wechseln (Fehlersuche)
- * Umgebung: HAJIME_UI_PORT, HAJIME_HUB_PORT, HAJIME_NO_BROWSER, HAJIME_FW_DEMO=missing|deny (nur für Tests und Screenshots)
+ * Umgebung: HAJIME_UI_PORT, HAJIME_HUB_PORT, HAJIME_NO_BROWSER, HAJIME_NAME (Name der Zentrale), HAJIME_FW_DEMO=missing|deny (nur für Tests und Screenshots)
  */
 'use strict';
 const http = require('http');
@@ -182,7 +182,7 @@ const OPS = {
     const h = NET.createHub({
       code: String(opts.code),
       tournament: opts.tournament || '',
-      name: opts.name || os.hostname(),
+      name: opts.name || process.env.HAJIME_NAME || os.hostname(),
       version: VERSION,
       port: HUB_PORT,
       log,

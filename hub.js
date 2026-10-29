@@ -389,13 +389,19 @@ function scanHosts() {
 function probe(host, port, timeout) {
   return new Promise((resolve) => {
     let done = false;
-    const finish = (v) => {
-      if (!done) {
-        done = true;
-        resolve(v);
-      }
-    };
-    const req = http.get({ host, port, path: '/hajime.json', timeout, agent: false }, (res) => {
+    let req = null;
+    // Gesamtzeit begrenzen (Verbindungsaufbau zu Adressen ohne Gerät dauert sonst lange)
+    const guard = setTimeout(() => {
+      finish(null);
+      if (req) req.destroy();
+    }, timeout);
+    function finish(v) {
+      if (done) return;
+      done = true;
+      clearTimeout(guard);
+      resolve(v);
+    }
+    req = http.get({ host, port, path: '/hajime.json', agent: false, headers: { Connection: 'close' } }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
         return finish(null);
@@ -414,10 +420,9 @@ function probe(host, port, timeout) {
           finish(null);
         }
       });
+      res.on('error', () => finish(null));
     });
-    req.on('timeout', () => req.destroy());
     req.on('error', () => finish(null));
-    req.on('close', () => finish(null));
   });
 }
 
@@ -453,7 +458,8 @@ function createFinder(onFound, log, opts) {
         const key = (m.name || host) + '|' + port;
         const prev = found.get(key);
         // dieselbe Zentrale über mehrere Wege (eigener Rechner, Netzwerk): Netzwerkadresse bevorzugen
-        const address = prev && host === '127.0.0.1' && prev.address !== '127.0.0.1' ? prev.address : host;
+        const loop = (a) => /^127\./.test(a);
+        const address = prev && loop(host) && !loop(prev.address) ? prev.address : host;
         const hub = { key, address, port, name: m.name || host, tournament: m.tournament || '', version: m.version || '', seenAt: Date.now(), missed: 0 };
         if (!prev || prev.address !== hub.address || prev.tournament !== hub.tournament || prev.name !== hub.name) changed = true;
         found.set(key, hub);
