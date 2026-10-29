@@ -2146,7 +2146,8 @@
   function updateFinder() {
     if (!NB || !NB.finderStart) return;
     const n = net();
-    const want = lvl('tournament') && n.role !== 'hub' && !(n.role === 'mat' && clientState === 'connected');
+    // erst suchen, wenn der Umfang „Turnier“ ausdrücklich gewählt ist (nicht schon beim Startdialog)
+    const want = state.settings.level === 'tournament' && n.role !== 'hub' && !(n.role === 'mat' && clientState === 'connected');
     if (want && !finderOn) {
       finderOn = true;
       finderSince = Date.now();
@@ -2301,7 +2302,7 @@
     dot.className = 'net-dot' + (n.role === 'mat' ? (clientState === 'connected' ? '' : clientState === 'rejected' ? ' err' : ' warn') : '');
     // Hinweis „Zentrale gefunden“
     const cand = foundHubs.find((h) => h.key !== bannerDismissed);
-    const showBanner = !!NB && lvl('tournament') && n.role !== 'hub' && !(n.role === 'mat' && clientState === 'connected') && !!cand && !(n.role === 'mat' && n.address === cand.address + ':' + cand.port);
+    const showBanner = !!NB && state.settings.level === 'tournament' && n.role !== 'hub' && !(n.role === 'mat' && clientState === 'connected') && !!cand && !(n.role === 'mat' && n.address === cand.address + ':' + cand.port);
     $('#netBanner').hidden = !showBanner;
     if (showBanner) {
       $('#netBannerText').textContent = t('Zentrale „{name}“ im Netz gefunden – diese Matte verbinden?', { name: cand.name + (cand.tournament ? ' · ' + cand.tournament : '') });
