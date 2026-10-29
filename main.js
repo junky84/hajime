@@ -399,7 +399,7 @@ const sendControl = (ch, data) => controlWin && !controlWin.isDestroyed() && con
 ipcMain.handle('hub-start', async (_e, opts) => {
   if (hub) {
     hub.update({ code: String(opts.code), tournament: opts.tournament || '' });
-    return { port: hub.port(), addresses: hub.addresses() };
+    return { port: hub.port(), addresses: hub.addresses(), name: hub.name() };
   }
   const h = NET.createHub({
     code: String(opts.code),
@@ -426,7 +426,12 @@ ipcMain.handle('hub-send', (_e, id, msg) => (hub ? hub.send(id, msg) : false));
 ipcMain.on('hub-overview', (_e, data) => hub && hub.setOverview(data));
 ipcMain.handle('finder-start', () => {
   if (!finder) finder = NET.createFinder((list) => sendControl('hubs-found', list), log);
+  else finder.rescan();
   return finder.list();
+});
+ipcMain.handle('finder-stop', () => {
+  if (finder) finder.stop();
+  finder = null;
 });
 ipcMain.handle('open-external', (_e, url) => {
   if (/^https?:\/\//.test(String(url))) shell.openExternal(url);

@@ -4,7 +4,9 @@
  *
  *  - HTTP  :47801  „/“ Übersicht aller Matten für Browser/Fernseher, „/overview.json“ deren Daten
  *  - WS    :47801/ws  Mattenrechner melden ihren Stand, die Zentrale schickt Kampflisten und Aufrufe
- *  - UDP   :47800  Die Zentrale ruft alle 2 s „Hier bin ich“ ins Netz (Broadcast), Matten hören zu
+ *  - Suche: Mattenrechner fragen die Nachbaradressen im eigenen Netz nach „/hajime.json“ (nur
+ *    ausgehende Verbindungen – deshalb braucht ein Mattenrechner keine Firewall-Freigabe)
+ *  - UDP   :47800  Die Zentrale ruft zusätzlich „Hier bin ich“ ins Netz (für Matten bis Version 1.5)
  *
  * Nur lokales Netz, kein Internet. Eine Matte muss den Turniercode kennen, sonst wird sie abgewiesen.
  */
@@ -133,6 +135,18 @@ class WsConn {
   }
 }
 
+/* WebSocket-Handshake für einen HTTP-Upgrade; liefert die Verbindung oder null */
+function acceptWs(req, socket, onText, onClose) {
+  const key = req.headers['sec-websocket-key'];
+  if (!key || String(req.headers.upgrade || '').toLowerCase() !== 'websocket') {
+    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+    return null;
+  }
+  const accept = crypto.createHash('sha1').update(key + GUID).digest('base64');
+  socket.write(['HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade', 'Sec-WebSocket-Accept: ' + accept, '', ''].join('\r\n'));
+  return new WsConn(socket, onText, onClose);
+}
+
 /* ---------- Netzwerk-Adressen ---------- */
 
 function ipv4s() {
@@ -171,7 +185,8 @@ function createHub(opts) {
   function page() {
     if (overviewPage == null) {
       try {
-        overviewPage = fs.readFileSync(path.join(__dirname, 'src', 'overview.html'), 'utf8');
+        const file = [path.join(__dirname, 'src', 'overview.html'), path.join(__dirname, 'app', 'overview.html')].find((f) => fs.existsSync(f));
+        overviewPage = fs.readFileSync(file, 'utf8');
       } catch (err) {
         overviewPage = '<!doctype html><meta charset="utf-8"><p>Übersicht nicht gefunden.</p>';
       }
@@ -299,7 +314,7 @@ function createHub(opts) {
       });
     }, 5000);
     log(`Zentrale gestartet auf Port ${port}`);
-    return { port, addresses: addresses() };
+    return { port, addresses: addresses(), name: info.name };
   }
 
   function addresses() {
@@ -331,6 +346,7 @@ function createHub(opts) {
     stop,
     addresses,
     port: () => port,
+    name: () => info.name,
     update(patch) {
       info = Object.assign(info, patch || {});
     },
@@ -348,74 +364,147 @@ function createHub(opts) {
 
 /* ---------- Suche nach Zentralen (Mattenrechner) ---------- */
 
-function createFinder(onFound, log) {
-  const found = new Map();
-  let sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-  sock.on('error', (err) => {
-    (log || (() => {}))('Suche nach der Zentrale nicht möglich: ' + err.message);
-    try {
-      sock.close();
-    } catch (e) {
-      /* egal */
-    }
-    sock = null;
+/*
+ * Adressen, die eine Matte nach einer Zentrale fragt: das eigene Netz (bei großen Netzen nur die
+ * 254 Nachbarn der eigenen Adresse) und der eigene Rechner.
+ */
+function scanHosts() {
+  const hosts = new Set(['127.0.0.1']);
+  const toInt = (ip) => ip.split('.').reduce((n, x) => n * 256 + Number(x), 0);
+  const toIp = (n) => [24, 16, 8, 0].map((sh) => Math.floor(n / 2 ** sh) % 256).join('.');
+  ipv4s().forEach((a) => {
+    const ip = toInt(a.address);
+    let bits = String(a.netmask)
+      .split('.')
+      .reduce((n, x) => n + Number(x).toString(2).replace(/0/g, '').length, 0);
+    if (bits < 24) bits = 24;
+    if (bits > 30) return;
+    const size = 2 ** (32 - bits);
+    const base = ip - (ip % size);
+    for (let h = base + 1; h < base + size - 1; h++) hosts.add(toIp(h));
   });
-  sock.on('message', (buf, rinfo) => {
-    let m;
-    try {
-      m = JSON.parse(buf.toString('utf8'));
-    } catch (err) {
-      return;
-    }
-    if (!m || m.hajime !== 1 || !m.port) return;
-    // dieselbe Zentrale über mehrere Wege (Loopback, Broadcast): nur einmal
-    const key = m.name + '|' + m.port;
-    const prev = found.get(key);
-    let address = rinfo.address;
-    if (prev && address === '127.0.0.1' && prev.address !== '127.0.0.1') address = prev.address;
-    const hub = { key, address, port: m.port, name: m.name || address, tournament: m.tournament || '', version: m.version || '', seenAt: Date.now() };
-    found.set(key, hub);
-    onFound(list());
-  });
-  sock.bind(DISCOVERY_PORT, () => {
-    // Multicast-Gruppe auf allen Netzwerken (und lokal) betreten
-    [null].concat(ipv4s().map((a) => a.address)).forEach((ifc) => {
-      try {
-        if (ifc) sock.addMembership(MULTICAST, ifc);
-        else sock.addMembership(MULTICAST);
-      } catch (err) {
-        /* Netzwerk ohne Multicast */
+  return Array.from(hosts);
+}
+
+function probe(host, port, timeout) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => {
+      if (!done) {
+        done = true;
+        resolve(v);
       }
-    });
-  });
-  const prune = setInterval(() => {
-    const now = Date.now();
-    let changed = false;
-    found.forEach((h, k) => {
-      if (now - h.seenAt > 8000) {
-        found.delete(k);
-        changed = true;
+    };
+    const req = http.get({ host, port, path: '/hajime.json', timeout, agent: false }, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        return finish(null);
       }
-    });
-    if (changed) onFound(list());
-  }, 3000);
-  function list() {
-    return Array.from(found.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }
-  return {
-    list,
-    stop() {
-      clearInterval(prune);
-      if (sock) {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (d) => {
+        body += d;
+        if (body.length > 4096) req.destroy();
+      });
+      res.on('end', () => {
         try {
-          sock.close();
-        } catch (e) {
-          /* egal */
+          const m = JSON.parse(body);
+          finish(m && m.hajime === 1 ? m : null);
+        } catch (err) {
+          finish(null);
+        }
+      });
+    });
+    req.on('timeout', () => req.destroy());
+    req.on('error', () => finish(null));
+    req.on('close', () => finish(null));
+  });
+}
+
+/*
+ * opts: { port, hosts (nur für Tests), interval, timeout }
+ * Sucht sofort, dann alle 8 s, nach zwei Minuten nur noch alle 30 s.
+ */
+function createFinder(onFound, log, opts) {
+  opts = opts || {};
+  const port = opts.port || HTTP_PORT;
+  const found = new Map(); // key → Zentrale
+  let stopped = false;
+  let timer = 0;
+  let running = null;
+  const started = Date.now();
+
+  function list() {
+    return Array.from(found.values())
+      .map((h) => ({ key: h.key, address: h.address, port: h.port, name: h.name, tournament: h.tournament, version: h.version, seenAt: h.seenAt }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async function scan() {
+    const hosts = opts.hosts || scanHosts();
+    const seen = new Set();
+    let changed = false;
+    let i = 0;
+    async function worker() {
+      while (!stopped && i < hosts.length) {
+        const host = hosts[i++];
+        const m = await probe(host, port, opts.timeout || 800);
+        if (!m || stopped) continue;
+        const key = (m.name || host) + '|' + port;
+        const prev = found.get(key);
+        // dieselbe Zentrale über mehrere Wege (eigener Rechner, Netzwerk): Netzwerkadresse bevorzugen
+        const address = prev && host === '127.0.0.1' && prev.address !== '127.0.0.1' ? prev.address : host;
+        const hub = { key, address, port, name: m.name || host, tournament: m.tournament || '', version: m.version || '', seenAt: Date.now(), missed: 0 };
+        if (!prev || prev.address !== hub.address || prev.tournament !== hub.tournament || prev.name !== hub.name) changed = true;
+        found.set(key, hub);
+        seen.add(key);
+        if (changed) {
+          changed = false;
+          onFound(list());
         }
       }
-      sock = null;
+    }
+    await Promise.all(Array.from({ length: Math.min(48, hosts.length) }, worker));
+    if (stopped) return;
+    // zweimal nicht mehr gefunden: aus der Liste nehmen
+    let removed = false;
+    found.forEach((h, k) => {
+      if (seen.has(k)) return;
+      h.missed++;
+      if (h.missed >= 2) {
+        found.delete(k);
+        removed = true;
+      }
+    });
+    if (removed) onFound(list());
+  }
+
+  function loop() {
+    if (stopped) return;
+    running = scan()
+      .catch((err) => (log || (() => {}))('Suche nach der Zentrale: ' + err.message))
+      .then(() => {
+        running = null;
+        if (stopped) return;
+        const every = opts.interval || (Date.now() - started < 120000 ? 8000 : 30000);
+        timer = setTimeout(loop, every);
+      });
+  }
+  loop();
+
+  return {
+    list,
+    // sofort neu suchen (Knopf „Erneut suchen“)
+    rescan() {
+      if (stopped || running) return;
+      clearTimeout(timer);
+      loop();
+    },
+    stop() {
+      stopped = true;
+      clearTimeout(timer);
     },
   };
 }
 
-module.exports = { createHub, createFinder, encodeFrame, DISCOVERY_PORT, HTTP_PORT };
+module.exports = { createHub, createFinder, scanHosts, acceptWs, WsConn, encodeFrame, DISCOVERY_PORT, HTTP_PORT };

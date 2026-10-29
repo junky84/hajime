@@ -432,6 +432,15 @@
                 </label>
                 <div id="netMatBox">
                   <div id="netFound" class="net-found"></div>
+                  <div class="fw-box warn" id="netNoHub" hidden>
+                    <h3>Noch keine Zentrale gefunden</h3>
+                    <ol>
+                      <li>Läuft Hajime auf dem Rechner der Turnierleitung, und steht dort „Zentrale“?</li>
+                      <li>Steht dort „✓ Freigegeben“?</li>
+                      <li>Sind beide Rechner im selben WLAN? Hallen- und Gäste-WLANs sperren oft Verbindungen zwischen Geräten – dann einen eigenen Router oder Handy-Hotspot nehmen.</li>
+                    </ol>
+                    <div class="btnrow"><button class="btn primary" id="btnNetRescan">Erneut suchen</button><button class="btn" id="btnNetManual">Adresse von Hand eingeben</button></div>
+                  </div>
                   <div class="row2">
                     <label>Adresse der Zentrale <input id="netAddress" placeholder="z. B. 192.168.1.20" autocomplete="off" /></label>
                     <label>Turniercode <input id="netCode" placeholder="4 Ziffern" maxlength="8" autocomplete="off" inputmode="numeric" /></label>
@@ -439,11 +448,34 @@
                   <div class="btnrow"><button class="btn primary" id="btnNetConnect">Verbinden</button><button class="btn" id="btnNetDisconnect">Trennen</button></div>
                 </div>
                 <div id="netHubBox">
-                  <div class="net-code"><span>Turniercode</span><b id="netHubCode">–</b><button class="btn" id="btnNetNewCode" title="Neuen Code erzeugen – verbundene Matten müssen ihn neu eingeben">Neuer Code</button></div>
+                  <div class="fw-box warn" id="netFw" hidden>
+                    <div data-fw="missing">
+                      <h3>⚠ Noch ein Schritt: Matten den Zugang erlauben</h3>
+                      <p>Windows lässt die Mattenrechner erst nach einer Freigabe auf diesen Rechner. Das ist nur einmal nötig.</p>
+                      <button class="btn primary big" id="btnFwAllow">Für die Matten freigeben</button>
+                      <p class="fw-hint">Danach fragt Windows: <i>„Möchten Sie zulassen, dass durch diese App Änderungen an Ihrem Gerät vorgenommen werden?“</i> → <b>Ja</b></p>
+                      <p class="fw-hint" id="netFwAsking" hidden><b>Windows fragt jetzt nach – bitte dort auf „Ja“ klicken.</b> Das Fenster ist eventuell hinter Hajime oder blinkt unten in der Taskleiste.</p>
+                    </div>
+                    <div data-fw="ok">
+                      <h3>✓ Freigegeben – die Matten können sich verbinden</h3>
+                      <p>Jetzt Hajime auf den Mattenrechnern starten. Sie finden diese Zentrale von selbst und fragen nach dem Turniercode.</p>
+                      <button class="btn small" id="btnFwRemove" title="Firewall-Regel „Hajime-Zentrale“ wieder löschen">Freigabe entfernen</button>
+                    </div>
+                    <div data-fw="failed">
+                      <h3>✕ Windows hat die Freigabe nicht erteilt</h3>
+                      <ol>
+                        <li><b>Auf „Nein“ geklickt?</b> Einfach noch einmal versuchen.</li>
+                        <li><b>Windows wollte ein Administrator-Passwort?</b> Dann ist das vermutlich ein Firmen- oder Schul-Laptop, der das nicht darf. Nehmt einen anderen Laptop als Zentrale – die Mattenrechner selbst brauchen keine Freigabe, dieser hier kann also Matte sein.</li>
+                      </ol>
+                      <div class="btnrow"><button class="btn primary" id="btnFwRetry">Noch einmal versuchen</button><button class="btn" id="btnFwAsMat">Diesen Rechner als Matte nutzen</button></div>
+                    </div>
+                  </div>
+                  <div class="net-code" id="netHubCodeRow"><span>Turniercode</span><b id="netHubCode">–</b><button class="btn" id="btnNetNewCode" title="Neuen Code erzeugen – verbundene Matten müssen ihn neu eingeben">Neuer Code</button></div>
+                  <p class="muted" id="netHubWait" hidden>Der Turniercode erscheint nach der Freigabe.</p>
                   <p class="muted" id="netHubAddr"></p>
                 </div>
                 <p class="net-status" id="netStatus"></p>
-                <p class="muted">Alle Rechner müssen im selben Netz sein. Hallen- und Gäste-WLANs blockieren oft die Verbindung zwischen Geräten – dann einen eigenen Router oder einen Handy-Hotspot nutzen. macOS fragt beim ersten Mal nach „Lokales Netzwerk“ bzw. eingehenden Verbindungen, Windows nach der Firewall: jeweils erlauben.</p>
+                <p class="muted">Alle Rechner müssen im selben WLAN sein. Hallen- und Gäste-WLANs blockieren oft die Verbindung zwischen Geräten – dann einen eigenen Router oder einen Handy-Hotspot nutzen. Auf dem Mac fragt macOS bei der Zentrale beim ersten Mal nach eingehenden Verbindungen bzw. dem lokalen Netzwerk: erlauben.</p>
               </div>
             </div>
             <h2>Daten</h2>
@@ -593,7 +625,7 @@
       <form method="dialog">
         <h3>Mit der Zentrale verbinden</h3>
         <p class="muted" id="dlgNetCodeInfo"></p>
-        <label>Turniercode (steht an der Zentrale unter Einstellungen) <input id="dlgNetCodeVal" maxlength="8" inputmode="numeric" autocomplete="off" /></label>
+        <label>Turniercode (steht groß auf dem Rechner der Turnierleitung) <input id="dlgNetCodeVal" maxlength="8" inputmode="numeric" autocomplete="off" /></label>
         <label>Diese Matte <input id="dlgNetMat" placeholder="Matte 1" autocomplete="off" /></label>
         <div class="btnrow"><button value="cancel" class="btn">Abbrechen</button><button value="ok" class="btn primary">Verbinden</button></div>
       </form>

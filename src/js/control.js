@@ -2004,6 +2004,8 @@
   /* ================= Matten im Netz ================= */
 
   const net = () => state.settings.net;
+  // Matten im Netz: Electron-App oder „Hajime für Windows“; die reine Webversion kann nur Matte sein
+  const NB = T.netBridge;
   let client = null; // Verbindung dieser Matte zur Zentrale
   let clientState = 'off';
   let hubInfo = null; // laufende Zentrale: { port, addresses }
@@ -2011,6 +2013,11 @@
   const hubMats = new Map(); // Zentrale: verbundene Matten
   let foundHubs = [];
   let bannerDismissed = '';
+  // Firewall-Freigabe der Zentrale (nur „Hajime für Windows“): '' | checking | missing | asking | ok | failed
+  let fwState = '';
+  let finderOn = false;
+  let finderSince = 0;
+  let finderTimer = 0;
   let sentResults = new Set();
   let statusTimer = 0;
   let lastStatusAt = 0;
@@ -2076,16 +2083,34 @@
     renderNet();
   }
 
-  // Zentrale starten/stoppen (nur Desktop-App)
+  // Zentrale starten/stoppen (Electron-App und „Hajime für Windows“)
   async function startHub() {
-    if (!T.isElectron || !T.bridge.hubStart) return;
+    if (!NB || !NB.hubStart) return;
     const n = net();
     if (!n.code) {
       n.code = newCode();
       save();
     }
+    // Windows: erst die Freigabe, sonst kommen die Matten nicht durch (und Windows fragt selbst dazwischen)
+    if (NB.firewallStatus && fwState !== 'ok') {
+      fwState = 'checking';
+      renderNet();
+      let st;
+      try {
+        st = await NB.firewallStatus();
+      } catch (err) {
+        st = { needed: false };
+      }
+      if (net().role !== 'hub') return;
+      if (st.needed && !st.ok) {
+        fwState = 'missing';
+        hubInfo = null;
+        return renderNet();
+      }
+      fwState = st.needed ? 'ok' : '';
+    }
     try {
-      hubInfo = await T.bridge.hubStart({ code: n.code, tournament: state.settings.tournament });
+      hubInfo = await NB.hubStart({ code: n.code, tournament: state.settings.tournament });
       hubError = '';
     } catch (err) {
       hubInfo = null;
@@ -2094,10 +2119,50 @@
     renderNet();
   }
   async function stopHub() {
-    if (T.isElectron && T.bridge.hubStop) await T.bridge.hubStop();
+    if (NB && NB.hubStop) await NB.hubStop();
     hubInfo = null;
     hubMats.clear();
     renderNet();
+  }
+  async function allowFirewall() {
+    fwState = 'asking';
+    renderNet();
+    let r;
+    try {
+      r = await NB.firewallAllow();
+    } catch (err) {
+      r = { ok: false };
+    }
+    if (r && r.ok) {
+      fwState = 'ok';
+      startHub();
+    } else {
+      fwState = 'failed';
+      renderNet();
+    }
+  }
+
+  // Suche nach der Zentrale: nur im Umfang „Turnier“, nicht auf der Zentrale und nicht, solange verbunden
+  function updateFinder() {
+    if (!NB || !NB.finderStart) return;
+    const n = net();
+    const want = lvl('tournament') && n.role !== 'hub' && !(n.role === 'mat' && clientState === 'connected');
+    if (want && !finderOn) {
+      finderOn = true;
+      finderSince = Date.now();
+      NB.finderStart()
+        .then((l) => {
+          foundHubs = l || [];
+          renderNet();
+        })
+        .catch(() => {});
+      clearTimeout(finderTimer);
+      finderTimer = setTimeout(renderNet, 7000);
+    } else if (!want && finderOn) {
+      finderOn = false;
+      foundHubs = [];
+      if (NB.finderStop) NB.finderStop().catch(() => {});
+    }
   }
 
   let hubTournament = null;
@@ -2106,9 +2171,9 @@
     // Turniername geändert: Zentrale ruft ihn neu ins Netz
     if (hubTournament !== state.settings.tournament) {
       hubTournament = state.settings.tournament;
-      T.bridge.hubStart({ code: net().code, tournament: hubTournament });
+      NB.hubStart({ code: net().code, tournament: hubTournament });
     }
-    T.bridge.hubOverview(N.overview(state, Array.from(hubMats.values()), Date.now()));
+    NB.hubOverview(N.overview(state, Array.from(hubMats.values()), Date.now()));
   }
   setInterval(() => {
     if (hubInfo) {
@@ -2117,8 +2182,8 @@
     }
   }, 1000);
 
-  if (T.isElectron && T.bridge.onHubEvent) {
-    T.bridge.onHubEvent((ev) => {
+  if (NB && NB.onHubEvent) {
+    NB.onHubEvent((ev) => {
       const now = Date.now();
       if (ev.type === 'hello') {
         // gleiche Matte neu verbunden: alten Eintrag ersetzen
@@ -2144,7 +2209,7 @@
       renderNetMats();
       pushOverview();
     });
-    T.bridge.onHubsFound((list) => {
+    NB.onHubsFound((list) => {
       foundHubs = list || [];
       renderNet();
     });
@@ -2152,7 +2217,7 @@
 
   function startNet() {
     const n = net();
-    if (T.isElectron && T.bridge.finderStart && n.role !== 'hub') T.bridge.finderStart().then((l) => ((foundHubs = l || []), renderNet()));
+    updateFinder();
     if (n.role === 'hub') startHub();
     if (n.role === 'mat') connectHub();
   }
@@ -2167,15 +2232,16 @@
   };
 
   function renderNet() {
+    updateFinder();
     const n = net();
     setVal($('#netRole'), n.role);
-    $('#netRole option[value="hub"]').disabled = !T.isElectron;
+    $('#netRole option[value="hub"]').disabled = !NB;
     $('#netMatBox').hidden = n.role !== 'mat';
     $('#netHubBox').hidden = n.role !== 'hub';
     setVal($('#netAddress'), n.address);
     setVal($('#netCode'), n.code);
     // gefundene Zentralen
-    const found = n.role === 'mat' && T.isElectron ? foundHubs : [];
+    const found = n.role === 'mat' && NB ? foundHubs : [];
     const fh = found
       .map((h) => `<div class="net-hub"><b>${esc(h.name)}${h.tournament ? ' · ' + esc(h.tournament) : ''}</b><small class="muted">${esc(h.address)}:${h.port}</small><button class="btn" data-hub="${esc(h.address + ':' + h.port)}">${esc(t('Übernehmen'))}</button></div>`)
       .join('');
@@ -2190,9 +2256,11 @@
       text = !n.address || !n.code ? t('Adresse und Turniercode eingeben (oder eine gefundene Zentrale übernehmen).') : t(STATUS_TEXT[clientState] || '');
       cls = clientState === 'connected' ? 'ok' : clientState === 'rejected' ? 'err' : clientState === 'off' || clientState === 'closed' ? '' : 'warn';
     } else if (n.role === 'hub') {
-      if (!T.isElectron) {
-        text = t('Die Webversion kann keine Zentrale sein – bitte die Desktop-App verwenden.');
+      if (!NB) {
+        text = t('Die Webversion kann keine Zentrale sein – bitte „Hajime für Windows“ oder die Mac-App verwenden.');
         cls = 'err';
+      } else if (['checking', 'missing', 'asking', 'failed'].includes(fwState)) {
+        text = '';
       } else if (hubError) {
         text = t('Zentrale konnte nicht gestartet werden: {msg}', { msg: hubError });
         cls = 'err';
@@ -2204,12 +2272,27 @@
     }
     $('#netStatus').textContent = text;
     $('#netStatus').className = 'net-status ' + cls;
+    // Firewall-Freigabe (Windows)
+    const fwShow = n.role === 'hub' && !!NB && ['missing', 'asking', 'ok', 'failed'].includes(fwState);
+    const fw = $('#netFw');
+    fw.hidden = !fwShow;
+    fw.className = 'fw-box ' + ({ missing: 'warn', asking: 'warn', ok: 'ok', failed: 'err' }[fwState] || '');
+    const fwPart = fwState === 'asking' ? 'missing' : fwState;
+    fw.querySelectorAll('[data-fw]').forEach((el) => (el.hidden = el.dataset.fw !== fwPart));
+    $('#btnFwAllow').disabled = fwState === 'asking';
+    $('#netFwAsking').hidden = fwState !== 'asking';
+    const waitFw = n.role === 'hub' && ['checking', 'missing', 'asking', 'failed'].includes(fwState);
+    $('#netHubCodeRow').hidden = waitFw;
+    $('#netHubWait').hidden = !(waitFw && fwState !== 'checking');
+    // Matte: noch keine Zentrale gefunden
+    const noHub = !!NB && finderOn && n.role === 'mat' && clientState !== 'connected' && !foundHubs.length && Date.now() - finderSince > 6000 && (!n.address || !n.code || clientState === 'waiting' || clientState === 'off');
+    $('#netNoHub').hidden = !noHub;
     $('#btnNetDisconnect').disabled = !client;
     $('#netHubCode').textContent = n.code || '–';
     const addr = hubInfo ? hubInfo.addresses.map((a) => `${a}:${hubInfo.port}`) : [];
     $('#netHubAddr').textContent = hubInfo
       ? addr.length
-        ? t('Adresse für die Matten: {addr}. Übersicht im Browser: http://{first}/', { addr: addr.join(', '), first: addr[0] })
+        ? t('Name: {name} · Adresse für Matten mit der Webversion: {addr} · Übersicht im Browser: http://{first}/', { name: hubInfo.name || '', addr: addr.join(', '), first: addr[0] })
         : t('Kein Netzwerk gefunden – Rechner mit dem WLAN oder Router verbinden.')
       : '';
     // Punkt am Reiter „Matten“
@@ -2218,7 +2301,7 @@
     dot.className = 'net-dot' + (n.role === 'mat' ? (clientState === 'connected' ? '' : clientState === 'rejected' ? ' err' : ' warn') : '');
     // Hinweis „Zentrale gefunden“
     const cand = foundHubs.find((h) => h.key !== bannerDismissed);
-    const showBanner = T.isElectron && lvl('tournament') && n.role !== 'hub' && !(n.role === 'mat' && clientState === 'connected') && !!cand && !(n.role === 'mat' && n.address === cand.address + ':' + cand.port);
+    const showBanner = !!NB && lvl('tournament') && n.role !== 'hub' && !(n.role === 'mat' && clientState === 'connected') && !!cand && !(n.role === 'mat' && n.address === cand.address + ':' + cand.port);
     $('#netBanner').hidden = !showBanner;
     if (showBanner) {
       $('#netBannerText').textContent = t('Zentrale „{name}“ im Netz gefunden – diese Matte verbinden?', { name: cand.name + (cand.tournament ? ' · ' + cand.tournament : '') });
@@ -2282,7 +2365,6 @@
       n.code = n.code || newCode();
       startHub();
     }
-    if (n.role !== 'hub' && T.isElectron && T.bridge.finderStart) T.bridge.finderStart().then((l) => ((foundHubs = l || []), renderNet()));
     commit();
     if (n.role === 'mat') connectHub();
   });
@@ -2323,7 +2405,7 @@
   $('#btnNetOverview').addEventListener('click', () => {
     if (!hubInfo) return;
     const url = `http://${hubInfo.addresses[0] || '127.0.0.1'}:${hubInfo.port}/`;
-    if (T.bridge.openExternal) T.bridge.openExternal(url);
+    if (NB && NB.openExternal) NB.openExternal(url);
     else window.open(url, '_blank');
   });
   $('#netMats').addEventListener('click', async (e) => {
@@ -2340,14 +2422,14 @@
     if (b.dataset.callsend) {
       const inp = $(`[data-callin="${CSS.escape(id)}"]`);
       const msg = inp ? inp.value.trim() : '';
-      await T.bridge.hubSend(id, { type: 'call', message: msg });
+      await NB.hubSend(id, { type: 'call', message: msg });
       if (inp) inp.value = '';
       b.blur();
     } else {
       const msg = N.fightsFor(state, m.mat);
       if (!msg.entries.length) return alert(t('In der Kampfliste der Zentrale gibt es keine Kämpfe für „{mat}“. Erst unter „Matten“ verteilen.', { mat: m.mat }));
       if (!confirm(t('{n} Kämpfe an „{mat}“ senden? Offene Kämpfe dort werden ersetzt, beendete bleiben.', { n: msg.entries.length, mat: m.mat }))) return;
-      await T.bridge.hubSend(id, msg);
+      await NB.hubSend(id, msg);
     }
   });
   $('#netMats').addEventListener('keydown', (e) => {
@@ -2357,6 +2439,37 @@
       $(`[data-callsend="${CSS.escape(inp.dataset.callin)}"]`).click();
     }
   });
+  // Firewall-Freigabe (Windows)
+  $('#btnFwAllow').addEventListener('click', allowFirewall);
+  $('#btnFwRetry').addEventListener('click', allowFirewall);
+  $('#btnFwAsMat').addEventListener('click', () => {
+    const sel = $('#netRole');
+    sel.value = 'mat';
+    sel.dispatchEvent(new Event('change'));
+  });
+  $('#btnFwRemove').addEventListener('click', async () => {
+    if (!confirm(t('Freigabe entfernen? Danach können sich keine Matten mehr mit diesem Rechner verbinden, bis du wieder freigibst.'))) return;
+    let r;
+    try {
+      r = await NB.firewallRemove();
+    } catch (err) {
+      r = { ok: false };
+    }
+    if (!r || !r.ok) return;
+    await stopHub();
+    fwState = 'missing';
+    renderNet();
+  });
+  // Matte: keine Zentrale gefunden
+  $('#btnNetRescan').addEventListener('click', () => {
+    finderSince = Date.now();
+    renderNet();
+    if (NB && NB.finderStart) NB.finderStart().catch(() => {});
+    clearTimeout(finderTimer);
+    finderTimer = setTimeout(renderNet, 7000);
+  });
+  $('#btnNetManual').addEventListener('click', () => $('#netAddress').focus());
+
   // Banner „Zentrale gefunden – verbinden?“
   $('#btnNetBannerNo').addEventListener('click', () => {
     bannerDismissed = $('#netBanner').dataset.hub;

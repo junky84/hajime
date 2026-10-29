@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('judoBridge', {
   onHubEvent: (cb) => ipcRenderer.on('hub-event', (_e, ev) => cb(ev)),
   // Suche nach einer Zentrale im Netz
   finderStart: () => ipcRenderer.invoke('finder-start'),
+  finderStop: () => ipcRenderer.invoke('finder-stop'),
   onHubsFound: (cb) => ipcRenderer.on('hubs-found', (_e, list) => cb(list)),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });

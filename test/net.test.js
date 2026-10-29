@@ -120,16 +120,26 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await hub.stop();
   });
 
-  await test('Suche: Zentrale ruft, Matte findet sie', async () => {
-    const hub = H.createHub({ code: '1', port: 0, name: 'Suchtest' });
-    const found = [];
-    const finder = H.createFinder((list) => found.push(list));
+  await test('Suche: Matte fragt die Adressen ab und findet die Zentrale', async () => {
+    const hub = H.createHub({ code: '1', port: 0, beacon: false, name: 'Suchtest', tournament: 'Pokal' });
     await hub.start();
-    await wait(2500);
-    finder.stop();
+    const found = [];
+    const finder = H.createFinder((list) => found.push(list), null, { port: hub.port(), hosts: ['127.0.0.1', '127.0.0.2'], interval: 200, timeout: 300 });
+    await wait(600);
+    let last = found[found.length - 1] || [];
+    assert.ok(last.some((h) => h.name === 'Suchtest' && h.tournament === 'Pokal' && h.address === '127.0.0.1'), 'Zentrale nicht gefunden');
+    // Zentrale weg: nach zwei Durchgängen ohne Antwort aus der Liste
     await hub.stop();
-    const last = found[found.length - 1] || [];
-    assert.ok(last.some((h) => h.name === 'Suchtest'), 'Zentrale nicht gefunden');
+    await wait(1500);
+    finder.stop();
+    last = found[found.length - 1] || [];
+    assert.strictEqual(last.length, 0, 'beendete Zentrale steht noch in der Liste');
+  });
+
+  await test('Suche: Adressbereich bleibt klein (höchstens /24 je Netzwerk)', () => {
+    const hosts = H.scanHosts();
+    assert.ok(hosts.includes('127.0.0.1'));
+    assert.ok(hosts.length <= 1 + 254 * 8, 'zu viele Adressen: ' + hosts.length);
   });
 
   console.log(`\n${passed} Tests bestanden`);

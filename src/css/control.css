@@ -1523,6 +1523,64 @@ body.lvl-simple .decision:not(.need):not(.manual):not(.shown) {
   flex: 1;
 }
 
+/* Hinweiskästen: Firewall-Freigabe der Zentrale, keine Zentrale gefunden */
+.fw-box {
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 14px;
+}
+.fw-box > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fw-box.warn {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.55);
+}
+.fw-box.ok {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.5);
+}
+.fw-box.err {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.55);
+}
+.fw-box h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.fw-box p {
+  margin: 0;
+  line-height: 1.45;
+}
+.fw-box ol {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+.fw-box .btn.big {
+  font-size: 16px;
+  padding: 11px 18px;
+  align-self: flex-start;
+  font-weight: 700;
+}
+.fw-box .btn.small {
+  align-self: flex-start;
+  font-size: 12px;
+  padding: 4px 10px;
+}
+.fw-hint {
+  font-size: 13px;
+  color: #c9d1df;
+}
+
 /* „hidden“ gilt immer, auch wenn eine Klasse display setzt */
 [hidden] {
   display: none !important;

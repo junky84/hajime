@@ -1,7 +1,7 @@
 /*
  * Verbindung Bedienfenster <-> Anzeigefenster.
  * Electron: IPC über preload.js (window.judoBridge).
- * Browser (Notbetrieb ohne Installation): Popup-Fenster + postMessage.
+ * Browser (Webversion und „Hajime für Windows“): Popup-Fenster + postMessage.
  */
 (function (root) {
   'use strict';
@@ -153,6 +153,8 @@
   root.JudoTransport = {
     isElectron,
     bridge: E,
+    // Matten im Netz: Electron-App oder „Hajime für Windows“ (native.js); die reine Webversion hat keins
+    netBridge: E || root.judoNative || null,
     boardListen,
     toggleFullscreen,
     send,
