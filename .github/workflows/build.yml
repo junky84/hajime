@@ -85,8 +85,10 @@ jobs:
       - name: node.exe von nodejs.org laden und prüfen (Prüfsumme, Signatur der OpenJS Foundation)
         shell: pwsh
         run: |
-          $rel = Invoke-RestMethod https://nodejs.org/dist/index.json | Where-Object { $_.lts } | Select-Object -First 1
-          $v = $rel.version
+          # erst in eine Variable: Invoke-RestMethod gibt die Liste sonst als ein Objekt weiter
+          $all = Invoke-RestMethod https://nodejs.org/dist/index.json
+          $v = ($all | Where-Object { $_.lts } | Select-Object -First 1).version
+          if (-not $v) { throw 'Keine LTS-Version gefunden' }
           Write-Host "Node.js $v (LTS)"
           Invoke-WebRequest "https://nodejs.org/dist/$v/win-x64/node.exe" -OutFile node.exe
           $sums = (Invoke-WebRequest "https://nodejs.org/dist/$v/SHASUMS256.txt").Content
@@ -96,8 +98,10 @@ jobs:
           $sig = Get-AuthenticodeSignature node.exe
           Write-Host "Signatur: $($sig.Status) $($sig.SignerCertificate.Subject)"
           if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'OpenJS') { throw 'node.exe ist nicht gültig signiert' }
+          # Lizenztext muss mit node.exe weitergegeben werden
+          Invoke-WebRequest "https://raw.githubusercontent.com/nodejs/node/$v/LICENSE" -OutFile node-LICENSE.txt
       - name: Paket bauen
-        run: node scripts/build-windows.js --node node.exe
+        run: node scripts/build-windows.js --node node.exe --node-license node-LICENSE.txt
       - name: Starttest (Start, Freigabe, Zentrale, Suche, Edge)
         run: node scripts/windows-smoketest.js
       - name: Starttest-Ergebnisse hochladen

@@ -44,6 +44,12 @@ process.on('uncaughtException', (err) => {
 
 // Zweite Instanz zum Testen der Vernetzung auf einem Rechner: HAJIME_USERDATA=<Ordner>
 if (process.env.HAJIME_USERDATA) app.setPath('userData', path.resolve(process.env.HAJIME_USERDATA));
+// Screenshots nie mit den echten Daten der App: eigener, frischer Ordner
+else if (process.env.HAJIME_SCREENSHOTS) {
+  const shotData = path.join(require('os').tmpdir(), 'hajime-screenshots');
+  fs.rmSync(shotData, { recursive: true, force: true });
+  app.setPath('userData', shotData);
+}
 
 // Portable Windows-Version: Daten neben der .exe ablegen statt im Benutzerprofil –
 // nur wenn der Ordner beschreibbar ist (z. B. nicht direkt aus einem ZIP oder schreibgeschützten Stick).

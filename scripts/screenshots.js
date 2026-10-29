@@ -18,6 +18,8 @@ module.exports = async function run({ getControl, getBoard, quit }) {
   await wait(800);
 
   const js = (code) => ctl.webContents.executeJavaScript(`(async () => { ${code} })()`);
+  // Hinweis „Zentrale gefunden“ (falls im Netz gerade eine läuft) gehört nicht in die Bilder
+  await ctl.webContents.insertCSS('#netBanner { display: none !important; }');
   const shot = async (win, name) => {
     await wait(700);
     // echte Monitornamen des Rechners nicht in die öffentlichen Bilder übernehmen
